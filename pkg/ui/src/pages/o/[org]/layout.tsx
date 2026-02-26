@@ -1,13 +1,22 @@
+import { useAuth, useOrganizationList, OrganizationSwitcher, SignedIn } from "@clerk/react-router";
 import {
-  useAuth,
-  useOrganizationList,
-  OrganizationSwitcher,
-  SignedIn,
-} from "@clerk/react-router";
-import { IconBriefcase, IconChartBar, IconPlus, IconSettings, IconUsers } from "@tabler/icons-react";
+  IconBriefcase,
+  IconChartBar,
+  IconPlus,
+  IconSettings,
+  IconUsers,
+} from "@tabler/icons-react";
 import { capitalCase } from "change-case";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import { Logo } from "@/components/custom/logo";
 import { Button } from "@/components/ui/button";
@@ -40,6 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
+import { DropdownMenu } from "src/components/ui/dropdown-menu";
 
 const navItems = [
   { label: "Overview", icon: IconChartBar, segment: "overview" },
@@ -144,7 +154,9 @@ export function Layout() {
     navItems.find((item) => item.segment === activeSegment)?.label ?? capitalCase(activeSegment);
 
   const memberships = userMemberships.data ?? [];
-  const selectableMemberships = memberships.filter((membership) => Boolean(membership.organization.slug));
+  const selectableMemberships = memberships.filter((membership) =>
+    Boolean(membership.organization.slug),
+  );
   const matchingMembership =
     memberships.find((membership) => membership.organization.slug === orgSlug) ?? null;
   const routeMatchesActiveOrg = activeOrgSlug === orgSlug;
@@ -332,23 +344,25 @@ export function Layout() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-
         </SidebarContent>
 
-        <SidebarFooter className="text-xs text-muted-foreground">
-          <p className="truncate">@{orgSlug}</p>
+        <SidebarFooter>
+          <DropdownMenu></DropdownMenu>
         </SidebarFooter>
 
         <SidebarRail />
       </Sidebar>
 
       <SidebarInset>
-        <header className="border-b px-4 py-3 lg:px-6">
+        <header className="sticky top-0 z-20 border-b bg-background/85 px-4 py-3 backdrop-blur-sm lg:px-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
               <Separator orientation="vertical" />
-              <p className="text-sm font-medium">{activeTitle}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{activeTitle}</p>
+                <p className="truncate text-xs text-muted-foreground">@{orgSlug}</p>
+              </div>
             </div>
             <SignedIn>
               <div className="hidden sm:block">
@@ -358,8 +372,18 @@ export function Layout() {
           </div>
         </header>
 
-        <div className="p-8">
-          <Outlet />
+        <div className="relative min-h-[calc(100svh-57px)]">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-30"
+            aria-hidden="true"
+            style={{
+              background:
+                "radial-gradient(circle at 12% 8%, color-mix(in oklab, var(--primary) 9%, transparent), transparent 45%), radial-gradient(circle at 88% 0%, color-mix(in oklab, var(--foreground) 4%, transparent), transparent 38%)",
+            }}
+          />
+          <div className="relative mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+            <Outlet />
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
