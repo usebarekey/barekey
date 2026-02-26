@@ -38,13 +38,23 @@ export function Page() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const createProject = useMutation(api.projects.createForCurrentOrg);
+  const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
+    expectedOrgSlug: orgSlug,
+  });
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
+  const isOrgSyncing =
+    orgClaims === undefined ||
+    !orgClaims.isSignedIn ||
+    orgClaims.orgId === null ||
+    !orgClaims.routeMatchesActiveOrg;
+  const isCreateDisabled =
+    isSubmitting || isOrgSyncing || name.trim().length === 0;
 
   async function handleCreateProject() {
     const trimmedName = name.trim();
-    if (trimmedName.length === 0 || isSubmitting) {
+    if (trimmedName.length === 0 || isSubmitting || isOrgSyncing) {
       return;
     }
 
@@ -87,7 +97,7 @@ export function Page() {
             <Input
               ref={inputRef}
               value={name}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isOrgSyncing}
               placeholder="Project name"
               onChange={(event) => setName(event.currentTarget.value)}
               onKeyDown={(event) => {
@@ -99,7 +109,7 @@ export function Page() {
             />
             <Button
               className="sm:self-start"
-              disabled={isSubmitting || name.trim().length === 0}
+              disabled={isCreateDisabled}
               onClick={handleCreateProject}
             >
               <IconPlus />
@@ -122,6 +132,10 @@ export function Page() {
           <div className="rounded-xl border p-4 text-sm text-muted-foreground">
             Loading projects...
           </div>
+        ) : isOrgSyncing ? (
+          <div className="rounded-xl border p-4 text-sm text-muted-foreground">
+            Syncing active organization...
+          </div>
         ) : projects.length === 0 ? (
           <Empty>
             <EmptyHeader>
@@ -135,7 +149,10 @@ export function Page() {
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button disabled={isSubmitting} onClick={() => inputRef.current?.focus()}>
+              <Button
+                disabled={isSubmitting || isOrgSyncing}
+                onClick={() => inputRef.current?.focus()}
+              >
                 <IconPlus />
                 New project
               </Button>

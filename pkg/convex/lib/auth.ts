@@ -62,6 +62,21 @@ export function requireActiveOrgClaims(identity: UserIdentity): ActiveOrgClaims 
   };
 }
 
+export function getActiveOrgClaimsOrNull(identity: UserIdentity): ActiveOrgClaims | null {
+  const claims = getOrgClaimsFromIdentity(identity);
+
+  if (claims.orgId === null || claims.orgSlug === null) {
+    return null;
+  }
+
+  return {
+    clerkUserId: claims.clerkUserId,
+    orgId: claims.orgId,
+    orgSlug: claims.orgSlug,
+    orgRole: claims.orgRole,
+  };
+}
+
 export function assertExpectedOrgSlug(
   claims: { orgSlug: string | null },
   expectedOrgSlug: string | null,
