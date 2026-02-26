@@ -1,9 +1,23 @@
-import { useAuth, useOrganizationList, OrganizationSwitcher, SignedIn } from "@clerk/react-router";
 import {
+  useAuth,
+  useClerk,
+  useOrganizationList,
+  OrganizationSwitcher,
+  SignedIn,
+  useUser,
+} from "@clerk/react-router";
+import { useQuery } from "convex/react";
+import {
+  IconChevronUp,
   IconBriefcase,
   IconChartBar,
+  IconCoin,
+  IconCreditCard,
+  IconLogout2,
   IconPlus,
   IconSettings,
+  IconSettingsCog,
+  IconUserCircle,
   IconUsers,
 } from "@tabler/icons-react";
 import { capitalCase } from "change-case";
@@ -19,6 +33,7 @@ import {
 } from "react-router-dom";
 
 import { Logo } from "@/components/custom/logo";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -48,7 +63,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
+import { api } from "@convex/_generated/api";
 
 const navItems = [
   { label: "Overview", icon: IconChartBar, segment: "overview" },
@@ -125,6 +151,134 @@ function OrgSelectTriggerContent({
       </Avatar>
       <span className="truncate text-sm">{name}</span>
     </div>
+  );
+}
+
+function SidebarUserMenu() {
+  const navigate = useNavigate();
+  const { user } = useUser();
+  const clerk = useClerk();
+  const currentUser = useQuery(api.users.getCurrentUser, {});
+
+  const displayName =
+    user?.fullName?.trim() || user?.username?.trim() || user?.firstName?.trim() || "Account";
+  const email =
+    user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? null;
+  const avatarSeed = user?.id ?? currentUser?.slug ?? "user";
+  const avatarSrc = user?.imageUrl ?? generateGradientDataUrl(avatarSeed, { size: 96 });
+  const userPath = currentUser?.slug ? `/u/${currentUser.slug}/overview` : null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={
+          "ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/40 p-2 text-left outline-hidden transition-colors group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1"
+        }
+      >
+        <Avatar size="sm" className="border-sidebar-border group-data-[collapsible=icon]:size-6">
+          <AvatarImage src={avatarSrc} />
+          <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+          <p className="truncate text-sm font-medium">{displayName}</p>
+          <p className="truncate text-xs text-sidebar-foreground/70">{email ?? "No email"}</p>
+        </div>
+        <IconChevronUp className="size-4 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        side="top"
+        align="start"
+        sideOffset={8}
+        className="w-72 min-w-72 rounded-xl p-1.5"
+      >
+        <DropdownMenuLabel className="px-2 py-2">
+          <div className="flex items-center gap-3">
+            <Avatar>
+              <AvatarImage src={avatarSrc} />
+              <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">{email ?? "No email"}</p>
+            </div>
+          </div>
+        </DropdownMenuLabel>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => {
+              if (userPath) {
+                void navigate(userPath);
+              }
+            }}
+            disabled={userPath === null}
+          >
+            <IconUserCircle />
+            <span>Account overview</span>
+            <DropdownMenuShortcut>U</DropdownMenuShortcut>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onClick={() => {
+              if (userPath) {
+                void navigate(`${userPath}?panel=settings`);
+              }
+            }}
+            disabled={userPath === null}
+          >
+            <IconSettingsCog />
+            <span>User settings</span>
+            <Badge variant="outline" className="ml-auto h-4 px-1 text-[10px]">
+              Soon
+            </Badge>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onClick={() => {
+              if (userPath) {
+                void navigate(`${userPath}?panel=billing`);
+              }
+            }}
+            disabled={userPath === null}
+          >
+            <IconCreditCard />
+            <span>Billing</span>
+            <Badge variant="outline" className="ml-auto h-4 px-1 text-[10px]">
+              Soon
+            </Badge>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => {
+              void navigate("/o/select");
+            }}
+          >
+            <IconCoin />
+            <span>Switch workspace</span>
+            <DropdownMenuShortcut>O</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => {
+              void clerk.signOut({
+                redirectUrl: "/auth/sso",
+              });
+            }}
+          >
+            <IconLogout2 />
+            <span>Log out</span>
+            <DropdownMenuShortcut>⇧Q</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -345,8 +499,8 @@ export function Layout() {
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter className="text-xs text-muted-foreground">
-          <p className="truncate">@{orgSlug}</p>
+        <SidebarFooter>
+          <SidebarUserMenu />
         </SidebarFooter>
 
         <SidebarRail />
