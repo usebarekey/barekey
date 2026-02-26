@@ -20,6 +20,13 @@ export type ActiveOrgClaims = {
   orgRole: string | null;
 };
 
+export type ActiveOrgIdClaims = {
+  clerkUserId: string;
+  orgId: string;
+  orgSlug: string | null;
+  orgRole: string | null;
+};
+
 function readStringClaim(identity: UserIdentity, key: string): string | null {
   const value = identity[key];
   return typeof value === "string" ? value : null;
@@ -66,6 +73,36 @@ export function getActiveOrgClaimsOrNull(identity: UserIdentity): ActiveOrgClaim
   const claims = getOrgClaimsFromIdentity(identity);
 
   if (claims.orgId === null || claims.orgSlug === null) {
+    return null;
+  }
+
+  return {
+    clerkUserId: claims.clerkUserId,
+    orgId: claims.orgId,
+    orgSlug: claims.orgSlug,
+    orgRole: claims.orgRole,
+  };
+}
+
+export function requireActiveOrgIdClaims(identity: UserIdentity): ActiveOrgIdClaims {
+  const claims = getOrgClaimsFromIdentity(identity);
+
+  if (claims.orgId === null) {
+    throw new Error("No active organization selected.");
+  }
+
+  return {
+    clerkUserId: claims.clerkUserId,
+    orgId: claims.orgId,
+    orgSlug: claims.orgSlug,
+    orgRole: claims.orgRole,
+  };
+}
+
+export function getActiveOrgIdClaimsOrNull(identity: UserIdentity): ActiveOrgIdClaims | null {
+  const claims = getOrgClaimsFromIdentity(identity);
+
+  if (claims.orgId === null) {
     return null;
   }
 

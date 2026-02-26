@@ -44,17 +44,15 @@ export function Page() {
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
-  const isOrgSyncing =
-    orgClaims === undefined ||
-    !orgClaims.isSignedIn ||
-    orgClaims.orgId === null ||
-    !orgClaims.routeMatchesActiveOrg;
+  const isClaimsLoading = orgClaims === undefined;
+  const isMissingOrgClaims =
+    orgClaims !== undefined && orgClaims.isSignedIn && orgClaims.orgId === null;
   const isCreateDisabled =
-    isSubmitting || isOrgSyncing || name.trim().length === 0;
+    isSubmitting || isClaimsLoading || isMissingOrgClaims || name.trim().length === 0;
 
   async function handleCreateProject() {
     const trimmedName = name.trim();
-    if (trimmedName.length === 0 || isSubmitting || isOrgSyncing) {
+    if (trimmedName.length === 0 || isSubmitting || isClaimsLoading || isMissingOrgClaims) {
       return;
     }
 
@@ -97,7 +95,7 @@ export function Page() {
             <Input
               ref={inputRef}
               value={name}
-              disabled={isSubmitting || isOrgSyncing}
+              disabled={isSubmitting || isClaimsLoading || isMissingOrgClaims}
               placeholder="Project name"
               onChange={(event) => setName(event.currentTarget.value)}
               onKeyDown={(event) => {
@@ -132,9 +130,11 @@ export function Page() {
           <div className="rounded-xl border p-4 text-sm text-muted-foreground">
             Loading projects...
           </div>
-        ) : isOrgSyncing ? (
+        ) : isMissingOrgClaims ? (
           <div className="rounded-xl border p-4 text-sm text-muted-foreground">
-            Syncing active organization...
+            Convex is authenticated, but the token does not include an active organization claim
+            (`org_id`). Projects are org-scoped, so project creation/listing is disabled until
+            org claims are present in the Convex identity.
           </div>
         ) : projects.length === 0 ? (
           <Empty>
@@ -150,7 +150,7 @@ export function Page() {
             </EmptyHeader>
             <EmptyContent>
               <Button
-                disabled={isSubmitting || isOrgSyncing}
+                disabled={isSubmitting || isClaimsLoading || isMissingOrgClaims}
                 onClick={() => inputRef.current?.focus()}
               >
                 <IconPlus />
