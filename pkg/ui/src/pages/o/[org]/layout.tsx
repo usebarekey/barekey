@@ -49,7 +49,6 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
-import { DropdownMenu } from "src/components/ui/dropdown-menu";
 
 const navItems = [
   { label: "Overview", icon: IconChartBar, segment: "overview" },
@@ -346,8 +345,8 @@ export function Layout() {
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter>
-          <DropdownMenu></DropdownMenu>
+        <SidebarFooter className="text-xs text-muted-foreground">
+          <p className="truncate">@{orgSlug}</p>
         </SidebarFooter>
 
         <SidebarRail />
