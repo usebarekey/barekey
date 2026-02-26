@@ -108,11 +108,16 @@ export function Page() {
         }
         actions={
           <>
-            <Button size="sm" render={<Link to={`/o/${orgSlug}/projects`} />}>
+            <Button size="sm" nativeButton={false} render={<Link to={`/o/${orgSlug}/projects`} />}>
               <IconBriefcase />
               Open projects
             </Button>
-            <Button size="sm" variant="outline" render={<Link to={`/o/${orgSlug}/members`} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link to={`/o/${orgSlug}/members`} />}
+            >
               <IconUsers />
               Review members
             </Button>
@@ -158,7 +163,12 @@ export function Page() {
           title="Recent projects"
           description="Newest projects in this workspace, scoped by active organization."
           action={
-            <Button size="sm" variant="outline" render={<Link to={`/o/${orgSlug}/projects`} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link to={`/o/${orgSlug}/projects`} />}
+            >
               View all
               <IconArrowRight />
             </Button>
@@ -250,7 +260,12 @@ export function Page() {
             title="Team snapshot"
             description="Quick glance at who currently has access and the invite pipeline."
             action={
-              <Button size="sm" variant="ghost" render={<Link to={`/o/${orgSlug}/members`} />}>
+              <Button
+                size="sm"
+                variant="ghost"
+                nativeButton={false}
+                render={<Link to={`/o/${orgSlug}/members`} />}
+              >
                 Manage
                 <IconArrowRight />
               </Button>

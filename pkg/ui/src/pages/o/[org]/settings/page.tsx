@@ -69,11 +69,16 @@ export function Page() {
         }
         actions={
           <>
-            <Button size="sm" variant="outline" render={<Link to={`/o/${orgSlug}/members`} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link to={`/o/${orgSlug}/members`} />}
+            >
               <IconDoorEnter />
               Members
             </Button>
-            <Button size="sm" render={<Link to={`/o/${orgSlug}/projects`} />}>
+            <Button size="sm" nativeButton={false} render={<Link to={`/o/${orgSlug}/projects`} />}>
               <IconArrowRight />
               Projects
             </Button>
@@ -172,15 +177,30 @@ export function Page() {
 
           <OrgSectionCard title="Navigation" description="Workspace admin shortcuts.">
             <div className="grid gap-2">
-              <Button variant="outline" className="justify-between" render={<Link to={`/o/${orgSlug}/overview`} />}>
+              <Button
+                variant="outline"
+                className="justify-between"
+                nativeButton={false}
+                render={<Link to={`/o/${orgSlug}/overview`} />}
+              >
                 Workspace overview
                 <IconArrowRight />
               </Button>
-              <Button variant="outline" className="justify-between" render={<Link to={`/o/${orgSlug}/members`} />}>
+              <Button
+                variant="outline"
+                className="justify-between"
+                nativeButton={false}
+                render={<Link to={`/o/${orgSlug}/members`} />}
+              >
                 Members and invites
                 <IconArrowRight />
               </Button>
-              <Button variant="outline" className="justify-between" render={<Link to={`/o/${orgSlug}/projects`} />}>
+              <Button
+                variant="outline"
+                className="justify-between"
+                nativeButton={false}
+                render={<Link to={`/o/${orgSlug}/projects`} />}
+              >
                 Project inventory
                 <IconArrowRight />
               </Button>
@@ -209,4 +229,3 @@ export function Page() {
     </div>
   );
 }
-

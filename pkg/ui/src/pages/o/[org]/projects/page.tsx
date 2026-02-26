@@ -136,7 +136,12 @@ export function Page() {
               <IconFolderPlus />
               New project
             </Button>
-            <Button size="sm" variant="outline" render={<Link to={`/o/${orgSlug}/members`} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link to={`/o/${orgSlug}/members`} />}
+            >
               <IconUsers />
               Members
             </Button>
@@ -325,6 +330,7 @@ export function Page() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          nativeButton={false}
                           render={<Link to={`/o/${orgSlug}/overview`} />}
                           className="h-6 px-2"
                         >
@@ -342,4 +348,3 @@ export function Page() {
     </div>
   );
 }
-
