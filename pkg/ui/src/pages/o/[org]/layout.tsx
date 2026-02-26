@@ -3,7 +3,6 @@ import {
   useOrganizationList,
   OrganizationSwitcher,
   SignedIn,
-  SignedOut,
 } from "@clerk/react-router";
 import { IconBriefcase, IconChartBar, IconPlus, IconSettings, IconUsers } from "@tabler/icons-react";
 import { capitalCase } from "change-case";

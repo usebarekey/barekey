@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "lint": "eslint .",
+    "lint": "oxlint --config ../../.config/oxlint.json --ignore-path ../../.config/.oxlintignore .",
     "preview": "vite preview"
   },
   "dependencies": {
