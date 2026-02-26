@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
 
 export function Page() {
@@ -16,7 +17,7 @@ export function Page() {
 
   async function handleCreate() {
     const trimmedName = name.trim();
-    if (!isLoaded || trimmedName.length === 0) {
+    if (!isLoaded || isSubmitting || trimmedName.length === 0) {
       return;
     }
 
@@ -35,6 +36,10 @@ export function Page() {
           });
           break;
         } catch (error: unknown) {
+          if (!isClerkIdentifierExistsError(error)) {
+            throw error;
+          }
+
           lastError = error;
         }
       }
@@ -52,7 +57,7 @@ export function Page() {
         { replace: true },
       );
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to create organization.");
+      setErrorMessage(getClerkErrorMessage(error, "Unable to create organization."));
     } finally {
       setIsSubmitting(false);
     }
@@ -86,6 +91,7 @@ export function Page() {
                   id="org-name"
                   placeholder={user?.fullName ? `${user.fullName}'s Organization` : "My Organization"}
                   value={name}
+                  disabled={isSubmitting}
                   onChange={(event) => setName(event.currentTarget.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {

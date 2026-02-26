@@ -3,6 +3,7 @@ import slugify from "slugify";
 const RESERVED_USER_SLUG_BASES = new Set([
   "auth",
   "api",
+  "admin",
   "o",
   "u",
   "orgs",
@@ -10,6 +11,12 @@ const RESERVED_USER_SLUG_BASES = new Set([
   "select",
   "settings",
   "me",
+  "support",
+  "help",
+  "login",
+  "signup",
+  "account",
+  "dashboard",
 ]);
 
 function normalizeBase(value: string): string {

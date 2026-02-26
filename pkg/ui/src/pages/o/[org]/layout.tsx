@@ -206,7 +206,14 @@ export function Layout() {
             <p className="mt-1 text-sm text-muted-foreground">
               Setting <span className="font-mono">{orgSlug}</span> as your active workspace.
             </p>
-            {switchError ? <p className="mt-3 text-sm text-destructive">{switchError}</p> : null}
+            {switchError ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <p className="text-sm text-destructive">{switchError}</p>
+                <Button size="sm" variant="outline" render={<Link to="/o/select" />}>
+                  Go to org selector
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       );

@@ -11,6 +11,8 @@ import * as OrgLayout from "@/pages/o/[org]/layout";
 import * as OrgMembers from "@/pages/o/[org]/members/page";
 import * as OrgProjects from "@/pages/o/[org]/projects/page";
 import * as OrgSettings from "@/pages/o/[org]/settings/page";
+import * as UserOverview from "@/pages/u/user/overview/page";
+import * as UserLayout from "@/pages/u/user/layout";
 
 export function Router() {
   return (
@@ -29,6 +31,12 @@ export function Router() {
           <Route path="projects" element={<OrgProjects.Page />} />
           <Route path="settings" element={<OrgSettings.Page />} />
           <Route path="overview" element={<OrgOverview.Page />} />
+        </Route>
+      </Route>
+      <Route path="u">
+        <Route path=":userSlug" element={<UserLayout.Layout />}>
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview" element={<UserOverview.Page />} />
         </Route>
       </Route>
     </Routes>

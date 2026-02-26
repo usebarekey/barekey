@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useEnsureCurrentUserRecord } from "@/hooks/use-ensure-current-user-record";
+import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
 import { generateDefaultOrgName, generateDefaultOrgSlugCandidate } from "@/lib/slugs";
 import {
   OrganizationList,
@@ -27,10 +28,6 @@ export function Page() {
   const [createError, setCreateError] = useState<string | null>(null);
   const hasAttemptedAutoCreateRef = useRef(false);
   useEnsureCurrentUserRecord();
-
-  if (isAuthLoaded && isSignedIn && orgSlug) {
-    return <Navigate to={`/o/${orgSlug}/overview`} replace />;
-  }
 
   const memberships = userMemberships.data ?? [];
   const hasMemberships = memberships.length > 0;
@@ -65,6 +62,10 @@ export function Page() {
           });
           break;
         } catch (error: unknown) {
+          if (!isClerkIdentifierExistsError(error)) {
+            throw error;
+          }
+
           lastError = error;
         }
       }
@@ -77,7 +78,7 @@ export function Page() {
         organization: createdOrganization.id,
       });
     } catch (error: unknown) {
-      setCreateError(error instanceof Error ? error.message : "Unable to create default organization.");
+      setCreateError(getClerkErrorMessage(error, "Unable to create default organization."));
     } finally {
       setIsCreatingDefaultOrg(false);
     }
@@ -85,6 +86,10 @@ export function Page() {
 
   useEffect(() => {
     if (!isAuthLoaded || !isSignedIn || !isOrgListLoaded || user == null) {
+      return;
+    }
+
+    if (orgSlug) {
       return;
     }
 
@@ -98,7 +103,11 @@ export function Page() {
 
     hasAttemptedAutoCreateRef.current = true;
     void handleCreateDefaultOrg();
-  }, [hasMemberships, isAuthLoaded, isCreatingDefaultOrg, isOrgListLoaded, isSignedIn, user]);
+  }, [hasMemberships, isAuthLoaded, isCreatingDefaultOrg, isOrgListLoaded, isSignedIn, orgSlug, user]);
+
+  if (isAuthLoaded && isSignedIn && orgSlug) {
+    return <Navigate to={`/o/${orgSlug}/overview`} replace />;
+  }
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-5xl items-start justify-center px-4 py-10">

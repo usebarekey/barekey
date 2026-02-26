@@ -54,7 +54,7 @@ export function Layout() {
     return <Navigate to="/auth/sso" replace />;
   }
 
-  if (currentUser === undefined) {
+  if (currentUser === undefined || currentUser === null) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Preparing account...
@@ -62,7 +62,7 @@ export function Layout() {
     );
   }
 
-  if (currentUser !== null && currentUser.slug !== userSlug) {
+  if (currentUser.slug !== userSlug) {
     return <Navigate to={`/u/${currentUser.slug}/${activeSegment}`} replace />;
   }
 
@@ -79,7 +79,7 @@ export function Layout() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {navItems.map((item) => {
-                  const href = `/u/${currentUser?.slug ?? userSlug}/${item.segment}`;
+                  const href = `/u/${currentUser.slug}/${item.segment}`;
                   const isActive =
                     item.segment === "overview"
                       ? pathname === `/u/${userSlug}` || pathname === href
@@ -100,7 +100,7 @@ export function Layout() {
         </SidebarContent>
 
         <SidebarFooter className="text-xs text-muted-foreground">
-          <p className="truncate">@{currentUser?.slug ?? userSlug}</p>
+          <p className="truncate">@{currentUser.slug}</p>
         </SidebarFooter>
 
         <SidebarRail />
