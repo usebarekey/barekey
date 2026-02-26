@@ -15,4 +15,17 @@ export default defineSchema({
   })
     .index("by_clerk_user_id", ["clerkUserId"])
     .index("by_slug", ["slug"]),
+  projects: defineTable({
+    orgId: v.string(),
+    orgSlug: v.string(),
+    name: v.string(),
+    slug: v.string(),
+    slugBase: v.string(),
+    createdByClerkUserId: v.string(),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+  })
+    .index("by_org_id", ["orgId"])
+    .index("by_org_id_and_created_at_ms", ["orgId", "createdAtMs"])
+    .index("by_org_id_and_slug", ["orgId", "slug"]),
 });

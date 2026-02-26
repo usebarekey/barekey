@@ -13,6 +13,13 @@ export type OrgClaims = {
   orgRole: string | null;
 };
 
+export type ActiveOrgClaims = {
+  clerkUserId: string;
+  orgId: string;
+  orgSlug: string;
+  orgRole: string | null;
+};
+
 function readStringClaim(identity: UserIdentity, key: string): string | null {
   const value = identity[key];
   return typeof value === "string" ? value : null;
@@ -34,4 +41,36 @@ export function getOrgClaimsFromIdentity(identity: UserIdentity): OrgClaims {
     orgSlug: readStringClaim(identity, "org_slug"),
     orgRole: readStringClaim(identity, "org_role"),
   };
+}
+
+export function requireActiveOrgClaims(identity: UserIdentity): ActiveOrgClaims {
+  const claims = getOrgClaimsFromIdentity(identity);
+
+  if (claims.orgId === null) {
+    throw new Error("No active organization selected.");
+  }
+
+  if (claims.orgSlug === null) {
+    throw new Error("Active organization slug is missing.");
+  }
+
+  return {
+    clerkUserId: claims.clerkUserId,
+    orgId: claims.orgId,
+    orgSlug: claims.orgSlug,
+    orgRole: claims.orgRole,
+  };
+}
+
+export function assertExpectedOrgSlug(
+  claims: { orgSlug: string | null },
+  expectedOrgSlug: string | null,
+): void {
+  if (expectedOrgSlug === null) {
+    return;
+  }
+
+  if (claims.orgSlug !== expectedOrgSlug) {
+    throw new Error("Active organization does not match the requested workspace.");
+  }
 }
