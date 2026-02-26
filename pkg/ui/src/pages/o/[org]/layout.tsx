@@ -192,18 +192,20 @@ function SidebarUserMenu() {
         sideOffset={8}
         className="w-72 min-w-72 rounded-xl p-1.5"
       >
-        <DropdownMenuLabel className="px-2 py-2">
-          <div className="flex items-center gap-3">
-            <Avatar>
-              <AvatarImage src={avatarSrc} />
-              <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
-              <p className="truncate text-xs text-muted-foreground">{email ?? "No email"}</p>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-2 py-2">
+            <div className="flex items-center gap-3">
+              <Avatar>
+                <AvatarImage src={avatarSrc} />
+                <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                <p className="truncate text-xs text-muted-foreground">{email ?? "No email"}</p>
+              </div>
             </div>
-          </div>
-        </DropdownMenuLabel>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
 
@@ -373,7 +375,7 @@ export function Layout() {
             {switchError ? (
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <p className="text-sm text-destructive">{switchError}</p>
-                <Button size="sm" variant="outline" render={<Link to="/o/select" />}>
+                <Button size="sm" variant="outline" nativeButton={false} render={<Link to="/o/select" />}>
                   Go to org selector
                 </Button>
               </div>
@@ -394,10 +396,10 @@ export function Layout() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" render={<Link to="/o/select" />}>
+            <Button variant="outline" nativeButton={false} render={<Link to="/o/select" />}>
               Select org
             </Button>
-            <Button variant="outline" render={<Link to="/o/new" />}>
+            <Button variant="outline" nativeButton={false} render={<Link to="/o/new" />}>
               Create org
             </Button>
           </div>

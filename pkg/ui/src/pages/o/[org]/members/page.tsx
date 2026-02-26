@@ -121,11 +121,16 @@ export function Page() {
         }
         actions={
           <>
-            <Button size="sm" variant="outline" render={<Link to={`/o/${orgSlug}/settings`} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link to={`/o/${orgSlug}/settings`} />}
+            >
               <IconShieldStar />
               Admin settings
             </Button>
-            <Button size="sm" render={<Link to={`/o/${orgSlug}/projects`} />}>
+            <Button size="sm" nativeButton={false} render={<Link to={`/o/${orgSlug}/projects`} />}>
               <IconArrowRight />
               Go to projects
             </Button>
@@ -282,7 +287,12 @@ export function Page() {
             title="Invitation queue"
             description="People invited to join this workspace."
             action={
-              <Button size="sm" variant="ghost" render={<Link to={`/o/${orgSlug}/settings`} />}>
+              <Button
+                size="sm"
+                variant="ghost"
+                nativeButton={false}
+                render={<Link to={`/o/${orgSlug}/settings`} />}
+              >
                 Manage in settings
                 <IconArrowRight />
               </Button>
@@ -372,4 +382,3 @@ export function Page() {
     </div>
   );
 }
-
