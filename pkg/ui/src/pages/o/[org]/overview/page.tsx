@@ -15,6 +15,9 @@ export function Page() {
       <p className="text-sm text-muted-foreground">
         Workspace for <span className="font-mono">{orgSlug}</span>.
       </p>
+      {orgClaims === undefined ? (
+        <p className="text-sm text-muted-foreground">Loading organization details...</p>
+      ) : null}
       {orgClaims ? (
         <p className="text-sm text-muted-foreground">
           Active role: <span className="font-mono">{orgClaims.orgRole ?? "none"}</span>

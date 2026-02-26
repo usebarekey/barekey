@@ -6,6 +6,7 @@ import { api } from "@convex/_generated/api";
 export function Page() {
   const { userSlug = "user" } = useParams();
   const currentUser = useQuery(api.users.getCurrentUser, {});
+  const isLoading = currentUser === undefined;
 
   return (
     <div className="space-y-2">
@@ -13,6 +14,7 @@ export function Page() {
       <p className="text-sm text-muted-foreground">
         User slug: <span className="font-mono">{userSlug}</span>
       </p>
+      {isLoading ? <p className="text-sm text-muted-foreground">Loading account details...</p> : null}
       {currentUser ? (
         <p className="text-sm text-muted-foreground">
           Clerk user: <span className="font-mono">{currentUser.clerkUserId}</span>

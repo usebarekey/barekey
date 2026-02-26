@@ -9,7 +9,7 @@ export function Page() {
       <p className="text-sm text-muted-foreground">
         Projects are scoped to <span className="font-mono">{orgSlug}</span>.
       </p>
-      <p>123 projects</p>
+      <p className="text-sm text-muted-foreground">- projects</p>
     </div>
   );
 }
