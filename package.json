@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "workspaces": [
+    "pkg/*"
+  ],
+  "scripts": {
+    "convex:dev": "bunx convex dev",
+    "lint": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore .",
+    "lint:fix": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore --fix .",
+    "format": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore .",
+    "format:check": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore --check ."
+  },
+  "dependencies": {
+    "convex": "^1.32.0"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.34.0",
+    "oxlint": "^1.49.0"
+  }
+}

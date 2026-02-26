@@ -1,0 +1,30 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath, URL } from "node:url";
+import path from "node:path";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig(({ mode }) => {
+  return {
+    // Load .env files from the monorepo root so all packages share one source.
+    envDir: path.resolve(__dirname, "../.."),
+    build: {
+      outDir: path.resolve(__dirname, "../../dist/ui"),
+    },
+    resolve: {
+      alias: {
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
+      },
+    },
+    plugins: [
+      react({
+        babel: {
+          plugins: [["babel-plugin-react-compiler"]],
+        },
+      }),
+      tailwindcss(),
+    ],
+  };
+});
