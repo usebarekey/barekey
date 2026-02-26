@@ -4,9 +4,9 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import {
   assertExpectedOrgSlug,
-  getActiveOrgClaimsOrNull,
-  requireActiveOrgClaims,
+  getActiveOrgIdClaimsOrNull,
   requireIdentity,
+  requireActiveOrgIdClaims,
 } from "./lib/auth";
 
 function normalizeProjectSlugBase(name: string): string {
@@ -71,8 +71,10 @@ export const createForCurrentOrg = mutation({
   returns: projectSummaryValidator,
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
-    const activeOrg = requireActiveOrgClaims(identity);
-    assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+    const activeOrg = requireActiveOrgIdClaims(identity);
+    if (activeOrg.orgSlug !== null) {
+      assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+    }
 
     const trimmedName = args.name.trim();
     if (trimmedName.length === 0) {
@@ -92,7 +94,7 @@ export const createForCurrentOrg = mutation({
 
     const id = await ctx.db.insert("projects", {
       orgId: activeOrg.orgId,
-      orgSlug: activeOrg.orgSlug,
+      orgSlug: args.expectedOrgSlug,
       name: trimmedName,
       slug,
       slugBase,
@@ -104,7 +106,7 @@ export const createForCurrentOrg = mutation({
     return {
       id,
       orgId: activeOrg.orgId,
-      orgSlug: activeOrg.orgSlug,
+      orgSlug: args.expectedOrgSlug,
       name: trimmedName,
       slug,
       slugBase,
@@ -126,13 +128,13 @@ export const listForCurrentOrg = query({
       return [];
     }
 
-    const activeOrg = getActiveOrgClaimsOrNull(identity);
+    const activeOrg = getActiveOrgIdClaimsOrNull(identity);
     if (activeOrg === null) {
       // During Clerk <-> Convex org switching, claims may briefly be absent.
       return [];
     }
 
-    if (activeOrg.orgSlug !== args.expectedOrgSlug) {
+    if (activeOrg.orgSlug !== null && activeOrg.orgSlug !== args.expectedOrgSlug) {
       // Route/org can briefly drift while active org is switching; treat as loading.
       return [];
     }
