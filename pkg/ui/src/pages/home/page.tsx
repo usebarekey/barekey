@@ -1,13 +1,15 @@
 import { SignOutButton, useAuth } from "@clerk/react-router";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useEnsureCurrentUserRecord } from "@/hooks/use-ensure-current-user-record";
 import { cn } from "@/lib/utils";
 import { useConvexAuth } from "convex/react";
 import { Link, Navigate } from "react-router-dom";
 
 export function Page() {
-  const { isLoaded, isSignedIn, userId } = useAuth();
+  const { isLoaded, isSignedIn, userId, orgSlug } = useAuth();
   const { isLoading, isAuthenticated } = useConvexAuth();
+  useEnsureCurrentUserRecord();
 
   if (!isLoaded) {
     return (
@@ -19,6 +21,14 @@ export function Page() {
 
   if (!isSignedIn) {
     return <Navigate to="/auth/sso" replace />;
+  }
+
+  if (!isLoading && isAuthenticated) {
+    if (orgSlug) {
+      return <Navigate to={`/o/${orgSlug}/overview`} replace />;
+    }
+
+    return <Navigate to="/o/select" replace />;
   }
 
   return (

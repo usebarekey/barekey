@@ -11,6 +11,7 @@
     "format:check": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore --check ."
   },
   "dependencies": {
+    "@noble/hashes": "^2.0.1",
     "convex": "^1.32.0"
   },
   "devDependencies": {
