@@ -140,7 +140,7 @@ export function Page() {
       </CardContent>
       <CardFooter className="text-xs text-muted-foreground">
         Forgot your password?{" "}
-        <Link to="/auth/sign-in" className="text-primary">
+        <Link to="/auth/sso" className="text-primary">
           Reset it
         </Link>
       </CardFooter>
