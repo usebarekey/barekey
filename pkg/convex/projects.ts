@@ -4,6 +4,7 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import {
   assertExpectedOrgSlug,
+  getActiveOrgClaimsOrNull,
   requireActiveOrgClaims,
   requireIdentity,
 } from "./lib/auth";
@@ -120,9 +121,21 @@ export const listForCurrentOrg = query({
   },
   returns: v.array(projectSummaryValidator),
   handler: async (ctx, args) => {
-    const identity = await requireIdentity(ctx);
-    const activeOrg = requireActiveOrgClaims(identity);
-    assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      return [];
+    }
+
+    const activeOrg = getActiveOrgClaimsOrNull(identity);
+    if (activeOrg === null) {
+      // During Clerk <-> Convex org switching, claims may briefly be absent.
+      return [];
+    }
+
+    if (activeOrg.orgSlug !== args.expectedOrgSlug) {
+      // Route/org can briefly drift while active org is switching; treat as loading.
+      return [];
+    }
 
     const rows = await ctx.db
       .query("projects")
