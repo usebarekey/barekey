@@ -11,7 +11,8 @@
     "resolveJsonModule": true,
     "paths": {
       "*": ["./*"],
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@convex/*": ["../convex/*"]
     },
     "skipLibCheck": true,
     "types": ["vite/client"]
