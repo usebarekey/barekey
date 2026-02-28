@@ -32,10 +32,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.length > 0) {
-    return error.message;
+    const normalizedMessage = error.message.toLowerCase();
+
+    if (normalizedMessage.includes("project name")) {
+      return error.message;
+    }
+
+    if (
+      normalizedMessage.includes("workspace") ||
+      normalizedMessage.includes("organization") ||
+      normalizedMessage.includes("unauthorized")
+    ) {
+      return "Project actions are temporarily unavailable for this workspace. Switch workspaces and try again.";
+    }
   }
 
-  return "Unable to create project.";
+  return "Unable to create project right now. Please try again.";
 }
 
 function formatDateTime(value: number): string {
@@ -72,7 +84,7 @@ export function Page() {
       return true;
     }
 
-    return `${project.name} ${project.slug}`.toLowerCase().includes(normalizedQuery);
+    return project.name.toLowerCase().includes(normalizedQuery);
   });
 
   async function handleCreateProject() {
@@ -259,12 +271,7 @@ export function Page() {
                   >
                     <div className="absolute inset-y-0 left-0 w-1 bg-primary/15 transition-colors group-hover:bg-primary/50" />
                     <div className="ml-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{project.name}</p>
-                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                          {project.slug}
-                        </p>
-                      </div>
+                      <p className="min-w-0 truncate text-sm font-medium">{project.name}</p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span>{formatDateTime(project.createdAtMs)}</span>
                         <Button
