@@ -6,7 +6,7 @@ import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(() => {
   return {
     // Load .env files from the monorepo root so all packages share one source.
     envDir: path.resolve(__dirname, "../.."),
@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
+        "@convex": fileURLToPath(new URL("../convex", import.meta.url)),
       },
     },
     plugins: [
