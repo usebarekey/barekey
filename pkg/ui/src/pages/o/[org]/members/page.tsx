@@ -24,33 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
+import { displayName, formatDate, initials } from "@/lib/org-utils";
 
 type RoleFilter = "all" | "admins" | "members";
-
-function displayName(input: {
-  firstName: string | null;
-  lastName: string | null;
-  identifier: string;
-}): string {
-  const full = [input.firstName, input.lastName].filter(Boolean).join(" ").trim();
-  return full || input.identifier;
-}
-
-function initials(value: string): string {
-  return value
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.slice(0, 1).toUpperCase())
-    .join("")
-    .slice(0, 2);
-}
-
-function formatDate(value: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-  }).format(value);
-}
 
 export function Page() {
   const { orgSlug = "org" } = useParams();
@@ -116,7 +92,7 @@ export function Page() {
         tags={
           <>
             <OrgRoleBadge role={membership?.role} />
-            <Badge variant="outline">Clerk-backed directory</Badge>
+            <Badge variant="outline">Workspace directory</Badge>
           </>
         }
         actions={
