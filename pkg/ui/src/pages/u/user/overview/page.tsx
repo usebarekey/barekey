@@ -2,6 +2,8 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 
 import { api } from "@convex/_generated/api";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function Page() {
   const { userSlug = "user" } = useParams();
@@ -9,18 +11,38 @@ export function Page() {
   const isLoading = currentUser === undefined;
 
   return (
-    <div className="space-y-2">
-      <p className="text-lg font-semibold">Account Overview</p>
-      <p className="text-sm text-muted-foreground">
-        User slug: <span className="font-mono">{userSlug}</span>
-      </p>
-      {isLoading ? <p className="text-sm text-muted-foreground">Loading account details...</p> : null}
-      {currentUser ? (
-        <p className="text-sm text-muted-foreground">
-          Clerk user: <span className="font-mono">{currentUser.clerkUserId}</span>
-        </p>
-      ) : null}
-      <p>Account pages live under /u, workspaces live under /o.</p>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Account overview</CardTitle>
+          <CardDescription>Your personal workspace and profile summary.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">User slug</Badge>
+            <span className="font-mono">{userSlug}</span>
+          </div>
+
+          {isLoading ? (
+            <p className="text-muted-foreground">Loading account details...</p>
+          ) : currentUser ? (
+            <>
+              <p>
+                <span className="text-muted-foreground">Name:</span>{" "}
+                <span>{currentUser.displayName ?? "Not set"}</span>
+              </p>
+              <p>
+                <span className="text-muted-foreground">Email:</span>{" "}
+                <span>{currentUser.email ?? "Not set"}</span>
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground">Account record not available yet.</p>
+          )}
+
+          <p className="text-muted-foreground">Account pages live under /u and team workspaces live under /o.</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

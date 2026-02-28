@@ -70,10 +70,10 @@ export function Page() {
   });
 
   const isClaimsLoading = orgClaims === undefined;
-  const isMissingOrgClaims =
+  const isMissingWorkspaceLink =
     orgClaims !== undefined && orgClaims.isSignedIn && orgClaims.orgId === null;
   const isCreateDisabled =
-    isSubmitting || isClaimsLoading || isMissingOrgClaims || name.trim().length === 0;
+    isSubmitting || isClaimsLoading || isMissingWorkspaceLink || name.trim().length === 0;
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredProjects = (projects ?? []).filter((project) => {
     if (normalizedQuery.length === 0) {
@@ -86,7 +86,7 @@ export function Page() {
 
   async function handleCreateProject() {
     const trimmedName = name.trim();
-    if (trimmedName.length === 0 || isSubmitting || isClaimsLoading || isMissingOrgClaims) {
+    if (trimmedName.length === 0 || isSubmitting || isClaimsLoading || isMissingWorkspaceLink) {
       return;
     }
 
@@ -117,8 +117,8 @@ export function Page() {
         imageSeed={organization?.id}
         subtitle={
           <>
-            Build the inventory of apps and environments that inherit this workspace’s org-scoped
-            access controls. Each project slug is unique within <span className="font-mono">@{orgSlug}</span>.
+            Create and manage project spaces for variables, experiments, and rollout decisions.
+            Project slugs remain unique inside <span className="font-mono">/o/{orgSlug}</span>.
           </>
         }
         tags={
@@ -126,7 +126,7 @@ export function Page() {
             <OrgRoleBadge role={orgClaims?.orgRole} />
             <Badge variant="outline">
               <IconShieldCheck />
-              Org-scoped
+              Workspace scoped
             </Badge>
           </>
         }
@@ -153,7 +153,7 @@ export function Page() {
         <OrgMetricCard
           label="Total projects"
           value={projects === undefined ? "..." : projects.length}
-          hint={projects && projects.length > 0 ? "Reactive Convex list" : "No projects yet"}
+          hint={projects && projects.length > 0 ? "Live project list" : "No projects yet"}
           icon={<IconBriefcase className="size-4" />}
           tone="accent"
         />
@@ -166,28 +166,28 @@ export function Page() {
         <OrgMetricCard
           label="Member coverage"
           value={memberships ? memberships.count : "..."}
-          hint="People with org access who may operate projects"
+          hint="People who can operate projects"
           icon={<IconUsers className="size-4" />}
         />
         <OrgMetricCard
-          label="Claim status"
-          value={isClaimsLoading ? "..." : isMissingOrgClaims ? "Missing org_id" : "Ready"}
-          hint="Projects depend on active org claims in Convex identity"
+          label="Workspace access"
+          value={isClaimsLoading ? "..." : isMissingWorkspaceLink ? "Needs setup" : "Ready"}
+          hint="Required before creating and listing projects"
           icon={<IconShieldCheck className="size-4" />}
-          tone={isMissingOrgClaims ? "accent" : "muted"}
+          tone={isMissingWorkspaceLink ? "accent" : "muted"}
         />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <OrgSectionCard
           title="Create project"
-          description="Projects are stored under the active organization id and displayed under the route slug."
+          description="Start a new project in this workspace."
         >
           <div className="space-y-4">
             <div className="rounded-xl border bg-background/70 p-3">
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <Badge variant="outline">Slug policy</Badge>
-                <span>Generated from the project name + numeric suffix</span>
+                <span>Generated from the project name with a short numeric suffix</span>
               </div>
               <p className="mt-2 font-mono text-xs text-muted-foreground">
                 Example: <span className="text-foreground">secrets-api-4821</span>
@@ -198,7 +198,7 @@ export function Page() {
               <Input
                 ref={inputRef}
                 value={name}
-                disabled={isSubmitting || isClaimsLoading || isMissingOrgClaims}
+                disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
                 placeholder="Project name (e.g. Secrets API)"
                 onChange={(event) => setName(event.currentTarget.value)}
                 onKeyDown={(event) => {
@@ -216,7 +216,7 @@ export function Page() {
                 </Button>
                 <Button
                   variant="outline"
-                  disabled={isSubmitting || isClaimsLoading || isMissingOrgClaims}
+                  disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
                   onClick={() => {
                     setName("");
                     setErrorMessage(null);
@@ -234,10 +234,22 @@ export function Page() {
               </div>
             ) : null}
 
-            {isMissingOrgClaims ? (
-              <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                Convex identity is missing <code>org_id</code>. Add org claims to the Clerk Convex
-                JWT template before using org-scoped project creation.
+            {isMissingWorkspaceLink ? (
+              <div className="rounded-xl border border-dashed p-3">
+                <p className="text-sm text-muted-foreground">
+                  Workspace setup is incomplete. Review advanced diagnostics in settings before
+                  creating projects.
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
+                  className="mt-2 h-7 px-2"
+                >
+                  Open diagnostics
+                  <IconArrowRight />
+                </Button>
               </div>
             ) : null}
           </div>
@@ -245,7 +257,7 @@ export function Page() {
 
         <OrgSectionCard
           title="Project index"
-          description="Search and inspect project slugs inside this organization."
+          description="Search and inspect project slugs in this workspace."
           action={
             <div className="text-xs text-muted-foreground">
               {projects === undefined ? "Loading..." : `${filteredProjects.length} shown`}
@@ -272,10 +284,9 @@ export function Page() {
                   </div>
                 ))}
               </div>
-            ) : isMissingOrgClaims ? (
+            ) : isMissingWorkspaceLink ? (
               <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                Waiting for org claims in Convex identity. Listing is disabled until <code>org_id</code>{" "}
-                is present.
+                Project listing is unavailable until workspace setup is complete.
               </div>
             ) : projects.length === 0 ? (
               <Empty>
@@ -285,13 +296,13 @@ export function Page() {
                   </EmptyMedia>
                   <EmptyTitle>No projects yet</EmptyTitle>
                   <EmptyDescription>
-                    Create your first project for <span className="font-mono">@{orgSlug}</span> to
+                    Create your first project for <span className="font-mono">/o/{orgSlug}</span> to
                     start organizing your workspace.
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
                   <Button
-                    disabled={isSubmitting || isClaimsLoading || isMissingOrgClaims}
+                    disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
                     onClick={() => inputRef.current?.focus()}
                   >
                     <IconPlus />
