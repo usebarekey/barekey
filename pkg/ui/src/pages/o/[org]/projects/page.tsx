@@ -14,7 +14,6 @@ import { Link, useParams } from "react-router-dom";
 
 import { api } from "@convex/_generated/api";
 import {
-  OrgMetricCard,
   OrgPageHero,
   OrgRoleBadge,
   OrgSectionCard,
@@ -75,7 +74,6 @@ export function Page() {
 
     return `${project.name} ${project.slug}`.toLowerCase().includes(normalizedQuery);
   });
-  const latestProject = projects?.[0] ?? null;
 
   async function handleCreateProject() {
     const trimmedName = name.trim();
@@ -108,11 +106,7 @@ export function Page() {
         orgName={organization?.name}
         imageUrl={organization?.imageUrl}
         imageSeed={organization?.id}
-        subtitle={
-          <>
-            Create and manage project spaces for variables, experiments, and rollout decisions.
-          </>
-        }
+        subtitle={<>Create and manage project spaces for variables and rollouts.</>}
         tags={
           <>
             <OrgRoleBadge role={orgClaims?.orgRole} />
@@ -137,40 +131,15 @@ export function Page() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <OrgMetricCard
-          label="Total projects"
-          value={projects === undefined ? "..." : projects.length}
-          hint={projects && projects.length > 0 ? "Live project list" : "No projects yet"}
-          icon={<IconBriefcase className="size-4" />}
-          tone="accent"
-        />
-        <OrgMetricCard
-          label="Latest project"
-          value={latestProject ? latestProject.name : projects ? "None" : "..."}
-          hint={latestProject ? latestProject.slug : "Create your first project"}
-          icon={<IconArrowRight className="size-4" />}
-        />
-      </div>
-
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <OrgSectionCard title="Create project" description="Start a new project in this workspace.">
           <div className="space-y-4">
-            <div className="rounded-xl border bg-background/70 p-3">
-              <p className="text-sm text-muted-foreground">
-                Slugs are generated from the project name and remain unique in this workspace.
-              </p>
-              <p className="mt-2 font-mono text-xs text-muted-foreground">
-                Example: <span className="text-foreground">secrets-api-4821</span>
-              </p>
-            </div>
-
             <div className="flex flex-col gap-3">
               <Input
                 ref={inputRef}
                 value={name}
                 disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
-                placeholder="Project name (e.g. Secrets API)"
+                placeholder="Project name"
                 onChange={(event) => setName(event.currentTarget.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -227,7 +196,7 @@ export function Page() {
 
         <OrgSectionCard
           title="Project list"
-          description="Search and inspect projects by name or slug."
+          description="Search and inspect projects by name."
           action={
             <div className="text-xs text-muted-foreground">
               {projects === undefined ? "Loading..." : `${filteredProjects.length} shown`}
@@ -240,7 +209,7 @@ export function Page() {
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                placeholder="Search projects by name or slug"
+                placeholder="Search projects"
                 className="pl-9"
               />
             </div>
@@ -265,9 +234,7 @@ export function Page() {
                     <IconBriefcase />
                   </EmptyMedia>
                   <EmptyTitle>No projects yet</EmptyTitle>
-                  <EmptyDescription>
-                    Create your first project in this workspace.
-                  </EmptyDescription>
+                  <EmptyDescription>Create your first project in this workspace.</EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
                   <Button
