@@ -151,12 +151,7 @@ export function Page() {
                 >
                   <div className="absolute inset-y-0 left-0 w-1 bg-primary/25 transition-colors group-hover:bg-primary/60" />
                   <div className="ml-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{project.name}</p>
-                      <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                        {project.slug}
-                      </p>
-                    </div>
+                    <p className="min-w-0 truncate text-sm font-medium">{project.name}</p>
                     <p className="text-xs text-muted-foreground">{formatDateTime(project.createdAtMs)}</p>
                   </div>
                 </div>
