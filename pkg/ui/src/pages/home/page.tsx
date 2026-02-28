@@ -35,23 +35,16 @@ export function Page() {
     <div className="flex h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <h1 className="text-lg font-semibold">Getting your workspace ready</h1>
+          <h1 className="text-lg font-semibold">Preparing your workspace</h1>
           <p className="text-sm text-muted-foreground">
-            We are confirming account access before sending you to your workspace.
+            We are confirming your account before sending you to your next page.
           </p>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <p>
-            <strong>Connection status:</strong>{" "}
-            {isLoading
-              ? "Connecting..."
-              : isAuthenticated
-                ? "Ready"
-                : "Still trying"}
-          </p>
+          {isLoading ? <p>One moment while we prepare your session.</p> : null}
           {!isAuthenticated && !isLoading ? (
             <p className="text-muted-foreground">
-              This is taking longer than expected. Refresh this page or go back to sign in.
+              We could not confirm access yet. Refresh this page or return to sign in.
             </p>
           ) : null}
         </CardContent>

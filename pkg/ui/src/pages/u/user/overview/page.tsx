@@ -1,11 +1,9 @@
-import { useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 
 import { api } from "@convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function Page() {
-  const { userSlug = "user" } = useParams();
   const currentUser = useQuery(api.users.getCurrentUser, {});
   const isLoading = currentUser === undefined;
 
@@ -32,10 +30,6 @@ export function Page() {
               <p>
                 <span className="text-muted-foreground">Email:</span>{" "}
                 <span>{currentUser.email ?? "Not set"}</span>
-              </p>
-              <p>
-                <span className="text-muted-foreground">Profile path:</span>{" "}
-                <span className="font-mono">/u/{userSlug}</span>
               </p>
             </>
           ) : (
