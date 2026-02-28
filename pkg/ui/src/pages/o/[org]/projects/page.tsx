@@ -7,7 +7,6 @@ import {
   IconFolderPlus,
   IconPlus,
   IconSearch,
-  IconShieldCheck,
   IconUsers,
 } from "@tabler/icons-react";
 import { useOrganization } from "@clerk/react-router";
@@ -118,16 +117,12 @@ export function Page() {
         subtitle={
           <>
             Create and manage project spaces for variables, experiments, and rollout decisions.
-            Project slugs remain unique inside <span className="font-mono">/o/{orgSlug}</span>.
           </>
         }
         tags={
           <>
             <OrgRoleBadge role={orgClaims?.orgRole} />
-            <Badge variant="outline">
-              <IconShieldCheck />
-              Workspace scoped
-            </Badge>
+            <Badge variant="outline">Project workspace</Badge>
           </>
         }
         actions={
@@ -149,7 +144,7 @@ export function Page() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <OrgMetricCard
           label="Total projects"
           value={projects === undefined ? "..." : projects.length}
@@ -169,26 +164,15 @@ export function Page() {
           hint="People who can operate projects"
           icon={<IconUsers className="size-4" />}
         />
-        <OrgMetricCard
-          label="Workspace access"
-          value={isClaimsLoading ? "..." : isMissingWorkspaceLink ? "Needs setup" : "Ready"}
-          hint="Required before creating and listing projects"
-          icon={<IconShieldCheck className="size-4" />}
-          tone={isMissingWorkspaceLink ? "accent" : "muted"}
-        />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <OrgSectionCard
-          title="Create project"
-          description="Start a new project in this workspace."
-        >
+        <OrgSectionCard title="Create project" description="Start a new project in this workspace.">
           <div className="space-y-4">
             <div className="rounded-xl border bg-background/70 p-3">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline">Slug policy</Badge>
-                <span>Generated from the project name with a short numeric suffix</span>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Slugs are generated from the project name and remain unique in this workspace.
+              </p>
               <p className="mt-2 font-mono text-xs text-muted-foreground">
                 Example: <span className="text-foreground">secrets-api-4821</span>
               </p>
@@ -237,8 +221,7 @@ export function Page() {
             {isMissingWorkspaceLink ? (
               <div className="rounded-xl border border-dashed p-3">
                 <p className="text-sm text-muted-foreground">
-                  Workspace setup is incomplete. Review advanced diagnostics in settings before
-                  creating projects.
+                  Project actions are temporarily unavailable for this workspace.
                 </p>
                 <Button
                   size="sm"
@@ -257,7 +240,7 @@ export function Page() {
 
         <OrgSectionCard
           title="Project index"
-          description="Search and inspect project slugs in this workspace."
+          description="Search and inspect projects by name or slug."
           action={
             <div className="text-xs text-muted-foreground">
               {projects === undefined ? "Loading..." : `${filteredProjects.length} shown`}
@@ -286,7 +269,7 @@ export function Page() {
               </div>
             ) : isMissingWorkspaceLink ? (
               <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                Project listing is unavailable until workspace setup is complete.
+                Project listing is unavailable until workspace access is restored.
               </div>
             ) : projects.length === 0 ? (
               <Empty>
@@ -296,8 +279,7 @@ export function Page() {
                   </EmptyMedia>
                   <EmptyTitle>No projects yet</EmptyTitle>
                   <EmptyDescription>
-                    Create your first project for <span className="font-mono">/o/{orgSlug}</span> to
-                    start organizing your workspace.
+                    Create your first project for <span className="font-mono">/o/{orgSlug}</span>.
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
@@ -345,7 +327,7 @@ export function Page() {
                           render={<Link to={`/o/${orgSlug}/overview`} />}
                           className="h-6 px-2"
                         >
-                          Workspace
+                          Overview
                         </Button>
                       </div>
                     </div>
