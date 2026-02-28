@@ -49,7 +49,11 @@ export function OrgIdentityChip({
   seed?: string | null;
 }) {
   const displayName = orgName?.trim() || orgSlug;
-  const avatarSrc = imageUrl ?? generateGradientDataUrl(seed ?? orgSlug, { size: 96 });
+  const normalizedImageUrl = imageUrl?.trim() ?? "";
+  const avatarSrc =
+    normalizedImageUrl.length > 0
+      ? normalizedImageUrl
+      : generateGradientDataUrl(seed ?? orgSlug, { size: 96 });
 
   return (
     <div className="inline-flex items-center gap-3 rounded-xl border bg-background/80 px-3 py-2 shadow-xs backdrop-blur-sm">
@@ -203,4 +207,3 @@ export function OrgSectionCard({
     </Card>
   );
 }
-

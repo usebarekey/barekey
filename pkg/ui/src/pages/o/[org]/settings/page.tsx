@@ -3,7 +3,6 @@ import {
   IconArrowRight,
   IconDoorEnter,
   IconFingerprint,
-  IconLockSquareRounded,
   IconMailShare,
   IconServerCog,
 } from "@tabler/icons-react";
@@ -77,16 +76,12 @@ export function Page() {
         orgName={organization?.name}
         imageUrl={organization?.imageUrl}
         imageSeed={organization?.id}
-        subtitle={
-          <>
-            Manage team access, domains, and workspace controls from a single admin surface.
-          </>
-        }
+        subtitle={<>Manage team access, domains, and workspace controls.</>}
         tags={
           <>
             <OrgRoleBadge role={membership?.role ?? orgClaims?.orgRole} />
             <Badge variant={hasWorkspaceLink ? "secondary" : "outline"}>
-              {hasWorkspaceLink ? "Access ready" : "Needs setup"}
+              {hasWorkspaceLink ? "Access ready" : "Needs attention"}
             </Badge>
           </>
         }
@@ -109,7 +104,7 @@ export function Page() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <OrgMetricCard
           label="Projects in workspace"
           value={projects === undefined ? "..." : projectCount}
@@ -129,19 +124,13 @@ export function Page() {
           hint="Domains approved for membership"
           icon={<IconFingerprint className="size-4" />}
         />
-        <OrgMetricCard
-          label="Current role"
-          value={(membership?.roleName || orgClaims?.orgRole || "none").replace(/^org:/, "")}
-          hint="Your access level in this workspace"
-          icon={<IconLockSquareRounded className="size-4" />}
-        />
       </div>
 
       <div className="grid gap-4 2xl:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-4">
           <OrgSectionCard
             title="Workspace controls"
-            description="Use these shortcuts to manage the workspace day to day."
+            description="Shortcuts for day-to-day workspace management."
           >
             <div className="grid gap-2">
               <Button
@@ -168,7 +157,7 @@ export function Page() {
                 nativeButton={false}
                 render={<Link to={`/o/${orgSlug}/projects`} />}
               >
-                Project inventory
+                Projects
                 <IconArrowRight />
               </Button>
             </div>
@@ -176,7 +165,7 @@ export function Page() {
 
           <OrgSectionCard
             title="Advanced diagnostics"
-            description="Troubleshoot workspace wiring and identity mapping."
+            description="Internal values for troubleshooting workspace access."
             className="scroll-mt-20"
           >
             <div id="advanced-diagnostics">
@@ -184,7 +173,7 @@ export function Page() {
                 <CollapsibleTrigger className="focus-visible:ring-ring/50 w-full rounded-lg border px-3 py-2 text-left outline-none focus-visible:ring-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium">
-                      {isDiagnosticsOpen ? "Hide internal diagnostics" : "Show internal diagnostics"}
+                      {isDiagnosticsOpen ? "Hide diagnostics" : "Show diagnostics"}
                     </span>
                     <Badge variant="outline">Advanced</Badge>
                   </div>
@@ -192,24 +181,29 @@ export function Page() {
                 <CollapsibleContent>
                   <div className="mt-3 space-y-3 rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
                     <p>
-                      This panel exposes raw claims from the Clerk JWT consumed by Convex, including
-                      values that scope workspace data.
+                      Use this panel to check workspace values when navigation or project access does
+                      not behave as expected.
                     </p>
                     <div className="space-y-1">
                       <p>
-                        <span className="text-foreground">org_id:</span>{" "}
+                        <span className="text-foreground">Workspace ID:</span>{" "}
                         <span className="font-mono">{orgClaims?.orgId ?? "missing"}</span>
                       </p>
                       <p>
-                        <span className="text-foreground">org_slug:</span>{" "}
+                        <span className="text-foreground">Workspace slug:</span>{" "}
                         <span className="font-mono">{orgClaims?.orgSlug ?? "missing"}</span>
                       </p>
                       <p>
-                        <span className="text-foreground">org_role:</span>{" "}
-                        <span className="font-mono">{orgClaims?.orgRole ?? "missing"}</span>
+                        <span className="text-foreground">Workspace role:</span>{" "}
+                        <span className="font-mono">
+                          {(membership?.roleName || orgClaims?.orgRole || "missing").replace(
+                            /^org:/,
+                            "",
+                          )}
+                        </span>
                       </p>
                       <p>
-                        <span className="text-foreground">route_matches_active_org:</span>{" "}
+                        <span className="text-foreground">Route aligned:</span>{" "}
                         <span className="font-mono">
                           {orgClaims === undefined
                             ? "loading"
@@ -218,11 +212,17 @@ export function Page() {
                               : "false"}
                         </span>
                       </p>
+                      <p>
+                        <span className="text-foreground">Signed in:</span>{" "}
+                        <span className="font-mono">
+                          {orgClaims === undefined ? "loading" : orgClaims.isSignedIn ? "true" : "false"}
+                        </span>
+                      </p>
                     </div>
                     {!hasWorkspaceLink && orgClaims !== undefined ? (
                       <p>
-                        Add org claims to the Clerk Convex JWT template if project-scoped data is not
-                        resolving.
+                        If workspace values are missing, switch workspaces from the sidebar and
+                        refresh.
                       </p>
                     ) : null}
                   </div>
@@ -233,8 +233,8 @@ export function Page() {
         </div>
 
         <OrgSectionCard
-          title="Organization profile"
-          description="Manage organization details, memberships, and domain policies."
+          title="Workspace profile"
+          description="Manage workspace details, memberships, and domain policies."
           className="overflow-hidden"
         >
           <div className="-mx-4 rounded-t-none border-t bg-background/70 p-2 sm:-mx-3">
