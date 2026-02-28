@@ -2,8 +2,6 @@ import {
   useAuth,
   useClerk,
   useOrganizationList,
-  OrganizationSwitcher,
-  SignedIn,
   useUser,
 } from "@clerk/react-router";
 import { useQuery } from "convex/react";
@@ -84,20 +82,6 @@ const navItems = [
 ] as const;
 
 const CREATE_NEW_ORG_SELECT_VALUE = "__create_new_org__";
-
-function OrgSwitcherControl() {
-  return (
-    <OrganizationSwitcher
-      hidePersonal={true}
-      afterCreateOrganizationUrl={(organization) =>
-        organization.slug ? `/o/${organization.slug}/overview` : "/o/select"
-      }
-      afterSelectOrganizationUrl={(organization) =>
-        organization.slug ? `/o/${organization.slug}/overview` : "/o/select"
-      }
-    />
-  );
-}
 
 function initials(value: string) {
   return value
@@ -181,7 +165,7 @@ function SidebarUserMenu() {
         </Avatar>
         <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
           <p className="truncate text-sm font-medium">{displayName}</p>
-          <p className="truncate text-xs text-sidebar-foreground/70">{email ?? "No email"}</p>
+          <p className="text-muted-foreground truncate text-xs">{email ?? "No email"}</p>
         </div>
         <IconChevronUp className="size-4 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
       </DropdownMenuTrigger>
@@ -510,20 +494,14 @@ export function Layout() {
 
       <SidebarInset>
         <header className="sticky top-0 z-20 border-b bg-background/85 px-4 py-3 backdrop-blur-sm lg:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
               <Separator orientation="vertical" />
               <div className="min-w-0">
                 <p className="text-sm font-medium">{activeTitle}</p>
-                <p className="truncate text-xs text-muted-foreground">@{orgSlug}</p>
               </div>
             </div>
-            <SignedIn>
-              <div className="hidden sm:block">
-                <OrgSwitcherControl />
-              </div>
-            </SignedIn>
           </div>
         </header>
 
@@ -536,7 +514,7 @@ export function Layout() {
                 "radial-gradient(circle at 12% 8%, color-mix(in oklab, var(--primary) 9%, transparent), transparent 45%), radial-gradient(circle at 88% 0%, color-mix(in oklab, var(--foreground) 4%, transparent), transparent 38%)",
             }}
           />
-          <div className="relative mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+          <div className="relative w-full p-4 sm:p-6 lg:p-8">
             <Outlet />
           </div>
         </div>

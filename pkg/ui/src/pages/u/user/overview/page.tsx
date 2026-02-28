@@ -15,7 +15,7 @@ export function Page() {
       <Card>
         <CardHeader>
           <CardTitle>Account overview</CardTitle>
-          <CardDescription>Your personal workspace and profile summary.</CardDescription>
+          <CardDescription>Your profile details and account status.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <div className="flex flex-wrap items-center gap-2">
@@ -39,8 +39,6 @@ export function Page() {
           ) : (
             <p className="text-muted-foreground">Account record not available yet.</p>
           )}
-
-          <p className="text-muted-foreground">Account pages live under /u and team workspaces live under /o.</p>
         </CardContent>
       </Card>
     </div>
