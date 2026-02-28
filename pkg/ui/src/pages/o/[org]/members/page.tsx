@@ -86,7 +86,7 @@ export function Page() {
         subtitle={
           <>
             Review access across your workspace, monitor pending invitations, and keep a tight
-            signal on who can touch org-scoped projects.
+            signal on who can touch workspace projects.
           </>
         }
         tags={
@@ -118,14 +118,14 @@ export function Page() {
         <OrgMetricCard
           label="Members"
           value={memberships ? memberships.count : "..."}
-          hint="Organization memberships"
+          hint="Workspace members"
           icon={<IconUsers className="size-4" />}
           tone="accent"
         />
         <OrgMetricCard
           label="Admins"
           value={memberships ? adminCount : "..."}
-          hint="Users with elevated org access"
+          hint="Members with elevated access"
           icon={<IconShieldStar className="size-4" />}
         />
         <OrgMetricCard
@@ -146,7 +146,7 @@ export function Page() {
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <OrgSectionCard
           title="Directory"
-          description="Search and inspect current organization memberships."
+          description="Search and inspect current workspace members."
         >
           <div className="space-y-4">
             <div className="flex flex-col gap-3 md:flex-row">
@@ -204,7 +204,7 @@ export function Page() {
             ) : filteredMembers.length === 0 ? (
               <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
                 {allMembers.length === 0
-                  ? "No members found for this organization yet."
+                  ? "No members found for this workspace yet."
                   : "No members match the current search/filter."}
               </div>
             ) : (

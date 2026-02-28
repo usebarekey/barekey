@@ -233,8 +233,8 @@ export function Page() {
         </div>
 
         <OrgSectionCard
-          title="Organization profile"
-          description="Manage organization details, memberships, and domain policies."
+          title="Workspace profile"
+          description="Manage workspace details, memberships, and domain policies."
           className="overflow-hidden"
         >
           <div className="-mx-4 rounded-t-none border-t bg-background/70 p-2 sm:-mx-3">

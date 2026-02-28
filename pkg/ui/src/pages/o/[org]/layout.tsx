@@ -324,7 +324,7 @@ export function Layout() {
     setSwitchError(null);
     void setActive({ organization: targetOrgId }).catch((error: unknown) => {
       lastRequestedOrgIdRef.current = null;
-      setSwitchError(error instanceof Error ? error.message : "Failed to switch organization.");
+      setSwitchError(error instanceof Error ? error.message : "Failed to switch workspace.");
     });
   }, [
     isAuthLoaded,
@@ -338,7 +338,7 @@ export function Layout() {
   if (!isAuthLoaded || !isOrgListLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Loading organization workspace...
+        Loading workspace...
       </div>
     );
   }
@@ -352,7 +352,7 @@ export function Layout() {
       return (
         <div className="flex min-h-screen items-center justify-center px-4">
           <div className="w-full max-w-md rounded-xl border p-5">
-            <p className="text-sm font-medium">Switching organization...</p>
+            <p className="text-sm font-medium">Switching workspace...</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Setting <span className="font-mono">{orgSlug}</span> as your active workspace.
             </p>
@@ -360,7 +360,7 @@ export function Layout() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <p className="text-sm text-destructive">{switchError}</p>
                 <Button size="sm" variant="outline" nativeButton={false} render={<Link to="/o/select" />}>
-                  Go to org selector
+                  Choose workspace
                 </Button>
               </div>
             ) : null}
@@ -373,18 +373,18 @@ export function Layout() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-lg space-y-4 rounded-xl border p-5">
           <div>
-            <p className="text-sm font-medium">Organization not available</p>
+            <p className="text-sm font-medium">Workspace not available</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              You do not have access to <span className="font-mono">{orgSlug}</span>, or the
-              organization is missing a slug.
+              You do not have access to <span className="font-mono">{orgSlug}</span>, or this
+              workspace is unavailable.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" nativeButton={false} render={<Link to="/o/select" />}>
-              Select org
+              Select workspace
             </Button>
             <Button variant="outline" nativeButton={false} render={<Link to="/o/new" />}>
-              Create org
+              Create workspace
             </Button>
           </div>
         </div>
@@ -424,7 +424,7 @@ export function Layout() {
                     seed={matchingMembership.organization.id}
                   />
                 ) : (
-                  <SelectValue placeholder="Select organization" />
+                  <SelectValue placeholder="Select workspace" />
                 )}
               </SelectTrigger>
               <SelectContent>
@@ -453,7 +453,7 @@ export function Layout() {
                     className="text-muted-foreground [&_svg]:text-muted-foreground"
                   >
                     <IconPlus />
-                    <span>Create new organization</span>
+                    <span>Create new workspace</span>
                   </SelectItem>
                 </SelectGroup>
               </SelectContent>
@@ -461,7 +461,7 @@ export function Layout() {
           </SidebarGroup>
 
           <SidebarGroup>
-            <SidebarGroupLabel>Organization</SidebarGroupLabel>
+            <SidebarGroupLabel>Workspace</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {navItems.map((item) => {
