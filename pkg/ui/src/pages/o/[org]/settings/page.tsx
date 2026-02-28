@@ -76,7 +76,7 @@ export function Page() {
               nativeButton={false}
               render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
             >
-              Advanced
+              Advanced diagnostics
             </Button>
           </>
         }
