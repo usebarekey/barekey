@@ -16,12 +16,19 @@ import {
   OrgRoleBadge,
   OrgSectionCard,
 } from "@/components/custom/org-workspace";
-import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "@/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
+import { displayName, initials } from "@/lib/org-utils";
 
 function formatDateTime(value: number): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -36,15 +43,6 @@ function formatRole(role: string | null | undefined): string {
   }
 
   return role.replace(/^org:/, "");
-}
-
-function getMemberDisplayName(member: {
-  firstName: string | null;
-  lastName: string | null;
-  identifier: string;
-}): string {
-  const fullName = [member.firstName, member.lastName].filter(Boolean).join(" ").trim();
-  return fullName || member.identifier;
 }
 
 export function Page() {
@@ -72,17 +70,17 @@ export function Page() {
   const memberCount = memberships?.count ?? members.length;
   const inviteCount = invitations?.count ?? invites.length;
   const projectCount = projects?.length ?? 0;
-  const hasOrgIdClaim = orgClaims?.orgId != null;
-  const routeMatchesActiveOrg = orgClaims?.routeMatchesActiveOrg ?? false;
-  const readinessChecks = [
-    hasOrgIdClaim,
-    routeMatchesActiveOrg,
-    projectCount > 0,
-    memberCount > 0,
-  ];
-  const readinessPercent = Math.round(
-    (readinessChecks.filter(Boolean).length / readinessChecks.length) * 100,
-  );
+  const isOrgClaimsLoading = orgClaims === undefined;
+  const hasWorkspaceLink = orgClaims?.orgId != null;
+  const routeMatchesWorkspace = orgClaims?.routeMatchesActiveOrg ?? false;
+  const sessionReady = orgClaims?.isSignedIn ?? false;
+  const setupChecks = isOrgClaimsLoading
+    ? null
+    : [sessionReady, hasWorkspaceLink, routeMatchesWorkspace, projectCount > 0, memberCount > 0];
+  const setupPercent =
+    setupChecks === null
+      ? null
+      : Math.round((setupChecks.filter(Boolean).length / setupChecks.length) * 100);
 
   return (
     <div className="space-y-6">
@@ -94,16 +92,24 @@ export function Page() {
         imageSeed={organization?.id}
         subtitle={
           <>
-            A live operating view for your workspace. Track team access, project footprint, and
-            Convex/Clerk organization claim health before you ship new secrets or APIs.
+            Track project momentum, team access, and workspace setup in one place before you ship
+            changes.
           </>
         }
         tags={
           <>
-            <OrgRoleBadge role={orgClaims?.orgRole} />
-            <Badge variant={routeMatchesActiveOrg ? "secondary" : "outline"}>
-              {routeMatchesActiveOrg ? "Org route synced" : "Org route pending sync"}
-            </Badge>
+            {isOrgClaimsLoading ? (
+              <Badge variant="outline">Checking workspace...</Badge>
+            ) : (
+              <OrgRoleBadge role={orgClaims.orgRole} />
+            )}
+            {isOrgClaimsLoading ? (
+              <Badge variant="outline">Syncing...</Badge>
+            ) : (
+              <Badge variant={hasWorkspaceLink && routeMatchesWorkspace ? "secondary" : "outline"}>
+                {hasWorkspaceLink && routeMatchesWorkspace ? "Ready" : "Needs setup"}
+              </Badge>
+            )}
           </>
         }
         actions={
@@ -132,7 +138,7 @@ export function Page() {
           hint={
             projectCount > 0 && projects
               ? `Latest: ${projects[0]?.name ?? "n/a"}`
-              : "Create the first project to start organizing secrets."
+              : "Create the first project to start organizing variables."
           }
           icon={<IconBriefcase className="size-4" />}
           tone="accent"
@@ -140,20 +146,24 @@ export function Page() {
         <OrgMetricCard
           label="Members"
           value={memberships ? memberCount : "..."}
-          hint="Active organization memberships from Clerk"
+          hint="People with access to this workspace"
           icon={<IconUsers className="size-4" />}
         />
         <OrgMetricCard
-          label="Pending Invites"
+          label="Pending invites"
           value={invitations ? inviteCount : "..."}
-          hint={inviteCount > 0 ? "Follow up on pending access requests" : "No pending invites"}
+          hint={inviteCount > 0 ? "Follow up on pending invites" : "No pending invites"}
           icon={<IconBellRinging className="size-4" />}
           tone={inviteCount > 0 ? "accent" : "muted"}
         />
         <OrgMetricCard
-          label="Workspace Readiness"
-          value={`${readinessPercent}%`}
-          hint={`Role: ${formatRole(orgClaims?.orgRole)}`}
+          label="Workspace setup"
+          value={setupPercent === null ? "..." : `${setupPercent}%`}
+          hint={
+            isOrgClaimsLoading
+              ? "Running setup checks..."
+              : `Current role: ${formatRole(orgClaims.orgRole)}`
+          }
           icon={<IconShieldCheck className="size-4" />}
         />
       </div>
@@ -161,7 +171,7 @@ export function Page() {
       <div className="grid gap-4 xl:grid-cols-[1.25fr_0.85fr]">
         <OrgSectionCard
           title="Recent projects"
-          description="Newest projects in this workspace, scoped by active organization."
+          description="Newest projects in this workspace."
           action={
             <Button
               size="sm"
@@ -185,8 +195,7 @@ export function Page() {
             </div>
           ) : recentProjects.length === 0 ? (
             <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-              No projects yet. Create one in the Projects page to start organizing environments and
-              access scopes.
+              No projects yet. Create one in the Projects page to start organizing environments.
             </div>
           ) : (
             <div className="space-y-2">
@@ -208,9 +217,7 @@ export function Page() {
                         {project.slug}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDateTime(project.createdAtMs)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{formatDateTime(project.createdAtMs)}</p>
                   </div>
                 </div>
               ))}
@@ -220,36 +227,42 @@ export function Page() {
 
         <div className="space-y-4">
           <OrgSectionCard
-            title="Workspace signals"
-            description="This panel tracks the auth and org claims that drive org-scoped data access."
+            title="Workspace health"
+            description="Quick checks to keep day-to-day work moving."
           >
             <div className="space-y-4">
               <div className="rounded-xl border bg-background/70 p-3">
-                <Progress value={readinessPercent}>
-                  <ProgressLabel>Operational readiness</ProgressLabel>
+                <Progress value={setupPercent ?? 0}>
+                  <ProgressLabel>Setup progress</ProgressLabel>
                   <span className="text-muted-foreground ml-auto text-sm tabular-nums">
-                    {readinessPercent}%
+                    {setupPercent === null ? "..." : `${setupPercent}%`}
                   </span>
                 </Progress>
               </div>
 
               <div className="grid gap-2">
                 <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span className="text-sm">Convex auth connected</span>
-                  <Badge variant={orgClaims?.isSignedIn ? "secondary" : "outline"}>
-                    {orgClaims?.isSignedIn ? "Yes" : "No"}
+                  <span className="text-sm">Signed-in session</span>
+                  <Badge variant={isOrgClaimsLoading ? "outline" : sessionReady ? "secondary" : "outline"}>
+                    {isOrgClaimsLoading ? "Loading" : sessionReady ? "Ready" : "Pending"}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span className="text-sm">Active org id claim</span>
-                  <Badge variant={hasOrgIdClaim ? "secondary" : "outline"}>
-                    {hasOrgIdClaim ? "Present" : "Missing"}
+                  <span className="text-sm">Workspace link</span>
+                  <Badge
+                    variant={isOrgClaimsLoading ? "outline" : hasWorkspaceLink ? "secondary" : "outline"}
+                  >
+                    {isOrgClaimsLoading ? "Loading" : hasWorkspaceLink ? "Ready" : "Needs setup"}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span className="text-sm">Route matches active org</span>
-                  <Badge variant={routeMatchesActiveOrg ? "secondary" : "outline"}>
-                    {routeMatchesActiveOrg ? "Matched" : "Pending"}
+                  <span className="text-sm">Route alignment</span>
+                  <Badge
+                    variant={
+                      isOrgClaimsLoading ? "outline" : routeMatchesWorkspace ? "secondary" : "outline"
+                    }
+                  >
+                    {isOrgClaimsLoading ? "Loading" : routeMatchesWorkspace ? "Matched" : "Pending"}
                   </Badge>
                 </div>
               </div>
@@ -258,7 +271,7 @@ export function Page() {
 
           <OrgSectionCard
             title="Team snapshot"
-            description="Quick glance at who currently has access and the invite pipeline."
+            description="Quick glance at current access and pending invites."
             action={
               <Button
                 size="sm"
@@ -291,7 +304,7 @@ export function Page() {
                     <AvatarGroup>
                       {members.slice(0, 4).map((member) => {
                         const publicUserData = member.publicUserData;
-                        const name = getMemberDisplayName({
+                        const name = displayName({
                           firstName: publicUserData?.firstName ?? null,
                           lastName: publicUserData?.lastName ?? null,
                           identifier: publicUserData?.identifier ?? "member",
@@ -303,7 +316,7 @@ export function Page() {
                         return (
                           <Avatar key={member.id}>
                             <AvatarImage src={avatarSrc} />
-                            <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                            <AvatarFallback>{initials(name) || "MB"}</AvatarFallback>
                           </Avatar>
                         );
                       })}
@@ -313,7 +326,7 @@ export function Page() {
                     <div className="space-y-1">
                       {members.slice(0, 3).map((member) => {
                         const publicUserData = member.publicUserData;
-                        const name = getMemberDisplayName({
+                        const name = displayName({
                           firstName: publicUserData?.firstName ?? null,
                           lastName: publicUserData?.lastName ?? null,
                           identifier: publicUserData?.identifier ?? "member",
@@ -333,12 +346,8 @@ export function Page() {
 
               <div className="rounded-xl border bg-background/70 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                    Invite queue
-                  </p>
-                  <Badge variant={inviteCount > 0 ? "secondary" : "outline"}>
-                    {inviteCount} pending
-                  </Badge>
+                  <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Invite queue</p>
+                  <Badge variant={inviteCount > 0 ? "secondary" : "outline"}>{inviteCount} pending</Badge>
                 </div>
                 <div className="mt-2 space-y-1">
                   {invites.slice(0, 3).map((invite) => (
@@ -353,10 +362,21 @@ export function Page() {
                 </div>
               </div>
 
-              {orgClaims && !hasOrgIdClaim ? (
-                <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                  Convex token is missing <code>org_id</code>. Add org claims to the Clerk Convex
-                  JWT template to enable org-scoped queries across the workspace.
+              {orgClaims && !hasWorkspaceLink ? (
+                <div className="rounded-xl border border-dashed p-3">
+                  <p className="text-sm text-muted-foreground">
+                    Workspace setup is incomplete. Open settings if project data is unavailable.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    nativeButton={false}
+                    render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
+                    className="mt-2 h-7 px-2"
+                  >
+                    Open diagnostics
+                    <IconArrowRight />
+                  </Button>
                 </div>
               ) : null}
             </div>
