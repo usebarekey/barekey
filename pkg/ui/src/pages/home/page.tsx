@@ -35,36 +35,30 @@ export function Page() {
     <div className="flex h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <h1 className="text-lg font-semibold">Signed in</h1>
-          <p className="text-sm text-muted-foreground">
-            Clerk session is active. Convex auth bridge status is shown below.
-          </p>
+          <h1 className="text-lg font-semibold">Preparing your workspace</h1>
+          <p className="text-sm text-muted-foreground">You are signed in. Final checks are running.</p>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p>
-            <strong>Clerk user:</strong> {userId}
+            <strong>Account:</strong> {userId}
           </p>
           <p>
-            <strong>Convex auth:</strong>{" "}
+            <strong>Workspace sync:</strong>{" "}
             {isLoading
               ? "Syncing..."
               : isAuthenticated
-                ? "Authenticated"
-                : "Not authenticated yet"}
+                ? "Ready"
+                : "Still connecting"}
           </p>
           {!isAuthenticated && !isLoading ? (
-            <p className="text-destructive">
-              Convex is not authenticated yet. Check `CLERK_JWT_ISSUER_DOMAIN`
-              in your Convex environment and run `npx convex dev`.
+            <p className="text-muted-foreground">
+              This is taking longer than expected. Restart local services and refresh.
             </p>
           ) : null}
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-2">
-          <Link
-            to="/auth/sso"
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            Auth page
+          <Link to="/auth/sso" className={cn(buttonVariants({ variant: "outline" }))}>
+            Sign-in page
           </Link>
           <SignOutButton redirectUrl="/auth/sso">
             <Button>Sign out</Button>
