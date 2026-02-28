@@ -79,9 +79,6 @@ export function Page() {
             ) : (
               <OrgRoleBadge role={orgClaims.orgRole} />
             )}
-            <Badge variant={hasWorkspaceLink ? "secondary" : "outline"}>
-              {hasWorkspaceLink ? "Ready" : "Needs attention"}
-            </Badge>
           </>
         }
         actions={
@@ -133,7 +130,7 @@ export function Page() {
       <div className="grid gap-4 xl:grid-cols-[1.25fr_0.85fr]">
         <OrgSectionCard
           title="Recent projects"
-          description="Newest projects in this workspace."
+          description="Your latest projects."
           action={
             <Button
               size="sm"
@@ -161,7 +158,7 @@ export function Page() {
             </div>
           ) : (
             <div className="space-y-2">
-              {recentProjects.map((project, index) => (
+              {recentProjects.map((project) => (
                 <div
                   key={project.id}
                   className="group relative overflow-hidden rounded-xl border bg-background/80 p-3"
@@ -169,12 +166,7 @@ export function Page() {
                   <div className="absolute inset-y-0 left-0 w-1 bg-primary/25 transition-colors group-hover:bg-primary/60" />
                   <div className="ml-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={index === 0 ? "secondary" : "outline"}>
-                          {index === 0 ? "Newest" : `#${index + 1}`}
-                        </Badge>
-                        <p className="truncate text-sm font-medium">{project.name}</p>
-                      </div>
+                      <p className="truncate text-sm font-medium">{project.name}</p>
                       <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
                         {project.slug}
                       </p>
