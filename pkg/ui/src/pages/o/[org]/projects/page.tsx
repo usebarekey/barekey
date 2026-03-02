@@ -19,7 +19,6 @@ import {
   OrgRoleBadge,
   OrgSectionCard,
 } from "@/components/custom/org-workspace";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -61,12 +60,7 @@ export function Page() {
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
-  const { organization, memberships } = useOrganization({
-    memberships: {
-      pageSize: 10,
-      keepPreviousData: true,
-    },
-  });
+  const { organization } = useOrganization();
 
   const isClaimsLoading = orgClaims === undefined;
   const isMissingWorkspaceLink =
@@ -122,7 +116,6 @@ export function Page() {
         tags={
           <>
             <OrgRoleBadge role={orgClaims?.orgRole} />
-            <Badge variant="outline">Project workspace</Badge>
           </>
         }
         actions={
@@ -144,7 +137,7 @@ export function Page() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <OrgMetricCard
           label="Total projects"
           value={projects === undefined ? "..." : projects.length}
@@ -157,12 +150,6 @@ export function Page() {
           value={latestProject ? latestProject.name : projects ? "None" : "..."}
           hint={latestProject ? latestProject.slug : "Create your first project"}
           icon={<IconArrowRight className="size-4" />}
-        />
-        <OrgMetricCard
-          label="Member coverage"
-          value={memberships ? memberships.count : "..."}
-          hint="People who can operate projects"
-          icon={<IconUsers className="size-4" />}
         />
       </div>
 
@@ -239,7 +226,7 @@ export function Page() {
         </OrgSectionCard>
 
         <OrgSectionCard
-          title="Project index"
+          title="Project list"
           description="Search and inspect projects by name or slug."
           action={
             <div className="text-xs text-muted-foreground">
@@ -298,7 +285,7 @@ export function Page() {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredProjects.map((project, index) => (
+                {filteredProjects.map((project) => (
                   <div
                     key={project.id}
                     className="group relative overflow-hidden rounded-xl border bg-background/80 p-3"
@@ -306,14 +293,7 @@ export function Page() {
                     <div className="absolute inset-y-0 left-0 w-1 bg-primary/15 transition-colors group-hover:bg-primary/50" />
                     <div className="ml-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {index < 3 ? (
-                            <Badge variant={index === 0 ? "secondary" : "outline"}>
-                              {index === 0 ? "Hot" : `#${index + 1}`}
-                            </Badge>
-                          ) : null}
-                          <p className="truncate text-sm font-medium">{project.name}</p>
-                        </div>
+                        <p className="truncate text-sm font-medium">{project.name}</p>
                         <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
                           {project.slug}
                         </p>

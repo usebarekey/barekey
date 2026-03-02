@@ -2,7 +2,6 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 
 import { api } from "@convex/_generated/api";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function Page() {
@@ -15,18 +14,17 @@ export function Page() {
       <Card>
         <CardHeader>
           <CardTitle>Account overview</CardTitle>
-          <CardDescription>Your profile details and account status.</CardDescription>
+          <CardDescription>Profile details for your Barekey account.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">User slug</Badge>
-            <span className="font-mono">{userSlug}</span>
-          </div>
-
           {isLoading ? (
             <p className="text-muted-foreground">Loading account details...</p>
           ) : currentUser ? (
             <>
+              <p>
+                <span className="text-muted-foreground">Status:</span>{" "}
+                <span>Ready</span>
+              </p>
               <p>
                 <span className="text-muted-foreground">Name:</span>{" "}
                 <span>{currentUser.displayName ?? "Not set"}</span>
@@ -35,9 +33,13 @@ export function Page() {
                 <span className="text-muted-foreground">Email:</span>{" "}
                 <span>{currentUser.email ?? "Not set"}</span>
               </p>
+              <p>
+                <span className="text-muted-foreground">Profile path:</span>{" "}
+                <span className="font-mono">/u/{userSlug}</span>
+              </p>
             </>
           ) : (
-            <p className="text-muted-foreground">Account record not available yet.</p>
+            <p className="text-muted-foreground">Your account record is still being prepared.</p>
           )}
         </CardContent>
       </Card>
