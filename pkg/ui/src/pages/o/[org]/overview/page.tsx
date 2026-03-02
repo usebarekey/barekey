@@ -1,37 +1,25 @@
 import { useQuery } from "convex/react";
 import {
+  IconArrowUpRight,
   IconArrowRight,
-  IconBriefcase,
-  IconUsers,
+  IconBolt,
+  IconCpu,
+  IconDatabase,
 } from "@tabler/icons-react";
 import { useOrganization } from "@clerk/react-router";
 import { Link, useParams } from "react-router-dom";
+import { useEffect } from "react";
 
 import { api } from "@convex/_generated/api";
 import {
+  OrgMetricCard,
   OrgPageHero,
   OrgRoleBadge,
   OrgSectionCard,
 } from "@/components/custom/org-workspace";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarGroup,
-  AvatarGroupCount,
-  AvatarImage,
-} from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { generateGradientDataUrl } from "@/lib/generate-gradient";
-import { displayName, initials } from "@/lib/org-utils";
-
-function formatDateTime(value: number): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
-}
 
 export function Page() {
   const { orgSlug = "org" } = useParams();
@@ -41,33 +29,24 @@ export function Page() {
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
-  const { organization, memberships, invitations } = useOrganization({
-    memberships: {
-      pageSize: 8,
-      keepPreviousData: true,
-    },
-    invitations: {
-      pageSize: 8,
-      keepPreviousData: true,
-    },
-  });
-
+  const { organization } = useOrganization();
   const recentProjects = (projects ?? []).slice(0, 5);
-  const memberCount = memberships?.count ?? members.length;
-  const inviteCount = invitations?.count ?? invites.length;
-  const projectCount = projects?.length ?? 0;
   const isOrgClaimsLoading = orgClaims === undefined;
-  const hasWorkspaceLink = orgClaims?.orgId != null;
+
+  useEffect(() => {
+    const orgLabel = organization?.name?.trim() || orgSlug;
+    document.title = `${orgLabel} · Overview`;
+  }, [organization?.name, orgSlug]);
 
   return (
     <div className="space-y-6">
       <OrgPageHero
-        title="Workspace overview"
+        title="Overview"
         orgSlug={orgSlug}
         orgName={organization?.name}
         imageUrl={organization?.imageUrl}
         imageSeed={organization?.id}
-        subtitle={<>Track projects, team access, and pending invites from one place.</>}
+        subtitle={<>Track projects, team access, and pending invites from one place. All values reflect the last 24 hours.</>}
         tags={
           <>
             {isOrgClaimsLoading ? (
@@ -77,49 +56,26 @@ export function Page() {
             )}
           </>
         }
-        actions={
-          <>
-            <Button size="sm" nativeButton={false} render={<Link to={`/o/${orgSlug}/projects`} />}>
-              <IconBriefcase />
-              Open projects
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link to={`/o/${orgSlug}/members`} />}
-            >
-              <IconUsers />
-              Manage team
-            </Button>
-          </>
-        }
       />
 
       <div className="grid gap-4 md:grid-cols-3">
         <OrgMetricCard
-          label="Projects"
-          value={projects === undefined ? "..." : projectCount}
-          hint={
-            projectCount > 0 && projects
-              ? `Latest: ${projects[0]?.name ?? "n/a"}`
-              : "Create your first project to get started."
-          }
-          icon={<IconBriefcase className="size-4" />}
-          tone="accent"
+          label="Static Requests"
+          value="0"
+          hint="Usage limits tracking soon"
+          icon={<IconBolt className="size-4" />}
         />
         <OrgMetricCard
-          label="Members"
-          value={memberships ? memberCount : "..."}
-          hint="People with access to this workspace"
-          icon={<IconUsers className="size-4" />}
+          label="Dynamic Requests"
+          value="0"
+          hint="Usage limits tracking soon"
+          icon={<IconCpu className="size-4" />}
         />
         <OrgMetricCard
-          label="Pending invites"
-          value={invitations ? inviteCount : "..."}
-          hint={inviteCount > 0 ? "Follow up on pending invites" : "No pending invites"}
-          icon={<IconBellRinging className="size-4" />}
-          tone={inviteCount > 0 ? "accent" : "muted"}
+          label="Storage"
+          value="0 MB"
+          hint="Usage limits tracking soon"
+          icon={<IconDatabase className="size-4" />}
         />
       </div>
 
@@ -167,7 +123,15 @@ export function Page() {
                         {project.slug}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{formatDateTime(project.createdAtMs)}</p>
+                    <Button
+                      size="icon-sm"
+                      variant="outline"
+                      nativeButton={false}
+                      render={<Link to={`/o/${orgSlug}/project/${project.slug}`} />}
+                      aria-label={`Open ${project.name}`}
+                    >
+                      <IconArrowUpRight />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -176,115 +140,29 @@ export function Page() {
         </OrgSectionCard>
 
         <OrgSectionCard
-          title="Team snapshot"
-          description="Current access and invite status."
-          action={
-            <Button
-              size="sm"
-              variant="ghost"
-              nativeButton={false}
-              render={<Link to={`/o/${orgSlug}/members`} />}
-            >
-              Manage
-              <IconArrowRight />
-            </Button>
-          }
+          title="Audit log"
+          description="Scaffolded feed for org and project activity (implementation pending)."
         >
           <div className="space-y-4">
-            <div className="rounded-xl border bg-background/70 p-3">
-              <p className="mb-2 text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                Active members
+            <div className="rounded-xl border border-dashed bg-background/70 p-3">
+              <p className="org-kicker text-muted-foreground">Scaffold</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This panel will show an audit trail for key actions like project creation, secret
+                changes, stage updates, membership changes, and access-sensitive operations.
               </p>
-              {memberships === null ? (
-                <p className="text-sm text-muted-foreground">No workspace selected.</p>
-              ) : memberships?.isLoading ? (
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-8 w-20 rounded-full" />
-                  <Skeleton className="h-8 w-24 rounded-full" />
-                  <Skeleton className="h-8 w-16 rounded-full" />
-                </div>
-              ) : members.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No members loaded yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  <AvatarGroup>
-                    {members.slice(0, 4).map((member) => {
-                      const publicUserData = member.publicUserData;
-                      const name = displayName({
-                        firstName: publicUserData?.firstName ?? null,
-                        lastName: publicUserData?.lastName ?? null,
-                        identifier: publicUserData?.identifier ?? "member",
-                      });
-                      const avatarSrc =
-                        publicUserData?.imageUrl ??
-                        generateGradientDataUrl(publicUserData?.userId ?? member.id);
-
-                      return (
-                        <Avatar key={member.id}>
-                          <AvatarImage src={avatarSrc} />
-                          <AvatarFallback>{initials(name) || "MB"}</AvatarFallback>
-                        </Avatar>
-                      );
-                    })}
-                    {memberCount > 4 ? <AvatarGroupCount>+{memberCount - 4}</AvatarGroupCount> : null}
-                  </AvatarGroup>
-
-                  <div className="space-y-1">
-                    {members.slice(0, 3).map((member) => {
-                      const publicUserData = member.publicUserData;
-                      const name = displayName({
-                        firstName: publicUserData?.firstName ?? null,
-                        lastName: publicUserData?.lastName ?? null,
-                        identifier: publicUserData?.identifier ?? "member",
-                      });
-
-                      return (
-                        <div key={member.id} className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm">{name}</p>
-                          <OrgRoleBadge role={member.role} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="rounded-xl border bg-background/70 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Invite queue</p>
-                <Badge variant={inviteCount > 0 ? "secondary" : "outline"}>{inviteCount} pending</Badge>
-              </div>
-              <div className="mt-2 space-y-1">
-                {invites.slice(0, 3).map((invite) => (
-                  <div key={invite.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate">{invite.emailAddress}</span>
-                    <Badge variant="outline">{invite.roleName || invite.role}</Badge>
+              <p className="org-kicker text-muted-foreground">Preview events</p>
+              <div className="mt-2 space-y-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="rounded-md border bg-background/50 p-2">
+                    <Skeleton className="h-3 w-2/3" />
+                    <Skeleton className="mt-2 h-2.5 w-1/3" />
                   </div>
                 ))}
-                {inviteCount === 0 ? (
-                  <p className="text-sm text-muted-foreground">No pending invitations.</p>
-                ) : null}
               </div>
             </div>
-
-            {orgClaims && !hasWorkspaceLink ? (
-              <div className="rounded-xl border border-dashed p-3">
-                <p className="text-sm text-muted-foreground">
-                  Some workspace details are missing, so project data may be unavailable.
-                </p>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
-                  className="mt-2 h-7 px-2"
-                >
-                  Open diagnostics
-                  <IconArrowRight />
-                </Button>
-              </div>
-            ) : null}
           </div>
         </OrgSectionCard>
       </div>

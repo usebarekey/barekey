@@ -25,20 +25,20 @@ export function Page() {
       >
         <div className="space-y-3 rounded-xl border bg-background/70 p-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Name</p>
+            <p className="org-kicker text-muted-foreground">Name</p>
             <p className="mt-1 text-sm font-medium">{project.projectName}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Slug</p>
+            <p className="org-kicker text-muted-foreground">Slug</p>
             <p className="mt-1 font-mono text-sm">{project.projectSlug}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Created</p>
+              <p className="org-kicker text-muted-foreground">Created</p>
               <p className="mt-2 text-sm">{formatDateTime(project.createdAtMs)}</p>
             </div>
             <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Last updated</p>
+              <p className="org-kicker text-muted-foreground">Last updated</p>
               <p className="mt-2 text-sm">{formatDateTime(project.updatedAtMs)}</p>
             </div>
           </div>

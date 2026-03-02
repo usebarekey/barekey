@@ -5,6 +5,7 @@
 @import "@fontsource/instrument-sans/latin.css";
 @import "@fontsource/instrument-serif/latin.css";
 @import "@fontsource/jetbrains-mono/latin.css";
+@import "@fontsource/outfit/latin-600.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -111,13 +112,13 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --radius-xl: calc(var(--radius) * 1.25);
+  --radius-2xl: calc(var(--radius) * 1.5);
+  --radius-3xl: calc(var(--radius) * 1.75);
+  --radius-4xl: calc(var(--radius) * 2);
 }
 
 @layer base {
@@ -139,5 +140,14 @@
   }
   html.debug-instrument-fonts :where(h1, h2, h3, h4, h5, h6) {
     font-family: "Instrument Serif", serif;
+  }
+
+  .org-kicker {
+    font-family: "Outfit", "Google Sans", "Geist Variable", sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 }

@@ -4,10 +4,11 @@ import * as SSO from "@/pages/auth/sso/page";
 import * as SSOCallback from "@/pages/auth/sso/callback/page";
 import * as Auth from "@/pages/auth/layout";
 import * as Home from "@/pages/home/page";
-import * as OrgNew from "@/pages/o/new/page";
+import * as CreateNew from "@/pages/new/page";
 import * as OrgSelect from "@/pages/o/select/page";
 import * as OrgOverview from "@/pages/o/[org]/overview/page";
 import * as OrgLayout from "@/pages/o/[org]/layout";
+import * as OrgBilling from "@/pages/o/[org]/billing/page";
 import * as OrgMembers from "@/pages/o/[org]/members/page";
 import * as OrgProjects from "@/pages/o/[org]/projects/page";
 import * as OrgProjectLayout from "@/pages/o/[org]/project/[projectSlug]/layout";
@@ -22,17 +23,19 @@ export function Router() {
   return (
     <Routes>
       <Route path="/" element={<Home.Page />} />
+      <Route path="new" element={<CreateNew.Page />} />
       <Route path="auth" element={<Auth.Layout />}>
         <Route path="sso" element={<SSO.Page />} />
         <Route path="sso/callback" element={<SSOCallback.Page />} />
       </Route>
       <Route path="o">
         <Route path="select" element={<OrgSelect.Page />} />
-        <Route path="new" element={<OrgNew.Page />} />
+        <Route path="new" element={<Navigate to="/new?type=organization" replace />} />
         <Route path=":orgSlug" element={<OrgLayout.Layout />}>
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="members" element={<OrgMembers.Page />} />
           <Route path="projects" element={<OrgProjects.Page />} />
+          <Route path="billing" element={<OrgBilling.Page />} />
           <Route path="project/:projectSlug" element={<OrgProjectLayout.Layout />}>
             <Route index element={<Navigate to="variables" replace />} />
             <Route path="variables" element={<OrgProjectVariables.Page />} />

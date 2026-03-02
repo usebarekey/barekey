@@ -1,28 +1,71 @@
 import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   IconArrowRight,
   IconLock,
   IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import { toast } from "sonner";
 
 import { api } from "@convex/_generated/api";
 import { OrgSectionCard } from "@/components/custom/org-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { ProjectRouteContext } from "../layout";
 
+type StageDraftRow = {
+  id: string;
+  slug: string;
+  name: string;
+  originalName: string;
+  variableCount: number;
+  isDefault: boolean;
+  isNew: boolean;
+  isDeleted: boolean;
+};
+
+function hasStageDraftChanges(rows: StageDraftRow[]): boolean {
+  return rows.some((row) => {
+    if (row.isDeleted || row.isNew) {
+      return true;
+    }
+
+    return row.name.trim() !== row.originalName;
+  });
+}
+
+function stageSlugPreview(value: string): string {
+  const normalized = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+
+  return normalized.length > 0 ? normalized : "stage";
+}
+
 export function Page() {
   const project = useOutletContext<ProjectRouteContext>();
+  const navigate = useNavigate();
   const projectBasePath = `/o/${project.orgSlug}/project/${project.projectSlug}`;
   const [newEnvironmentName, setNewEnvironmentName] = useState("");
-  const [renameDraftBySlug, setRenameDraftBySlug] = useState<Record<string, string>>({});
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [stageDraftRows, setStageDraftRows] = useState<StageDraftRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteCountdown, setDeleteCountdown] = useState(5);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   const stages = useQuery(api.project_stages.listForCurrentOrgProject, {
     expectedOrgSlug: project.orgSlug,
@@ -31,78 +74,241 @@ export function Page() {
   const createStage = useMutation(api.project_stages.createForCurrentOrgProject);
   const renameStage = useMutation(api.project_stages.renameForCurrentOrgProject);
   const deleteStage = useMutation(api.project_stages.deleteForCurrentOrgProject);
+  const deleteProject = useMutation(api.projects.deleteForCurrentOrg);
+  const hasEnvironmentDraftChanges = hasStageDraftChanges(stageDraftRows);
+  const remainingEnvironmentCount = stages?.length ?? 0;
+  const remainingVariableCount =
+    stages?.reduce((total, stage) => total + stage.variableCount, 0) ?? 0;
+  const isDeletePrerequisitesLoading = stages === undefined;
+  const areDeletePrerequisitesMet =
+    !isDeletePrerequisitesLoading &&
+    remainingEnvironmentCount === 0 &&
+    remainingVariableCount === 0;
+  const hasDeleteCleanupRemaining =
+    !isDeletePrerequisitesLoading &&
+    (remainingEnvironmentCount > 0 || remainingVariableCount > 0);
 
-  async function handleCreateStage() {
+  useEffect(() => {
+    if (!stages) {
+      return;
+    }
+
+    setStageDraftRows((previous) => {
+      if (hasStageDraftChanges(previous)) {
+        return previous;
+      }
+
+      return stages.map((stage) => ({
+        id: stage.id,
+        slug: stage.slug,
+        name: stage.name,
+        originalName: stage.name,
+        variableCount: stage.variableCount,
+        isDefault: stage.isDefault,
+        isNew: false,
+        isDeleted: false,
+      }));
+    });
+  }, [stages]);
+
+  useEffect(() => {
+    if (!isDeleteDialogOpen) {
+      setDeleteCountdown(5);
+      return;
+    }
+
+    if (deleteCountdown <= 0) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setDeleteCountdown((previous) => Math.max(0, previous - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timeout);
+  }, [deleteCountdown, isDeleteDialogOpen]);
+
+  function handleResetEnvironmentDraft() {
+    if (!stages) {
+      setStageDraftRows([]);
+      return;
+    }
+
+    setStageDraftRows(
+      stages.map((stage) => ({
+        id: stage.id,
+        slug: stage.slug,
+        name: stage.name,
+        originalName: stage.name,
+        variableCount: stage.variableCount,
+        isDefault: stage.isDefault,
+        isNew: false,
+        isDeleted: false,
+      })),
+    );
+  }
+
+  function handleAddEnvironmentToDraft() {
     const trimmed = newEnvironmentName.trim();
     if (trimmed.length === 0 || isSaving) {
       return;
     }
 
-    setIsSaving(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    try {
-      const created = await createStage({
-        expectedOrgSlug: project.orgSlug,
-        projectSlug: project.projectSlug,
-        name: trimmed,
-      });
-      setNewEnvironmentName("");
-      setSuccessMessage(`Added environment ${created.name}.`);
-    } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to create environment.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleRenameStage(stageSlug: string, currentName: string) {
-    const draftName = (renameDraftBySlug[stageSlug] ?? currentName).trim();
-    if (draftName.length === 0 || draftName === currentName || isSaving) {
+    if (trimmed.length > 64) {
+      toast.error("Stage name must be 64 characters or fewer.");
       return;
     }
 
-    setIsSaving(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    try {
-      const renamed = await renameStage({
-        expectedOrgSlug: project.orgSlug,
-        projectSlug: project.projectSlug,
-        stageSlug,
-        name: draftName,
-      });
-      setRenameDraftBySlug((previous) => {
-        const { [stageSlug]: _, ...rest } = previous;
-        return rest;
-      });
-      setSuccessMessage(`Renamed environment to ${renamed.name}.`);
-    } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to rename environment.");
-    } finally {
-      setIsSaving(false);
-    }
+    setStageDraftRows((previous) => [
+      ...previous,
+      {
+        id: `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        slug: stageSlugPreview(trimmed),
+        name: trimmed,
+        originalName: "",
+        variableCount: 0,
+        isDefault: false,
+        isNew: true,
+        isDeleted: false,
+      },
+    ]);
+    setNewEnvironmentName("");
   }
 
-  async function handleDeleteStage(stageSlug: string) {
+  function handleUpdateEnvironmentDraftName(stageId: string, value: string) {
+    setStageDraftRows((previous) =>
+      previous.map((row) => {
+        if (row.id !== stageId) {
+          return row;
+        }
+
+        return {
+          ...row,
+          name: value,
+        };
+      }),
+    );
+  }
+
+  function handleToggleEnvironmentDraftDelete(stageId: string) {
     if (isSaving) {
       return;
     }
 
+    const target = stageDraftRows.find((row) => row.id === stageId);
+    if (!target) {
+      return;
+    }
+
+    if (!target.isDeleted && target.variableCount > 0) {
+      toast.error(
+        "This environment cannot be deleted until all variables are removed from it.",
+      );
+      return;
+    }
+
+    setStageDraftRows((previous) => {
+      const next: StageDraftRow[] = [];
+      for (const row of previous) {
+        if (row.id !== stageId) {
+          next.push(row);
+          continue;
+        }
+
+        if (row.isNew) {
+          continue;
+        }
+
+        next.push({
+          ...row,
+          isDeleted: !row.isDeleted,
+        });
+      }
+
+      return next;
+    });
+  }
+
+  async function handleSaveEnvironmentDraft() {
+    if (isSaving || !hasEnvironmentDraftChanges) {
+      return;
+    }
+
+    const invalidRow = stageDraftRows.find(
+      (row) => !row.isDeleted && row.name.trim().length === 0,
+    );
+    if (invalidRow) {
+      toast.error("Environment name is required.");
+      return;
+    }
+
+    const tooLongRow = stageDraftRows.find(
+      (row) => !row.isDeleted && row.name.trim().length > 64,
+    );
+    if (tooLongRow) {
+      toast.error("Stage name must be 64 characters or fewer.");
+      return;
+    }
+
     setIsSaving(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
     try {
-      await deleteStage({
-        expectedOrgSlug: project.orgSlug,
-        projectSlug: project.projectSlug,
-        stageSlug,
-      });
-      setSuccessMessage(`Deleted environment ${stageSlug}.`);
+      const deleteRows = stageDraftRows.filter((row) => row.isDeleted && !row.isNew);
+      const renameRows = stageDraftRows.filter(
+        (row) => !row.isDeleted && !row.isNew && row.name.trim() !== row.originalName,
+      );
+      const createRows = stageDraftRows.filter((row) => row.isNew && !row.isDeleted);
+
+      for (const row of deleteRows) {
+        await deleteStage({
+          expectedOrgSlug: project.orgSlug,
+          projectSlug: project.projectSlug,
+          stageSlug: row.slug,
+        });
+      }
+
+      for (const row of renameRows) {
+        await renameStage({
+          expectedOrgSlug: project.orgSlug,
+          projectSlug: project.projectSlug,
+          stageSlug: row.slug,
+          name: row.name.trim(),
+        });
+      }
+
+      for (const row of createRows) {
+        await createStage({
+          expectedOrgSlug: project.orgSlug,
+          projectSlug: project.projectSlug,
+          name: row.name.trim(),
+        });
+      }
+
+      setNewEnvironmentName("");
+      setStageDraftRows([]);
+      toast.success("Environment changes saved.");
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to delete environment.");
+      toast.error(error instanceof Error ? error.message : "Failed to save environment changes.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteProject() {
+    if (isDeletingProject || deleteCountdown > 0 || !areDeletePrerequisitesMet) {
+      return;
+    }
+
+    setIsDeletingProject(true);
+    try {
+      await deleteProject({
+        expectedOrgSlug: project.orgSlug,
+        projectSlug: project.projectSlug,
+      });
+      navigate(`/o/${project.orgSlug}/projects`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete project.");
+    } finally {
+      setIsDeletingProject(false);
     }
   }
 
@@ -117,84 +323,80 @@ export function Page() {
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 value={newEnvironmentName}
-                onChange={(event) => setNewEnvironmentName(event.currentTarget.value)}
+                onChange={(event) => setNewEnvironmentName(event.currentTarget?.value ?? "")}
                 placeholder="New environment name"
                 disabled={isSaving}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
-                    void handleCreateStage();
+                    handleAddEnvironmentToDraft();
                   }
                 }}
               />
               <Button
-                onClick={() => void handleCreateStage()}
+                onClick={handleAddEnvironmentToDraft}
                 disabled={isSaving || newEnvironmentName.trim().length === 0}
               >
                 <IconPlus />
-                Add environment
+                Add to draft
               </Button>
             </div>
 
-            {errorMessage ? (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                {errorMessage}
-              </div>
-            ) : null}
-            {successMessage ? (
-              <div className="rounded-xl border p-3 text-sm text-muted-foreground">{successMessage}</div>
-            ) : null}
-
             <div className="space-y-2">
-              {(stages ?? []).map((stage) => {
-                const draftName = renameDraftBySlug[stage.slug] ?? stage.name;
-                const isRenameDisabled = draftName.trim().length === 0 || draftName.trim() === stage.name || isSaving;
+              {stageDraftRows.map((stage) => {
+                const trimmedName = stage.name.trim();
+                const isRenamed = !stage.isNew && !stage.isDeleted && trimmedName !== stage.originalName;
 
                 return (
-                  <div key={stage.id} className="rounded-xl border bg-background/70 p-3">
+                  <div
+                    key={stage.id}
+                    className={`rounded-xl border bg-background/70 p-3 ${
+                      stage.isDeleted ? "border-dashed opacity-70" : ""
+                    }`}
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <Badge variant="outline">{stage.variableCount} vars</Badge>
                         {stage.isDefault ? <Badge variant="outline">Default</Badge> : null}
+                        {stage.isNew ? <Badge variant="outline">New</Badge> : null}
+                        {isRenamed ? <Badge variant="outline">Edited</Badge> : null}
+                        {stage.isDeleted ? <Badge variant="outline">Pending delete</Badge> : null}
                         <span className="font-mono text-xs text-muted-foreground">{stage.slug}</span>
                       </div>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-destructive"
-                        disabled={isSaving || stage.variableCount > 0}
+                        className={stage.isDeleted ? "" : "text-destructive"}
+                        disabled={isSaving || (!stage.isDeleted && stage.variableCount > 0)}
                         onClick={() => {
-                          void handleDeleteStage(stage.slug);
+                          handleToggleEnvironmentDraftDelete(stage.id);
                         }}
                       >
-                        <IconTrash />
-                        Delete
+                        {stage.isDeleted ? "Undo" : (
+                          <>
+                            <IconTrash />
+                            Delete
+                          </>
+                        )}
                       </Button>
                     </div>
-                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                    <div className="mt-2">
                       <Input
-                        value={draftName}
-                        disabled={isSaving}
+                        value={stage.name}
+                        disabled={isSaving || stage.isDeleted}
                         onChange={(event) => {
-                          const value = event.currentTarget.value;
-                          setRenameDraftBySlug((previous) => ({
-                            ...previous,
-                            [stage.slug]: value,
-                          }));
+                          handleUpdateEnvironmentDraftName(
+                            stage.id,
+                            event.currentTarget?.value ?? "",
+                          );
                         }}
                       />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={isRenameDisabled}
-                        onClick={() => {
-                          void handleRenameStage(stage.slug, stage.name);
-                        }}
-                      >
-                        Rename
-                      </Button>
                     </div>
-                    {stage.variableCount > 0 ? (
+                    {stage.isDeleted ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        This environment is marked for deletion and will be removed on save.
+                      </p>
+                    ) : stage.variableCount > 0 ? (
                       <p className="mt-2 text-xs text-muted-foreground">
                         This environment cannot be deleted until all variables are removed from it.
                       </p>
@@ -202,6 +404,31 @@ export function Page() {
                   </div>
                 );
               })}
+              {stageDraftRows.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                  No environments yet. Add one to your draft above.
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-3">
+              <p className="text-xs text-muted-foreground">
+                {hasEnvironmentDraftChanges
+                  ? "You have unsaved environment changes."
+                  : "No unsaved environment changes."}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleResetEnvironmentDraft}
+                  disabled={isSaving || !hasEnvironmentDraftChanges}
+                >
+                  Discard
+                </Button>
+                <Button onClick={() => void handleSaveEnvironmentDraft()} disabled={isSaving || !hasEnvironmentDraftChanges}>
+                  {isSaving ? "Saving..." : "Save changes"}
+                </Button>
+              </div>
             </div>
           </div>
         </OrgSectionCard>
@@ -272,20 +499,113 @@ export function Page() {
         <OrgSectionCard title="Project metadata" description="Read-only identifiers used by routing and APIs.">
           <div className="space-y-3 rounded-xl border bg-background/70 p-4">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Project name</span>
+              <span className="org-kicker text-muted-foreground">Project name</span>
               <span className="text-sm font-medium">{project.projectName}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Project slug</span>
+              <span className="org-kicker text-muted-foreground">Project slug</span>
               <span className="font-mono text-sm">{project.projectSlug}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Workspace slug</span>
+              <span className="org-kicker text-muted-foreground">Workspace slug</span>
               <span className="font-mono text-sm">{project.orgSlug}</span>
             </div>
           </div>
         </OrgSectionCard>
+
+        <OrgSectionCard
+          title="Danger zone"
+          description="Permanent actions for this project."
+          className="border-destructive/30"
+        >
+          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+            <p className="text-sm text-muted-foreground">
+              Delete is locked until this project has zero environments and zero variables.
+            </p>
+            <Button
+              variant="outline"
+              className="mt-3 border-destructive/50 text-destructive hover:text-destructive"
+              onClick={() => {
+                setDeleteCountdown(5);
+                setIsDeleteDialogOpen(true);
+              }}
+            >
+              <IconTrash />
+              Delete project
+            </Button>
+          </div>
+        </OrgSectionCard>
       </div>
+
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (isDeletingProject) {
+            return;
+          }
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setDeleteCountdown(5);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete project?</DialogTitle>
+            <DialogDescription>
+              This permanently removes this project and all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {isDeletePrerequisitesLoading ? (
+              <p className="text-sm text-muted-foreground">
+                Checking project cleanup status...
+              </p>
+            ) : hasDeleteCleanupRemaining ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Delete is enabled only after all project data is removed first.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Remaining cleanup:{" "}
+                  <span className="font-bold text-foreground">{remainingEnvironmentCount}</span>{" "}
+                  environment{remainingEnvironmentCount === 1 ? "" : "s"},{" "}
+                  <span className="font-bold text-foreground">{remainingVariableCount}</span>{" "}
+                  variable{remainingVariableCount === 1 ? "" : "s"}.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                The delete button will be available in{" "}
+                <span className="font-bold text-foreground">{deleteCountdown}</span> seconds.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeletingProject}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                void handleDeleteProject();
+              }}
+              disabled={
+                isDeletingProject ||
+                deleteCountdown > 0 ||
+                isDeletePrerequisitesLoading ||
+                !areDeletePrerequisitesMet
+              }
+            >
+              {isDeletingProject ? "Deleting..." : "Delete project"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

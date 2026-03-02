@@ -10,6 +10,7 @@ import {
   IconUpload,
 } from "@tabler/icons-react";
 import { useOutletContext } from "react-router-dom";
+import { toast } from "sonner";
 
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -139,8 +140,6 @@ export function Page() {
   const project = useOutletContext<ProjectRouteContext>();
   const [selectedStageSlug, setSelectedStageSlug] = useState<string | null>(null);
   const [draftByStage, setDraftByStage] = useState<Record<string, StageDraftState>>({});
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -208,7 +207,7 @@ export function Page() {
       expectedOrgSlug: project.orgSlug,
       projectSlug: project.projectSlug,
     }).catch((error: unknown) => {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to initialize default stages.");
+      toast.error(error instanceof Error ? error.message : "Failed to initialize default stages.");
     });
   }, [ensureDefaultStages, project.orgSlug, project.projectSlug, stages]);
 
@@ -233,7 +232,6 @@ export function Page() {
       }
 
       event.preventDefault();
-      setErrorMessage(null);
       void importTextSource("clipboard", pastedText);
     }
 
@@ -341,11 +339,10 @@ export function Page() {
     }
 
     if (composerRow.name.trim().length === 0) {
-      setErrorMessage("Name is required to add a variable.");
+      toast.error("Name is required to add a variable.");
       return;
     }
 
-    setErrorMessage(null);
     upsertVariableDraftByName(composerRow.name, composerRow.value, composerRow.kind);
     setComposerRow({
       name: "",
@@ -458,7 +455,7 @@ export function Page() {
 
     const invalidNewRow = currentDraft.newRows.find((row) => row.name.trim().length === 0);
     if (invalidNewRow) {
-      setErrorMessage("Every new variable row needs a name before saving.");
+      toast.error("Every new variable row needs a name before saving.");
       return;
     }
 
@@ -477,13 +474,11 @@ export function Page() {
     const deletes = persistedRows.filter((row) => currentDraft.deletedIds[row.id]).map((row) => row.id);
 
     if (creates.length === 0 && updates.length === 0 && deletes.length === 0) {
-      setInfoMessage("No changes to save.");
+      toast.info("No changes to save.");
       return;
     }
 
     setIsSaving(true);
-    setErrorMessage(null);
-    setInfoMessage(null);
 
     try {
       const result = await applyDraft({
@@ -496,11 +491,11 @@ export function Page() {
       });
       clearCurrentStageDraft();
       setImportSummary(null);
-      setInfoMessage(
+      toast.success(
         `Saved ${result.createdCount} created, ${result.updatedCount} updated, ${result.deletedCount} deleted.`,
       );
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to save variables.");
+      toast.error(error instanceof Error ? error.message : "Failed to save variables.");
     } finally {
       setIsSaving(false);
     }
@@ -545,7 +540,7 @@ export function Page() {
           delete current.decryptingIds[variableId];
           return current;
         });
-        setErrorMessage(error instanceof Error ? error.message : "Failed to decrypt variable.");
+        toast.error(error instanceof Error ? error.message : "Failed to decrypt variable.");
       }
       return;
     }
@@ -572,8 +567,6 @@ export function Page() {
               value={selectedStageSlug ?? ""}
               onValueChange={(next) => {
                 setSelectedStageSlug(next);
-                setErrorMessage(null);
-                setInfoMessage(null);
               }}
             >
               <SelectTrigger className="h-8 min-w-56 border-transparent bg-transparent shadow-none">
@@ -626,15 +619,6 @@ export function Page() {
             </div>
           ) : null}
 
-          {errorMessage ? (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          ) : null}
-          {infoMessage ? (
-            <div className="rounded-xl border p-3 text-sm text-muted-foreground">{infoMessage}</div>
-          ) : null}
-
           {!selectedStageSlug ? (
             <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
               No environment is available for this project. Add one in Project settings.
@@ -655,9 +639,10 @@ export function Page() {
                     <Input
                       value={composerRow.name}
                       onChange={(event) => {
+                        const value = event.currentTarget.value;
                         setComposerRow((previous) => ({
                           ...previous,
-                          name: event.currentTarget.value,
+                          name: value,
                         }));
                       }}
                       placeholder="Add variable name"
@@ -668,9 +653,10 @@ export function Page() {
                       type="password"
                       value={composerRow.value}
                       onChange={(event) => {
+                        const value = event.currentTarget.value;
                         setComposerRow((previous) => ({
                           ...previous,
-                          value: event.currentTarget.value,
+                          value,
                         }));
                       }}
                       placeholder="Add variable value"
@@ -1043,8 +1029,7 @@ export function Page() {
                 onClick={() => {
                   clearCurrentStageDraft();
                   setImportSummary(null);
-                  setErrorMessage(null);
-                  setInfoMessage("Draft changes discarded.");
+                  toast.info("Draft changes discarded.");
                 }}
                 disabled={!hasDraft || isSaving}
               >

@@ -1,22 +1,21 @@
 import { useMutation, useQuery } from "convex/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   IconArrowRight,
   IconBriefcase,
-  IconFolderPlus,
   IconPlus,
   IconSearch,
-  IconUsers,
+  IconSettings,
 } from "@tabler/icons-react";
+import { useOrganization } from "@clerk/react-router";
 import { Link, useParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { api } from "@convex/_generated/api";
 import {
-  OrgMetricCard,
   OrgPageHero,
   OrgRoleBadge,
-  OrgSectionCard,
 } from "@/components/custom/org-workspace";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +27,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function getErrorMessage(error: unknown): string {
@@ -59,19 +58,11 @@ function getErrorMessage(error: unknown): string {
   return "Unable to create project right now. Please try again.";
 }
 
-function formatDateTime(value: number): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
-}
-
 export function Page() {
   const { orgSlug = "org" } = useParams();
   const [name, setName] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const dialogInputRef = useRef<HTMLInputElement | null>(null);
   const createProject = useMutation(api.projects.createForCurrentOrg);
@@ -106,14 +97,17 @@ export function Page() {
     !isMissingWorkspaceLink &&
     projects.length > 0 &&
     filteredProjects.length === 0;
-  const showEmptyState = showNoProjectsEmpty || showNoMatchesEmpty;
+
+  useEffect(() => {
+    const orgLabel = organization?.name?.trim() || orgSlug;
+    document.title = `${orgLabel} · Projects`;
+  }, [organization?.name, orgSlug]);
 
   function openCreateDialog() {
     if (isClaimsLoading || isMissingWorkspaceLink) {
       return;
     }
 
-    setErrorMessage(null);
     setIsCreateDialogOpen(true);
     queueMicrotask(() => dialogInputRef.current?.focus());
   }
@@ -125,7 +119,6 @@ export function Page() {
     }
 
     setIsSubmitting(true);
-    setErrorMessage(null);
 
     try {
       await createProject({
@@ -135,7 +128,7 @@ export function Page() {
       setName("");
       setIsCreateDialogOpen(false);
     } catch (error: unknown) {
-      setErrorMessage(getErrorMessage(error));
+      toast.error(getErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -159,122 +152,11 @@ export function Page() {
             <OrgRoleBadge role={orgClaims?.orgRole} />
           </>
         }
-        actions={
-          <>
-            <Button size="sm" disabled={isClaimsLoading || isMissingWorkspaceLink} onClick={openCreateDialog}>
-              <IconFolderPlus />
-              New project
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link to={`/o/${orgSlug}/members`} />}
-            >
-              <IconUsers />
-              Members
-            </Button>
-          </>
-        }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <OrgMetricCard
-          label="Total projects"
-          value={projects === undefined ? "..." : projects.length}
-          hint={projects && projects.length > 0 ? "Live project list" : "No projects yet"}
-          icon={<IconBriefcase className="size-4" />}
-          tone="accent"
-        />
-        <OrgMetricCard
-          label="Latest project"
-          value={latestProject ? latestProject.name : projects ? "None" : "..."}
-          hint={latestProject ? latestProject.slug : "Create your first project"}
-          icon={<IconArrowRight className="size-4" />}
-        />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <OrgSectionCard title="Create project" description="Start a new project in this workspace.">
-          <div className="space-y-4">
-            <div className="rounded-xl border bg-background/70 p-3">
-              <p className="text-sm text-muted-foreground">
-                Slugs are generated from the project name and remain unique in this workspace.
-              </p>
-              <p className="mt-2 font-mono text-xs text-muted-foreground">
-                Example: <span className="text-foreground">secrets-api-4821</span>
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Input
-                ref={inputRef}
-                value={name}
-                disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
-                placeholder="Project name (e.g. Secrets API)"
-                onChange={(event) => setName(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void handleCreateProject();
-                  }
-                }}
-              />
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button disabled={isCreateDisabled} onClick={handleCreateProject}>
-                  <IconPlus />
-                  {isSubmitting ? "Creating..." : "Create project"}
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
-                  onClick={() => {
-                    setName("");
-                    setErrorMessage(null);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  Clear
-                </Button>
-              </div>
-            </div>
-
-            {errorMessage ? (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                {errorMessage}
-              </div>
-            ) : null}
-
-            {isMissingWorkspaceLink ? (
-              <div className="rounded-xl border border-dashed p-3">
-                <p className="text-sm text-muted-foreground">
-                  Project actions are temporarily unavailable for this workspace.
-                </p>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
-                  className="mt-2 h-7 px-2"
-                >
-                  Open diagnostics
-                  <IconArrowRight />
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </OrgSectionCard>
-
-        <OrgSectionCard
-          title="Project list"
-          description="Search and inspect projects by name or slug."
-          action={
-            <div className="text-xs text-muted-foreground">
-              {projects === undefined ? "Loading..." : `${filteredProjects.length} shown`}
-            </div>
-          }
-        >
+      <div>
+        <Card className="overflow-hidden">
+          <CardContent>
           <div className="space-y-4">
             <div className="relative">
               <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -287,12 +169,19 @@ export function Page() {
             </div>
 
             {projects === undefined ? (
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="rounded-xl border p-3">
-                    <Skeleton className="h-4 w-44" />
-                    <Skeleton className="mt-2 h-3 w-28" />
-                  </div>
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <Card key={index} className="flex aspect-square flex-col overflow-hidden">
+                    <CardContent className="flex flex-1 items-start justify-start">
+                      <div className="space-y-1">
+                        <Skeleton className="h-5 w-28" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Skeleton className="h-8 w-full" />
+                    </CardFooter>
+                  </Card>
                 ))}
               </div>
             ) : isMissingWorkspaceLink ? (
@@ -313,7 +202,7 @@ export function Page() {
                 <EmptyContent className="sm:flex-row sm:justify-center">
                   <Button
                     disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
-                    onClick={() => inputRef.current?.focus()}
+                    onClick={openCreateDialog}
                   >
                     <IconPlus />
                     Create project
@@ -330,37 +219,48 @@ export function Page() {
                 No projects match <span className="font-medium text-foreground">{searchQuery}</span>.
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {filteredProjects.map((project) => (
-                  <div
+                  <Card
                     key={project.id}
-                    className="group relative overflow-hidden rounded-xl border bg-background/80 p-3"
+                    className="group relative flex aspect-square flex-col overflow-hidden"
                   >
-                    <div className="absolute inset-y-0 left-0 w-1 bg-primary/15 transition-colors group-hover:bg-primary/50" />
-                    <div className="ml-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{project.name}</p>
-                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                          {project.slug}
+                    <CardContent className="flex flex-1 items-start justify-start">
+                      <div className="space-y-0 text-left">
+                        <CardTitle className="line-clamp-2 text-base">{project.name}</CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          {project.secretCount} secret{project.secretCount === 1 ? "" : "s"}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>{formatDateTime(project.createdAtMs)}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          nativeButton={false}
-                          render={<Link to={`/o/${orgSlug}/project/${project.slug}`} />}
-                          className="w-full justify-between"
-                        >
-                          Overview
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))
-                : null}
+                    </CardContent>
+                    <CardFooter className="gap-2">
+                      <Button
+                        size="sm"
+                        nativeButton={false}
+                        render={<Link to={`/o/${orgSlug}/project/${project.slug}`} />}
+                        className="flex-1 justify-between bg-white text-black hover:bg-white/90"
+                      >
+                        Go to project
+                        <IconArrowRight className="size-4 text-black/80" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        nativeButton={false}
+                        render={<Link to={`/o/${orgSlug}/project/${project.slug}/settings`} />}
+                        className="px-2"
+                        aria-label={`Open ${project.name} settings`}
+                      >
+                        <IconSettings className="size-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog
@@ -368,7 +268,6 @@ export function Page() {
         onOpenChange={(open) => {
           setIsCreateDialogOpen(open);
           if (!open) {
-            setErrorMessage(null);
             setName("");
           }
         }}
@@ -393,11 +292,6 @@ export function Page() {
                 }
               }}
             />
-            {errorMessage ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1 text-xs text-destructive">
-                {errorMessage}
-              </div>
-            ) : null}
           </div>
 
           <DialogFooter>
