@@ -86,6 +86,7 @@ const navItems = [
   { label: "Overview", icon: IconChartBar, segment: "overview" },
   { label: "Projects", icon: IconBriefcase, segment: "projects" },
   { label: "Members", icon: IconUsers, segment: "members" },
+  { label: "Billing", icon: IconCreditCard, segment: "billing" },
   { label: "Settings", icon: IconSettings, segment: "settings" },
 ] as const;
 
@@ -136,12 +137,12 @@ function OrgSelectTriggerContent({
   const avatarSrc = imageUrl ?? generateGradientDataUrl(seed, { size: 64 });
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2">
-      <Avatar size="sm" className="mr-1">
+    <div className="flex min-w-0 flex-1 items-center gap-2 group-data-[collapsible=icon]:justify-center">
+      <Avatar size="sm" className="mr-1 group-data-[collapsible=icon]:mr-0">
         <AvatarImage src={avatarSrc} />
         <AvatarFallback>{initials(name) || "OR"}</AvatarFallback>
       </Avatar>
-      <span className="truncate text-sm">{name}</span>
+      <span className="truncate text-sm group-data-[collapsible=icon]:hidden">{name}</span>
     </div>
   );
 }
@@ -299,6 +300,9 @@ export function Layout() {
   const relativeSegments = relativePath.split("/").filter(Boolean);
   const activeSegment = relativeSegments[0] ?? "overview";
   const nextOrgSegment = activeSegment === "project" ? "projects" : activeSegment;
+  const activeTitle =
+    navItems.find((item) => item.segment === nextOrgSegment)?.label ??
+    capitalCase(nextOrgSegment.replaceAll("-", " "));
   const breadcrumbSegments = relativeSegments.length > 0 ? relativeSegments : ["overview"];
 
   const memberships = userMemberships.data ?? [];
@@ -392,7 +396,11 @@ export function Layout() {
             <Button variant="outline" nativeButton={false} render={<Link to="/o/select" />}>
               Select workspace
             </Button>
-            <Button variant="outline" nativeButton={false} render={<Link to="/o/new" />}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link to="/new?type=organization" />}
+            >
               Create workspace
             </Button>
           </div>
@@ -418,14 +426,14 @@ export function Layout() {
                 }
 
                 if (nextOrgSlug === CREATE_NEW_ORG_SELECT_VALUE) {
-                  void navigate("/o/new");
+                  void navigate("/new?type=organization");
                   return;
                 }
 
                 void navigate(`/o/${nextOrgSlug}/${nextOrgSegment}`);
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:[&>svg:last-child]:hidden">
                 {matchingMembership ? (
                   <OrgSelectTriggerContent
                     name={matchingMembership.organization.name}
@@ -470,7 +478,7 @@ export function Layout() {
           </SidebarGroup>
 
           <SidebarGroup>
-            <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+            <SidebarGroupLabel>Organization</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {navItems.map((item) => {

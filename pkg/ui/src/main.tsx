@@ -6,6 +6,7 @@ import { ThemeWatcher } from "theme-watcher";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { Router } from "@/router";
 import { Debugger } from "@/components/custom/debugger";
+import { Toaster } from "@/components/ui/sonner";
 
 import "@/main.css";
 import { ConvexReactClient } from "convex/react";
@@ -44,6 +45,7 @@ createRoot(document.getElementById("root")!).render(
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           <Debugger />
           <ThemeWatcher />
+          <Toaster richColors />
           <Router />
         </ConvexProviderWithClerk>
       </ClerkProvider>

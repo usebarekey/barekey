@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-import { IconBuildingSkyscraper } from "@tabler/icons-react";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,14 +109,7 @@ export function OrgPageHero({
       />
       <div className="relative flex flex-col gap-6 p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="bg-background/70">
-                <IconBuildingSkyscraper />
-                Workspace
-              </Badge>
-              {tags}
-            </div>
+          <div className="space-y-2">
             <div className="space-y-2">
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
               <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{subtitle}</p>

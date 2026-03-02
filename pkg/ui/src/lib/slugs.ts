@@ -38,21 +38,24 @@ function normalizeBase(value: string): string {
   return normalized;
 }
 
-function normalizeAlphaNumericBase(value: string, fallback: string): string {
+function normalizeKebabBase(value: string, fallback: string): string {
   const normalized = slugify(value, {
     lower: true,
     strict: true,
     trim: true,
   })
-    .replace(/-/g, "")
-    .slice(0, 32);
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "")
+    .slice(0, 32)
+    .replace(/-+$/, "");
 
   if (normalized.length === 0) {
     return fallback;
   }
 
   if (RESERVED_USER_SLUG_BASES.has(normalized)) {
-    return `${normalized}${fallback}`.slice(0, 32);
+    return `${normalized}-${fallback}`.slice(0, 32).replace(/-+$/, "");
   }
 
   return normalized;
@@ -103,11 +106,15 @@ export function generateDefaultOrgSlugCandidate(input: {
   email?: string | null;
   fullName?: string | null;
 }): string {
-  const userBase = getUserSlugBaseFromIdentity(input);
-  return `${userBase}org${randomNumericSuffix(4)}`;
+  const emailLocalPart = input.email?.split("@")[0]?.trim();
+  const base = normalizeKebabBase(
+    input.fullName?.trim() || emailLocalPart || "organization",
+    "org",
+  );
+  return `${base}-${randomNumericSuffix(4)}`;
 }
 
 export function generateOrganizationSlugCandidateFromName(name: string): string {
-  const base = normalizeAlphaNumericBase(name, "org");
-  return `${base}${randomNumericSuffix(4)}`;
+  const base = normalizeKebabBase(name, "org");
+  return `${base}-${randomNumericSuffix(4)}`;
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   IconArrowRight,
@@ -22,16 +22,32 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
 import { displayName, formatDate, initials } from "@/lib/org-utils";
 
-type RoleFilter = "all" | "admins" | "members";
+type SortMode =
+  | "alphabetical_asc"
+  | "alphabetical_desc"
+  | "role_grouped"
+  | "newest_added"
+  | "oldest_added"
+  | "email_asc";
+
+const SORT_MODE_LABELS: Record<SortMode, string> = {
+  alphabetical_asc: "Alphabetical (A-Z)",
+  alphabetical_desc: "Alphabetical (Z-A)",
+  role_grouped: "Grouped by role",
+  newest_added: "Added at (newest first)",
+  oldest_added: "Added at (oldest first)",
+  email_asc: "Email/identifier (A-Z)",
+};
 
 export function Page() {
   const { orgSlug = "org" } = useParams();
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("alphabetical_asc");
   const {
     organization,
     membership,
@@ -57,7 +73,7 @@ export function Page() {
   const allInvites = invitations?.data ?? [];
   const allRequests = membershipRequests?.data ?? [];
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const filteredMembers = allMembers.filter((memberRow) => {
+  const searchedMembers = allMembers.filter((memberRow) => {
     const publicUserData = memberRow.publicUserData;
     const rowName = displayName({
       firstName: publicUserData?.firstName ?? null,
@@ -65,15 +81,55 @@ export function Page() {
       identifier: publicUserData?.identifier ?? "member",
     });
     const haystack = `${rowName} ${publicUserData?.identifier ?? ""} ${memberRow.role}`.toLowerCase();
-    const matchesQuery = normalizedQuery.length === 0 || haystack.includes(normalizedQuery);
-    const matchesRole =
-      roleFilter === "all" ||
-      (roleFilter === "admins" && memberRow.role === "org:admin") ||
-      (roleFilter === "members" && memberRow.role === "org:member");
+    return normalizedQuery.length === 0 || haystack.includes(normalizedQuery);
+  });
+  const sortedMembers = [...searchedMembers].sort((left, right) => {
+    const leftName = displayName({
+      firstName: left.publicUserData?.firstName ?? null,
+      lastName: left.publicUserData?.lastName ?? null,
+      identifier: left.publicUserData?.identifier ?? "member",
+    }).toLowerCase();
+    const rightName = displayName({
+      firstName: right.publicUserData?.firstName ?? null,
+      lastName: right.publicUserData?.lastName ?? null,
+      identifier: right.publicUserData?.identifier ?? "member",
+    }).toLowerCase();
+    const leftIdentifier = (left.publicUserData?.identifier ?? "").toLowerCase();
+    const rightIdentifier = (right.publicUserData?.identifier ?? "").toLowerCase();
 
-    return matchesQuery && matchesRole;
+    switch (sortMode) {
+      case "alphabetical_asc":
+        return leftName.localeCompare(rightName);
+      case "alphabetical_desc":
+        return rightName.localeCompare(leftName);
+      case "role_grouped": {
+        const roleRank = (role: string) => {
+          if (role === "org:admin") {
+            return 0;
+          }
+          if (role === "org:member") {
+            return 1;
+          }
+          return 2;
+        };
+        return roleRank(left.role) - roleRank(right.role) || leftName.localeCompare(rightName);
+      }
+      case "newest_added":
+        return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+      case "oldest_added":
+        return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+      case "email_asc":
+        return leftIdentifier.localeCompare(rightIdentifier) || leftName.localeCompare(rightName);
+      default:
+        return leftName.localeCompare(rightName);
+    }
   });
   const adminCount = allMembers.filter((memberRow) => memberRow.role === "org:admin").length;
+
+  useEffect(() => {
+    const orgLabel = organization?.name?.trim() || orgSlug;
+    document.title = `${orgLabel} · Members`;
+  }, [organization?.name, orgSlug]);
 
   return (
     <div className="space-y-6">
@@ -93,23 +149,6 @@ export function Page() {
           <>
             <OrgRoleBadge role={membership?.role} />
             <Badge variant="outline">Workspace directory</Badge>
-          </>
-        }
-        actions={
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link to={`/o/${orgSlug}/settings`} />}
-            >
-              <IconShieldStar />
-              Admin settings
-            </Button>
-            <Button size="sm" nativeButton={false} render={<Link to={`/o/${orgSlug}/projects`} />}>
-              <IconArrowRight />
-              Go to projects
-            </Button>
           </>
         }
       />
@@ -160,31 +199,28 @@ export function Page() {
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="h-8 gap-2 px-3">
-                  <IconFilter className="size-3.5" />
-                  Filter
-                </Badge>
-                <Button
-                  size="sm"
-                  variant={roleFilter === "all" ? "secondary" : "outline"}
-                  onClick={() => setRoleFilter("all")}
+                <Select
+                  value={sortMode}
+                  onValueChange={(value) => {
+                    if (!value) {
+                      return;
+                    }
+                    setSortMode(value as SortMode);
+                  }}
                 >
-                  All
-                </Button>
-                <Button
-                  size="sm"
-                  variant={roleFilter === "admins" ? "secondary" : "outline"}
-                  onClick={() => setRoleFilter("admins")}
-                >
-                  Admins
-                </Button>
-                <Button
-                  size="sm"
-                  variant={roleFilter === "members" ? "secondary" : "outline"}
-                  onClick={() => setRoleFilter("members")}
-                >
-                  Members
-                </Button>
+                  <SelectTrigger className="h-8 w-64 gap-2">
+                    <IconFilter className="size-3.5 text-muted-foreground" />
+                    <span className="truncate">{SORT_MODE_LABELS[sortMode]}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alphabetical_asc">Alphabetical (A-Z)</SelectItem>
+                    <SelectItem value="alphabetical_desc">Alphabetical (Z-A)</SelectItem>
+                    <SelectItem value="role_grouped">Grouped by role</SelectItem>
+                    <SelectItem value="newest_added">Added at (newest first)</SelectItem>
+                    <SelectItem value="oldest_added">Added at (oldest first)</SelectItem>
+                    <SelectItem value="email_asc">Email/identifier (A-Z)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -201,15 +237,15 @@ export function Page() {
                   </div>
                 ))}
               </div>
-            ) : filteredMembers.length === 0 ? (
+            ) : sortedMembers.length === 0 ? (
               <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
                 {allMembers.length === 0
                   ? "No members found for this workspace yet."
-                  : "No members match the current search/filter."}
+                  : "No members match the current search."}
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredMembers.map((memberRow) => {
+                {sortedMembers.map((memberRow) => {
                   const publicUserData = memberRow.publicUserData;
                   const name = displayName({
                     firstName: publicUserData?.firstName ?? null,
@@ -259,21 +295,7 @@ export function Page() {
         </OrgSectionCard>
 
         <div className="space-y-4">
-          <OrgSectionCard
-            title="Invitation queue"
-            description="People invited to join this workspace."
-            action={
-              <Button
-                size="sm"
-                variant="ghost"
-                nativeButton={false}
-                render={<Link to={`/o/${orgSlug}/settings`} />}
-              >
-                Manage in settings
-                <IconArrowRight />
-              </Button>
-            }
-          >
+          <OrgSectionCard title="Invitation queue" description="People invited to join this workspace.">
             <div className="space-y-2">
               {invitations?.isLoading ? (
                 Array.from({ length: 3 }).map((_, index) => (

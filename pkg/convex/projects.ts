@@ -60,6 +60,19 @@ const projectSummaryValidator = v.object({
   updatedAtMs: v.number(),
 });
 
+const projectListItemValidator = v.object({
+  id: v.id("projects"),
+  orgId: v.string(),
+  orgSlug: v.string(),
+  name: v.string(),
+  slug: v.string(),
+  slugBase: v.string(),
+  createdByClerkUserId: v.string(),
+  createdAtMs: v.number(),
+  updatedAtMs: v.number(),
+  secretCount: v.number(),
+});
+
 const DEFAULT_PROJECT_STAGES = [
   {
     slug: "development",
@@ -145,7 +158,7 @@ export const listForCurrentOrg = query({
   args: {
     expectedOrgSlug: v.string(),
   },
-  returns: v.array(projectSummaryValidator),
+  returns: v.array(projectListItemValidator),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
@@ -169,17 +182,31 @@ export const listForCurrentOrg = query({
       .order("desc")
       .collect();
 
-    return rows.map((row) => ({
-      id: row._id,
-      orgId: row.orgId,
-      orgSlug: row.orgSlug,
-      name: row.name,
-      slug: row.slug,
-      slugBase: row.slugBase,
-      createdByClerkUserId: row.createdByClerkUserId,
-      createdAtMs: row.createdAtMs,
-      updatedAtMs: row.updatedAtMs,
-    }));
+    return Promise.all(
+      rows.map(async (row) => {
+        const secretCount = (
+          await ctx.db
+            .query("projectVariables")
+            .withIndex("by_org_id_and_project_id", (q) =>
+              q.eq("orgId", activeOrg.orgId).eq("projectId", row._id),
+            )
+            .collect()
+        ).length;
+
+        return {
+          id: row._id,
+          orgId: row.orgId,
+          orgSlug: row.orgSlug,
+          name: row.name,
+          slug: row.slug,
+          slugBase: row.slugBase,
+          createdByClerkUserId: row.createdByClerkUserId,
+          createdAtMs: row.createdAtMs,
+          updatedAtMs: row.updatedAtMs,
+          secretCount,
+        };
+      }),
+    );
   },
 });
 
@@ -227,6 +254,74 @@ export const getBySlugForCurrentOrg = query({
       createdByClerkUserId: row.createdByClerkUserId,
       createdAtMs: row.createdAtMs,
       updatedAtMs: row.updatedAtMs,
+    };
+  },
+});
+
+export const deleteForCurrentOrg = mutation({
+  args: {
+    expectedOrgSlug: v.string(),
+    projectSlug: v.string(),
+  },
+  returns: v.object({
+    deletedProjectId: v.id("projects"),
+    deletedProjectSlug: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    const activeOrg = requireActiveOrgIdClaims(identity);
+    if (activeOrg.orgSlug !== null) {
+      assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+    }
+
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_org_id_and_slug", (q) =>
+        q.eq("orgId", activeOrg.orgId).eq("slug", args.projectSlug),
+      )
+      .unique();
+
+    if (project === null) {
+      throw new Error("Project not found.");
+    }
+
+    const [variables, stages] = await Promise.all([
+      ctx.db
+        .query("projectVariables")
+        .withIndex("by_org_id_and_project_id", (q) =>
+          q.eq("orgId", activeOrg.orgId).eq("projectId", project._id),
+        )
+        .collect(),
+      ctx.db
+        .query("projectStages")
+        .withIndex("by_org_id_and_project_id", (q) =>
+          q.eq("orgId", activeOrg.orgId).eq("projectId", project._id),
+        )
+        .collect(),
+    ]);
+
+    if (variables.length > 0 || stages.length > 0) {
+      throw new Error(
+        `Delete blocked. Remove all environments and variables first (${stages.length} environments, ${variables.length} variables remaining).`,
+      );
+    }
+
+    const keys = await ctx.db
+      .query("projectKeys")
+      .withIndex("by_org_id_and_project_id", (q) =>
+        q.eq("orgId", activeOrg.orgId).eq("projectId", project._id),
+      )
+      .collect();
+
+    for (const row of keys) {
+      await ctx.db.delete(row._id);
+    }
+
+    await ctx.db.delete(project._id);
+
+    return {
+      deletedProjectId: project._id,
+      deletedProjectSlug: project.slug,
     };
   },
 });

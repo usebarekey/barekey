@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { useLayoutEffect, useState } from "react";
 import tailwindColors from "tailwindcss/colors";
+import { IconMinus, IconPlus, IconSettings } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,19 @@ import { useTheme } from "theme-watcher";
 
 const DEBUG_COLOR_STORAGE_KEY = "debugger-tailwind-color-family";
 const DEBUG_FONT_STORAGE_KEY = "debugger-font-mode";
+const DEBUG_COLLAPSED_STORAGE_KEY = "debugger-collapsed";
+const DEBUG_SPACING_STORAGE_KEY = "debugger-spacing-rem";
+const DEBUG_RADIUS_STORAGE_KEY = "debugger-radius-px";
+
+const DEFAULT_SPACING_REM = 0.25;
+const MIN_SPACING_REM = 0.125;
+const MAX_SPACING_REM = 0.5;
+const SPACING_STEP_REM = 0.05;
+
+const DEFAULT_RADIUS_PX = 0;
+const MIN_RADIUS_PX = 0;
+const MAX_RADIUS_PX = 24;
+const RADIUS_STEP_PX = 2;
 
 const TAILWIND_COLOR_FAMILIES = [
   "red",
@@ -228,6 +242,97 @@ function readStoredFontMode(): DebugFontMode {
   return "default";
 }
 
+function readStoredCollapsed(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const stored = window.localStorage.getItem(DEBUG_COLLAPSED_STORAGE_KEY);
+  return stored === "1";
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function roundTo(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+function readStoredSpacingRem(): number {
+  if (typeof window === "undefined") {
+    return DEFAULT_SPACING_REM;
+  }
+
+  const stored = window.localStorage.getItem(DEBUG_SPACING_STORAGE_KEY);
+  if (stored) {
+    const parsed = Number.parseFloat(stored);
+    if (Number.isFinite(parsed)) {
+      return clamp(parsed, MIN_SPACING_REM, MAX_SPACING_REM);
+    }
+  }
+
+  const computed = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue("--spacing")
+    .trim();
+
+  if (computed.endsWith("rem")) {
+    const parsed = Number.parseFloat(computed.slice(0, -3));
+    if (Number.isFinite(parsed)) {
+      return clamp(parsed, MIN_SPACING_REM, MAX_SPACING_REM);
+    }
+  }
+
+  if (computed.endsWith("px")) {
+    const parsed = Number.parseFloat(computed.slice(0, -2));
+    if (Number.isFinite(parsed)) {
+      return clamp(parsed / 16, MIN_SPACING_REM, MAX_SPACING_REM);
+    }
+  }
+
+  const rawParsed = Number.parseFloat(computed);
+  if (Number.isFinite(rawParsed)) {
+    return clamp(rawParsed, MIN_SPACING_REM, MAX_SPACING_REM);
+  }
+
+  return DEFAULT_SPACING_REM;
+}
+
+function readStoredRadiusPx(): number {
+  if (typeof window === "undefined") {
+    return DEFAULT_RADIUS_PX;
+  }
+
+  const stored = window.localStorage.getItem(DEBUG_RADIUS_STORAGE_KEY);
+  if (stored) {
+    const parsed = Number.parseFloat(stored);
+    if (Number.isFinite(parsed)) {
+      return clamp(parsed, MIN_RADIUS_PX, MAX_RADIUS_PX);
+    }
+  }
+
+  const computed = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue("--radius")
+    .trim();
+
+  if (computed.endsWith("px")) {
+    const parsed = Number.parseFloat(computed.slice(0, -2));
+    if (Number.isFinite(parsed)) {
+      return clamp(parsed, MIN_RADIUS_PX, MAX_RADIUS_PX);
+    }
+  }
+
+  const rawParsed = Number.parseFloat(computed);
+  if (Number.isFinite(rawParsed)) {
+    return clamp(rawParsed, MIN_RADIUS_PX, MAX_RADIUS_PX);
+  }
+
+  return DEFAULT_RADIUS_PX;
+}
+
 function colorTokenValue(family: TailwindColorFamily, shade: ColorScale): string {
   return TAILWIND_COLOR_SCALES[family][shade];
 }
@@ -257,10 +362,23 @@ function applyFontMode(mode: DebugFontMode): void {
   root.classList.remove("debug-instrument-fonts");
 }
 
+function applySpacingRem(spacingRem: number): void {
+  const root = document.documentElement;
+  root.style.setProperty("--spacing", `${roundTo(spacingRem, 3)}rem`);
+}
+
+function applyRadiusPx(radiusPx: number): void {
+  const root = document.documentElement;
+  root.style.setProperty("--radius", `${Math.round(radiusPx)}px`);
+}
+
 export function Debugger() {
   const { toggleMode, resolvedTheme } = useTheme();
   const [colorFamily, setColorFamily] = useState<TailwindColorFamily>(() => readStoredColorFamily());
   const [fontMode, setFontMode] = useState<DebugFontMode>(() => readStoredFontMode());
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => readStoredCollapsed());
+  const [spacingRem, setSpacingRem] = useState<number>(() => readStoredSpacingRem());
+  const [radiusPx, setRadiusPx] = useState<number>(() => readStoredRadiusPx());
 
   useLayoutEffect(() => {
     if (!import.meta.env.DEV) {
@@ -281,6 +399,32 @@ export function Debugger() {
     window.localStorage.setItem(DEBUG_FONT_STORAGE_KEY, fontMode);
   }, [fontMode]);
 
+  useLayoutEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    window.localStorage.setItem(DEBUG_COLLAPSED_STORAGE_KEY, isCollapsed ? "1" : "0");
+  }, [isCollapsed]);
+
+  useLayoutEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    applySpacingRem(spacingRem);
+    window.localStorage.setItem(DEBUG_SPACING_STORAGE_KEY, String(roundTo(spacingRem, 3)));
+  }, [spacingRem]);
+
+  useLayoutEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    applyRadiusPx(radiusPx);
+    window.localStorage.setItem(DEBUG_RADIUS_STORAGE_KEY, String(Math.round(radiusPx)));
+  }, [radiusPx]);
+
   if (!import.meta.env.DEV) {
     return null;
   }
@@ -293,8 +437,39 @@ export function Debugger() {
     });
   }
 
+  const spacingPx = roundTo(spacingRem * 16, 1);
+
+  if (isCollapsed) {
+    return (
+      <div className="fixed right-2 bottom-2 z-[1000] pointer-events-auto">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => {
+            setIsCollapsed(false);
+          }}
+          aria-label="Open developer controls"
+          title="Open developer controls"
+        >
+          <IconSettings />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed right-2 bottom-2 z-[1000] flex items-center gap-2 rounded-xl border bg-background/90 p-2 shadow-lg backdrop-blur-sm pointer-events-auto">
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => {
+          setIsCollapsed(true);
+        }}
+        aria-label="Collapse developer controls"
+        title="Collapse developer controls"
+      >
+        <IconSettings />
+      </Button>
       <NativeSelect
         value={colorFamily}
         onChange={(event) => {
@@ -329,6 +504,68 @@ export function Debugger() {
       >
         Instrument Fonts
       </Button>
+      <div className="inline-flex items-center gap-1 rounded-lg border px-1 py-1">
+        <Button
+          variant="outline"
+          size="icon-xs"
+          onClick={() => {
+            setSpacingRem((current) =>
+              roundTo(clamp(current - SPACING_STEP_REM, MIN_SPACING_REM, MAX_SPACING_REM), 3),
+            );
+          }}
+          disabled={spacingRem <= MIN_SPACING_REM}
+          aria-label="Decrease spacing"
+          title="Decrease spacing"
+        >
+          <IconMinus />
+        </Button>
+        <span className="w-18 text-center text-xs text-muted-foreground">
+          Pad {spacingPx}px
+        </span>
+        <Button
+          variant="outline"
+          size="icon-xs"
+          onClick={() => {
+            setSpacingRem((current) =>
+              roundTo(clamp(current + SPACING_STEP_REM, MIN_SPACING_REM, MAX_SPACING_REM), 3),
+            );
+          }}
+          disabled={spacingRem >= MAX_SPACING_REM}
+          aria-label="Increase spacing"
+          title="Increase spacing"
+        >
+          <IconPlus />
+        </Button>
+      </div>
+      <div className="inline-flex items-center gap-1 rounded-lg border px-1 py-1">
+        <Button
+          variant="outline"
+          size="icon-xs"
+          onClick={() => {
+            setRadiusPx((current) => clamp(current - RADIUS_STEP_PX, MIN_RADIUS_PX, MAX_RADIUS_PX));
+          }}
+          disabled={radiusPx <= MIN_RADIUS_PX}
+          aria-label="Decrease radius"
+          title="Decrease radius"
+        >
+          <IconMinus />
+        </Button>
+        <span className="w-18 text-center text-xs text-muted-foreground">
+          Round {Math.round(radiusPx)}px
+        </span>
+        <Button
+          variant="outline"
+          size="icon-xs"
+          onClick={() => {
+            setRadiusPx((current) => clamp(current + RADIUS_STEP_PX, MIN_RADIUS_PX, MAX_RADIUS_PX));
+          }}
+          disabled={radiusPx >= MAX_RADIUS_PX}
+          aria-label="Increase radius"
+          title="Increase radius"
+        >
+          <IconPlus />
+        </Button>
+      </div>
       <Button onClick={toggleMode}>Toggle Theme</Button>
     </div>
   );

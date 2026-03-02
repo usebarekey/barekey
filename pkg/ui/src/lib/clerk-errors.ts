@@ -50,10 +50,18 @@ export function getClerkErrorMessage(error: unknown, fallback: string): string {
     return fallback;
   }
 
+  const normalizeMessage = (message: string): string => {
+    const normalized = message.toLowerCase();
+    if (normalized.includes("does not have slugs enabled for organizations")) {
+      return "Unable to create an organization in this environment right now.";
+    }
+    return message;
+  };
+
   const firstError = clerkError.errors?.[0];
-  if (firstError?.longMessage) return firstError.longMessage;
-  if (firstError?.message) return firstError.message;
-  if (clerkError.message) return clerkError.message;
+  if (firstError?.longMessage) return normalizeMessage(firstError.longMessage);
+  if (firstError?.message) return normalizeMessage(firstError.message);
+  if (clerkError.message) return normalizeMessage(clerkError.message);
 
   return fallback;
 }
