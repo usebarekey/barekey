@@ -70,7 +70,7 @@ export function Page() {
           <h1 className="text-2xl font-semibold">Create organization</h1>
           <p className="text-sm text-muted-foreground">
             Create a new Barekey workspace. Slugs use a short 4-digit suffix (for example{" "}
-            <span className="font-mono">my-organization-4821</span>).
+            <span className="font-mono">myorganization4821</span>).
           </p>
         </div>
 
@@ -101,7 +101,7 @@ export function Page() {
                   }}
                 />
                 <p className="text-xs text-muted-foreground">
-                  The slug is generated from the name with a 4-digit suffix.
+                  The slug is generated from lowercase letters and numbers with a 4-digit suffix.
                 </p>
               </div>
 

@@ -9,7 +9,6 @@ import { Link, useParams } from "react-router-dom";
 
 import { api } from "@convex/_generated/api";
 import {
-  OrgMetricCard,
   OrgPageHero,
   OrgRoleBadge,
   OrgSectionCard,
@@ -45,7 +44,6 @@ export function Page() {
   });
 
   const recentProjects = (projects ?? []).slice(0, 5);
-  const projectCount = projects?.length ?? 0;
   const memberCount = memberships?.count ?? 0;
   const inviteCount = invitations?.count ?? 0;
   const isOrgClaimsLoading = orgClaims === undefined;
@@ -89,31 +87,7 @@ export function Page() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <OrgMetricCard
-          label="Projects"
-          value={projects === undefined ? "..." : projectCount}
-          hint={
-            projectCount > 0 && projects
-              ? `Latest: ${projects[0]?.name ?? "n/a"}`
-              : "Create your first project."
-          }
-          icon={<IconBriefcase className="size-4" />}
-          tone="accent"
-        />
-        <OrgMetricCard
-          label="Team access"
-          value={memberships && invitations ? memberCount : "..."}
-          hint={
-            invitations
-              ? `${inviteCount} pending invite${inviteCount === 1 ? "" : "s"}`
-              : "Loading team access"
-          }
-          icon={<IconUsers className="size-4" />}
-        />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <OrgSectionCard
           title="Recent projects"
           description="Your latest project spaces."
@@ -151,8 +125,19 @@ export function Page() {
                 >
                   <div className="absolute inset-y-0 left-0 w-1 bg-primary/25 transition-colors group-hover:bg-primary/60" />
                   <div className="ml-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="min-w-0 truncate text-sm font-medium">{project.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatDateTime(project.createdAtMs)}</p>
+                    <div className="min-w-0">
+                      <p className="min-w-0 truncate text-sm font-medium">{project.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatDateTime(project.createdAtMs)}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      nativeButton={false}
+                      render={<Link to={`/o/${orgSlug}/project/${project.slug}`} />}
+                    >
+                      Open
+                      <IconArrowRight />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -161,8 +146,8 @@ export function Page() {
         </OrgSectionCard>
 
         <OrgSectionCard
-          title="Team access"
-          description="Keep your workspace members and invites up to date."
+          title="Team"
+          description="People and invites for this workspace."
           action={
             <Button
               size="sm"
@@ -175,9 +160,9 @@ export function Page() {
             </Button>
           }
         >
-          <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border bg-background/70 p-3">
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Members</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">
                   {memberships ? memberCount : "..."}
@@ -185,25 +170,34 @@ export function Page() {
               </div>
               <div className="rounded-xl border bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Pending invites</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight">
-                  {invitations ? inviteCount : "..."}
-                </p>
+                  <p className="mt-2 text-2xl font-semibold tracking-tight">
+                    {invitations ? inviteCount : "..."}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {isMissingWorkspaceLink ? (
-              <div className="rounded-xl border border-dashed p-3">
+              {!isMissingWorkspaceLink ? (
                 <p className="text-sm text-muted-foreground">
-                  Workspace details are temporarily unavailable. Open diagnostics for troubleshooting.
+                  {invitations
+                    ? `${inviteCount} pending invite${inviteCount === 1 ? "" : "s"}`
+                    : "Loading team access..."}
                 </p>
-                <Button
-                  size="sm"
+              ) : null}
+
+              {isMissingWorkspaceLink ? (
+                <div className="rounded-xl border border-dashed p-3">
+                  <p className="text-sm text-muted-foreground">
+                    Workspace details are temporarily unavailable. Open advanced diagnostics to
+                    troubleshoot.
+                  </p>
+                  <Button
+                    size="sm"
                   variant="ghost"
                   nativeButton={false}
                   render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
                   className="mt-2 h-7 px-2"
                 >
-                  Open diagnostics
+                  Open advanced diagnostics
                   <IconArrowRight />
                 </Button>
               </div>

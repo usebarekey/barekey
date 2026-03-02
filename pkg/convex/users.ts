@@ -96,7 +96,7 @@ export const ensureCurrentUser = mutation({
     let slug: string | null = null;
     for (const suffixLength of [4, 6] as const) {
       for (let attempt = 0; attempt < 12; attempt += 1) {
-        const candidate = `${slugBase}-${randomNumericSuffix(suffixLength)}`;
+        const candidate = `${slugBase}${randomNumericSuffix(suffixLength)}`;
         const collision = await ctx.db
           .query("users")
           .withIndex("by_slug", (q) => q.eq("slug", candidate))

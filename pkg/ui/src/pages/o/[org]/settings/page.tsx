@@ -2,11 +2,34 @@ import { useQuery } from "convex/react";
 import { IconArrowRight, IconDoorEnter } from "@tabler/icons-react";
 import { OrganizationProfile, useOrganization } from "@clerk/react-router";
 import { Link, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { api } from "@convex/_generated/api";
 import { OrgPageHero, OrgRoleBadge, OrgSectionCard } from "@/components/custom/org-workspace";
 import { Button } from "@/components/ui/button";
+
+const hashListeners = new Set<() => void>();
+
+function subscribeToHash(callback: () => void) {
+  hashListeners.add(callback);
+  window.addEventListener("hashchange", callback);
+  return () => {
+    hashListeners.delete(callback);
+    window.removeEventListener("hashchange", callback);
+  };
+}
+
+function getHashSnapshot() {
+  return typeof window !== "undefined" && window.location.hash === "#advanced-diagnostics";
+}
+
+function getHashServerSnapshot() {
+  return false;
+}
+
+function notifyHashListeners() {
+  hashListeners.forEach((cb) => cb());
+}
 
 function clearDiagnosticsHash(): void {
   if (typeof window === "undefined" || window.location.hash !== "#advanced-diagnostics") {
@@ -14,32 +37,21 @@ function clearDiagnosticsHash(): void {
   }
 
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  notifyHashListeners();
 }
 
 export function Page() {
   const { orgSlug = "org" } = useParams();
-  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const isDiagnosticsOpen = useSyncExternalStore(
+    subscribeToHash,
+    getHashSnapshot,
+    getHashServerSnapshot,
+  );
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
     expectedOrgSlug: orgSlug,
   });
   const { organization, membership } = useOrganization();
   const isWorkspaceLinked = orgClaims?.orgId != null;
-
-  useEffect(() => {
-    function syncDiagnosticsFromHash() {
-      if (typeof window === "undefined") {
-        return;
-      }
-
-      setIsDiagnosticsOpen(window.location.hash === "#advanced-diagnostics");
-    }
-
-    syncDiagnosticsFromHash();
-    window.addEventListener("hashchange", syncDiagnosticsFromHash);
-    return () => {
-      window.removeEventListener("hashchange", syncDiagnosticsFromHash);
-    };
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -76,7 +88,7 @@ export function Page() {
               nativeButton={false}
               render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
             >
-              Advanced diagnostics
+              Open diagnostics
             </Button>
           </>
         }
@@ -122,7 +134,7 @@ export function Page() {
                 nativeButton={false}
                 render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
               >
-                Advanced diagnostics
+                Open advanced diagnostics
                 <IconArrowRight />
               </Button>
             </div>
@@ -139,7 +151,6 @@ export function Page() {
                   variant="ghost"
                   onClick={() => {
                     clearDiagnosticsHash();
-                    setIsDiagnosticsOpen(false);
                   }}
                 >
                   Hide

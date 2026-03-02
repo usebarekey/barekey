@@ -13,11 +13,8 @@ function normalizeProjectSlugBase(name: string): string {
   const normalized = name
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/g, "")
-    .replace(/-+$/g, "")
-    .slice(0, 48)
-    .replace(/-+$/g, "");
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 48);
 
   return normalized.length > 0 ? normalized : "project";
 }
@@ -34,7 +31,7 @@ async function allocateUniqueProjectSlug(
 ): Promise<string> {
   for (const suffixLength of [4, 6] as const) {
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
+      const candidate = `${args.slugBase}${randomNumericSuffix(suffixLength)}`;
       const existing = await ctx.db
         .query("projects")
         .withIndex("by_org_id_and_slug", (q) =>
@@ -62,6 +59,21 @@ const projectSummaryValidator = v.object({
   createdAtMs: v.number(),
   updatedAtMs: v.number(),
 });
+
+const DEFAULT_PROJECT_STAGES = [
+  {
+    slug: "development",
+    name: "Development",
+  },
+  {
+    slug: "staging",
+    name: "Staging",
+  },
+  {
+    slug: "production",
+    name: "Production",
+  },
+] as const;
 
 export const createForCurrentOrg = mutation({
   args: {
@@ -102,6 +114,18 @@ export const createForCurrentOrg = mutation({
       createdAtMs: now,
       updatedAtMs: now,
     });
+
+    for (const stage of DEFAULT_PROJECT_STAGES) {
+      await ctx.db.insert("projectStages", {
+        projectId: id,
+        orgId: activeOrg.orgId,
+        slug: stage.slug,
+        name: stage.name,
+        isDefault: true,
+        createdAtMs: now,
+        updatedAtMs: now,
+      });
+    }
 
     return {
       id,
@@ -156,5 +180,53 @@ export const listForCurrentOrg = query({
       createdAtMs: row.createdAtMs,
       updatedAtMs: row.updatedAtMs,
     }));
+  },
+});
+
+export const getBySlugForCurrentOrg = query({
+  args: {
+    expectedOrgSlug: v.string(),
+    projectSlug: v.string(),
+  },
+  returns: v.union(projectSummaryValidator, v.null()),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      return null;
+    }
+
+    const activeOrg = getActiveOrgIdClaimsOrNull(identity);
+    if (activeOrg === null) {
+      // During Clerk <-> Convex org switching, claims may briefly be absent.
+      return null;
+    }
+
+    if (activeOrg.orgSlug !== null && activeOrg.orgSlug !== args.expectedOrgSlug) {
+      // Route/org can briefly drift while active org is switching; treat as loading.
+      return null;
+    }
+
+    const row = await ctx.db
+      .query("projects")
+      .withIndex("by_org_id_and_slug", (q) =>
+        q.eq("orgId", activeOrg.orgId).eq("slug", args.projectSlug),
+      )
+      .unique();
+
+    if (row === null) {
+      return null;
+    }
+
+    return {
+      id: row._id,
+      orgId: row.orgId,
+      orgSlug: row.orgSlug,
+      name: row.name,
+      slug: row.slug,
+      slugBase: row.slugBase,
+      createdByClerkUserId: row.createdByClerkUserId,
+      createdAtMs: row.createdAtMs,
+      updatedAtMs: row.updatedAtMs,
+    };
   },
 });

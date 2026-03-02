@@ -76,10 +76,6 @@ export function OrgRoleBadge({ role }: { role: string | null | undefined }) {
 export function OrgPageHero({
   title,
   subtitle,
-  orgSlug,
-  orgName,
-  imageUrl,
-  imageSeed,
   tags,
   actions,
   className,
@@ -129,12 +125,6 @@ export function OrgPageHero({
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-3 self-stretch sm:items-end">
-            <OrgIdentityChip
-              orgSlug={orgSlug}
-              orgName={orgName}
-              imageUrl={imageUrl}
-              seed={imageSeed}
-            />
             {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
           </div>
         </div>

@@ -19,7 +19,7 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 import { capitalCase } from "change-case";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   Link,
   NavLink,
@@ -33,6 +33,14 @@ import {
 import { Logo } from "@/components/custom/logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -288,9 +296,10 @@ export function Layout() {
   const relativePath = pathname.startsWith(orgBasePath)
     ? pathname.slice(orgBasePath.length).replace(/^\/+/, "")
     : "";
-  const activeSegment = relativePath.split("/").filter(Boolean)[0] ?? "overview";
-  const activeTitle =
-    navItems.find((item) => item.segment === activeSegment)?.label ?? capitalCase(activeSegment);
+  const relativeSegments = relativePath.split("/").filter(Boolean);
+  const activeSegment = relativeSegments[0] ?? "overview";
+  const nextOrgSegment = activeSegment === "project" ? "projects" : activeSegment;
+  const breadcrumbSegments = relativeSegments.length > 0 ? relativeSegments : ["overview"];
 
   const memberships = userMemberships.data ?? [];
   const selectableMemberships = memberships.filter((membership) =>
@@ -413,7 +422,7 @@ export function Layout() {
                   return;
                 }
 
-                void navigate(`/o/${nextOrgSlug}/${activeSegment}`);
+                void navigate(`/o/${nextOrgSlug}/${nextOrgSegment}`);
               }}
             >
               <SelectTrigger className="w-full">
@@ -469,6 +478,8 @@ export function Layout() {
                   const isActive =
                     item.segment === "overview"
                       ? pathname === `/o/${orgSlug}` || pathname === href
+                      : item.segment === "projects"
+                        ? pathname.startsWith(href) || pathname.startsWith(`/o/${orgSlug}/project/`)
                       : pathname.startsWith(href);
 
                   return (
@@ -499,13 +510,50 @@ export function Layout() {
               <SidebarTrigger />
               <Separator orientation="vertical" />
               <div className="min-w-0">
-                <p className="text-sm font-medium">{activeTitle}</p>
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink render={<Link to={`/o/${orgSlug}`} />}>o</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbLink render={<Link to={`/o/${orgSlug}`} />}>
+                        {orgSlug}
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    {breadcrumbSegments.map((segment, index) => {
+                      const isLast = index === breadcrumbSegments.length - 1;
+                      const segmentPath = breadcrumbSegments.slice(0, index + 1).join("/");
+                      const isNavigable = !isLast && segmentPath !== "project";
+                      const segmentLabel =
+                        navItems.find((item) => item.segment === segment)?.label ??
+                        capitalCase(segment);
+
+                      return (
+                        <Fragment key={segmentPath}>
+                          <BreadcrumbSeparator />
+                          <BreadcrumbItem>
+                            {isLast ? (
+                              <BreadcrumbPage>{segmentLabel}</BreadcrumbPage>
+                            ) : !isNavigable ? (
+                              <BreadcrumbPage>{segmentLabel}</BreadcrumbPage>
+                            ) : (
+                              <BreadcrumbLink render={<Link to={`/o/${orgSlug}/${segmentPath}`} />}>
+                                {segmentLabel}
+                              </BreadcrumbLink>
+                            )}
+                          </BreadcrumbItem>
+                        </Fragment>
+                      );
+                    })}
+                  </BreadcrumbList>
+                </Breadcrumb>
               </div>
             </div>
           </div>
         </header>
 
-        <div className="relative min-h-[calc(100svh-57px)]">
+        <div className="relative">
           <div
             className="pointer-events-none absolute inset-0 opacity-30"
             aria-hidden="true"
