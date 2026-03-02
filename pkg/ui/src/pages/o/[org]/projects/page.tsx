@@ -307,7 +307,7 @@ export function Page() {
                   </EmptyMedia>
                   <EmptyTitle>{showNoProjectsEmpty ? "No projects yet" : "No matching projects"}</EmptyTitle>
                   <EmptyDescription>
-                    Create your first project for <span className="font-mono">/o/{orgSlug}</span>.
+                    Create your first project in this workspace.
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent className="sm:flex-row sm:justify-center">
