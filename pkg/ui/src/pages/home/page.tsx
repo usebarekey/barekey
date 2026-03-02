@@ -33,18 +33,18 @@ export function Page() {
 
   return (
     <div className="flex h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <h1 className="text-lg font-semibold">Getting your workspace ready</h1>
+          <h1 className="text-lg font-semibold">Preparing your workspace</h1>
           <p className="text-sm text-muted-foreground">
-            We are routing you to the right workspace.
+            You will land in the right workspace automatically.
           </p>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {isLoading ? <p>Checking access now...</p> : null}
+          {isLoading ? <p>Checking your access...</p> : null}
           {!isAuthenticated && !isLoading ? (
             <p className="text-muted-foreground">
-              We could not finish the check. Refresh this page or sign in again.
+              We could not finish setup. Refresh this page or sign in again.
             </p>
           ) : null}
         </CardContent>

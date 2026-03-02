@@ -28,4 +28,41 @@ export default defineSchema({
     .index("by_org_id", ["orgId"])
     .index("by_org_id_and_created_at_ms", ["orgId", "createdAtMs"])
     .index("by_org_id_and_slug", ["orgId", "slug"]),
+  projectStages: defineTable({
+    projectId: v.id("projects"),
+    orgId: v.string(),
+    slug: v.string(),
+    name: v.string(),
+    isDefault: v.boolean(),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+  })
+    .index("by_project_id", ["projectId"])
+    .index("by_project_id_and_slug", ["projectId", "slug"])
+    .index("by_org_id_and_project_id", ["orgId", "projectId"]),
+  projectKeys: defineTable({
+    projectId: v.id("projects"),
+    orgId: v.string(),
+    encryptedDek: v.string(),
+    dekVersion: v.number(),
+    rotatedAtMs: v.number(),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+  })
+    .index("by_project_id", ["projectId"])
+    .index("by_org_id_and_project_id", ["orgId", "projectId"]),
+  projectVariables: defineTable({
+    projectId: v.id("projects"),
+    orgId: v.string(),
+    stageSlug: v.string(),
+    name: v.string(),
+    kind: v.literal("secret"),
+    encryptedValue: v.string(),
+    createdByClerkUserId: v.string(),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+  })
+    .index("by_project_id_and_stage_slug", ["projectId", "stageSlug"])
+    .index("by_project_id_and_stage_slug_and_name", ["projectId", "stageSlug", "name"])
+    .index("by_org_id_and_project_id", ["orgId", "projectId"]),
 });

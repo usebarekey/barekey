@@ -131,7 +131,7 @@ export function Page() {
               <div>
                 <p className="text-sm font-medium">Default organization bootstrap</p>
                 <p className="text-sm text-muted-foreground">
-                  Creates a workspace slug like <span className="font-mono">johndoe-org-5831</span>.
+                  Creates a workspace slug like <span className="font-mono">johndoeorg5831</span>.
                 </p>
               </div>
               <Button

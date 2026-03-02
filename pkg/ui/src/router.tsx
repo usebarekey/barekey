@@ -10,6 +10,10 @@ import * as OrgOverview from "@/pages/o/[org]/overview/page";
 import * as OrgLayout from "@/pages/o/[org]/layout";
 import * as OrgMembers from "@/pages/o/[org]/members/page";
 import * as OrgProjects from "@/pages/o/[org]/projects/page";
+import * as OrgProjectLayout from "@/pages/o/[org]/project/[projectSlug]/layout";
+import * as OrgProjectOverview from "@/pages/o/[org]/project/[projectSlug]/overview/page";
+import * as OrgProjectSettings from "@/pages/o/[org]/project/[projectSlug]/settings/page";
+import * as OrgProjectVariables from "@/pages/o/[org]/project/[projectSlug]/variables/page";
 import * as OrgSettings from "@/pages/o/[org]/settings/page";
 import * as UserOverview from "@/pages/u/user/overview/page";
 import * as UserLayout from "@/pages/u/user/layout";
@@ -29,6 +33,12 @@ export function Router() {
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="members" element={<OrgMembers.Page />} />
           <Route path="projects" element={<OrgProjects.Page />} />
+          <Route path="project/:projectSlug" element={<OrgProjectLayout.Layout />}>
+            <Route index element={<Navigate to="variables" replace />} />
+            <Route path="variables" element={<OrgProjectVariables.Page />} />
+            <Route path="overview" element={<OrgProjectOverview.Page />} />
+            <Route path="settings" element={<OrgProjectSettings.Page />} />
+          </Route>
           <Route path="settings" element={<OrgSettings.Page />} />
           <Route path="overview" element={<OrgOverview.Page />} />
         </Route>

@@ -10,6 +10,7 @@ import {
 import { useTheme } from "theme-watcher";
 
 const DEBUG_COLOR_STORAGE_KEY = "debugger-tailwind-color-family";
+const DEBUG_FONT_STORAGE_KEY = "debugger-font-mode";
 
 const TAILWIND_COLOR_FAMILIES = [
   "red",
@@ -43,6 +44,7 @@ const TAILWIND_COLOR_FAMILIES = [
 const NEW_TAILWIND_V4_2_FAMILIES = ["taupe", "mauve", "mist", "olive"] as const;
 
 type TailwindColorFamily = (typeof TAILWIND_COLOR_FAMILIES)[number];
+type DebugFontMode = "default" | "instrument";
 type ColorScale = "50" | "100" | "200" | "300" | "500" | "600" | "700" | "800" | "900" | "950";
 type ResolvedThemeMode = "light" | "dark";
 type TailwindColorScale = Record<ColorScale, string>;
@@ -213,6 +215,19 @@ function readStoredColorFamily(): TailwindColorFamily {
   return stored;
 }
 
+function readStoredFontMode(): DebugFontMode {
+  if (typeof window === "undefined") {
+    return "default";
+  }
+
+  const stored = window.localStorage.getItem(DEBUG_FONT_STORAGE_KEY);
+  if (stored === "instrument") {
+    return "instrument";
+  }
+
+  return "default";
+}
+
 function colorTokenValue(family: TailwindColorFamily, shade: ColorScale): string {
   return TAILWIND_COLOR_SCALES[family][shade];
 }
@@ -232,9 +247,20 @@ function applyColorway(family: TailwindColorFamily, mode: ResolvedThemeMode): vo
   }
 }
 
+function applyFontMode(mode: DebugFontMode): void {
+  const root = document.documentElement;
+  if (mode === "instrument") {
+    root.classList.add("debug-instrument-fonts");
+    return;
+  }
+
+  root.classList.remove("debug-instrument-fonts");
+}
+
 export function Debugger() {
   const { toggleMode, resolvedTheme } = useTheme();
   const [colorFamily, setColorFamily] = useState<TailwindColorFamily>(() => readStoredColorFamily());
+  const [fontMode, setFontMode] = useState<DebugFontMode>(() => readStoredFontMode());
 
   useLayoutEffect(() => {
     if (!import.meta.env.DEV) {
@@ -245,6 +271,15 @@ export function Debugger() {
     applyColorway(colorFamily, mode);
     window.localStorage.setItem(DEBUG_COLOR_STORAGE_KEY, colorFamily);
   }, [colorFamily, resolvedTheme]);
+
+  useLayoutEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    applyFontMode(fontMode);
+    window.localStorage.setItem(DEBUG_FONT_STORAGE_KEY, fontMode);
+  }, [fontMode]);
 
   if (!import.meta.env.DEV) {
     return null;
@@ -285,6 +320,14 @@ export function Debugger() {
       />
       <Button variant="outline" onClick={nextColorway}>
         Next Color
+      </Button>
+      <Button
+        variant={fontMode === "instrument" ? "default" : "outline"}
+        onClick={() => {
+          setFontMode((current) => (current === "instrument" ? "default" : "instrument"));
+        }}
+      >
+        Instrument Fonts
       </Button>
       <Button onClick={toggleMode}>Toggle Theme</Button>
     </div>
