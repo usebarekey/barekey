@@ -22,24 +22,65 @@ function unquoteEnvValue(rawValue: string): string {
   }
 
   const first = value[0];
-  const last = value[value.length - 1];
-  if ((first === "\"" || first === "'") && last === first) {
-    const innerValue = value.slice(1, -1);
-    if (first === "'") {
-      return innerValue;
+  if (first === "\"" || first === "'") {
+    let escapeNext = false;
+    let closingQuoteIndex = -1;
+    for (let index = 1; index < value.length; index += 1) {
+      const char = value[index];
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+      if (char === "\\") {
+        escapeNext = true;
+        continue;
+      }
+      if (char === first) {
+        closingQuoteIndex = index;
+        break;
+      }
     }
 
-    return innerValue
-      .replace(/\\n/g, "\n")
-      .replace(/\\r/g, "\r")
-      .replace(/\\t/g, "\t")
-      .replace(/\\"/g, "\"")
-      .replace(/\\\\/g, "\\");
+    const trailing = closingQuoteIndex === -1 ? "" : value.slice(closingQuoteIndex + 1).trimStart();
+    if (closingQuoteIndex !== -1 && (trailing.length === 0 || trailing.startsWith("#"))) {
+      const innerValue = value.slice(1, closingQuoteIndex);
+      if (first === "'") {
+        return innerValue;
+      }
+
+      return innerValue
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "\r")
+        .replace(/\\t/g, "\t")
+        .replace(/\\"/g, "\"")
+        .replace(/\\\\/g, "\\");
+    }
   }
 
   const inlineCommentMatch = value.match(/\s+#/);
   if (inlineCommentMatch && inlineCommentMatch.index !== undefined) {
-    return value.slice(0, inlineCommentMatch.index).trimEnd();
+    const unquotedValue = value.slice(0, inlineCommentMatch.index).trimEnd();
+    if (unquotedValue.length < 2) {
+      return unquotedValue;
+    }
+
+    const quote = unquotedValue[0];
+    const unquotedLast = unquotedValue[unquotedValue.length - 1];
+    if ((quote === "\"" || quote === "'") && unquotedLast === quote) {
+      const innerValue = unquotedValue.slice(1, -1);
+      if (quote === "'") {
+        return innerValue;
+      }
+
+      return innerValue
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "\r")
+        .replace(/\\t/g, "\t")
+        .replace(/\\"/g, "\"")
+        .replace(/\\\\/g, "\\");
+    }
+
+    return unquotedValue;
   }
 
   return value;

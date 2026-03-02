@@ -86,12 +86,24 @@ function createEmptyDraftState(): StageDraftState {
   };
 }
 
-function hasDraftChanges(draft: StageDraftState): boolean {
+function hasPersistedDraftChanges(draft: StageDraftState): boolean {
   return (
     draft.newRows.length > 0 ||
     Object.keys(draft.updatedValues).length > 0 ||
     Object.keys(draft.deletedIds).length > 0
   );
+}
+
+function hasTransientStageState(draft: StageDraftState): boolean {
+  return (
+    Object.keys(draft.revealedValues).length > 0 ||
+    Object.keys(draft.revealedIds).length > 0 ||
+    Object.keys(draft.decryptingIds).length > 0
+  );
+}
+
+function hasStoredStageState(draft: StageDraftState): boolean {
+  return hasPersistedDraftChanges(draft) || hasTransientStageState(draft);
 }
 
 function cloneDraft(draft: StageDraftState): StageDraftState {
@@ -262,7 +274,7 @@ export function Page() {
     setDraftByStage((previous) => {
       const current = previous[selectedStageSlug] ?? createEmptyDraftState();
       const next = updater(cloneDraft(current));
-      if (!hasDraftChanges(next)) {
+      if (!hasStoredStageState(next)) {
         const { [selectedStageSlug]: _, ...rest } = previous;
         return rest;
       }
@@ -544,7 +556,7 @@ export function Page() {
     });
   }
 
-  const hasDraft = hasDraftChanges(currentDraft);
+  const hasDraft = hasPersistedDraftChanges(currentDraft);
 
   return (
     <div className="space-y-4">
