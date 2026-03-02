@@ -14,10 +14,12 @@ import { Link, useParams } from "react-router-dom";
 
 import { api } from "@convex/_generated/api";
 import {
+  OrgMetricCard,
   OrgPageHero,
   OrgRoleBadge,
   OrgSectionCard,
 } from "@/components/custom/org-workspace";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -32,22 +34,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.length > 0) {
-    const normalizedMessage = error.message.toLowerCase();
-
-    if (normalizedMessage.includes("project name")) {
-      return error.message;
-    }
-
-    if (
-      normalizedMessage.includes("workspace") ||
-      normalizedMessage.includes("organization") ||
-      normalizedMessage.includes("unauthorized")
-    ) {
-      return "Project actions are temporarily unavailable for this workspace. Switch workspaces and try again.";
-    }
+    return error.message;
   }
 
-  return "Unable to create project right now. Please try again.";
+  return "Unable to create project.";
 }
 
 function formatDateTime(value: number): string {
@@ -71,7 +61,12 @@ export function Page() {
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
-  const { organization } = useOrganization();
+  const { organization, memberships } = useOrganization({
+    memberships: {
+      pageSize: 10,
+      keepPreviousData: true,
+    },
+  });
 
   const isClaimsLoading = orgClaims === undefined;
   const isMissingWorkspaceLink =
@@ -84,8 +79,9 @@ export function Page() {
       return true;
     }
 
-    return project.name.toLowerCase().includes(normalizedQuery);
+    return `${project.name} ${project.slug}`.toLowerCase().includes(normalizedQuery);
   });
+  const latestProject = projects?.[0] ?? null;
 
   async function handleCreateProject() {
     const trimmedName = name.trim();
@@ -118,10 +114,15 @@ export function Page() {
         orgName={organization?.name}
         imageUrl={organization?.imageUrl}
         imageSeed={organization?.id}
-        subtitle={<>Create and manage project spaces for variables and rollouts.</>}
+        subtitle={
+          <>
+            Create and manage project spaces for variables, experiments, and rollout decisions.
+          </>
+        }
         tags={
           <>
             <OrgRoleBadge role={orgClaims?.orgRole} />
+            <Badge variant="outline">Project workspace</Badge>
           </>
         }
         actions={
@@ -143,15 +144,46 @@ export function Page() {
         }
       />
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <OrgMetricCard
+          label="Total projects"
+          value={projects === undefined ? "..." : projects.length}
+          hint={projects && projects.length > 0 ? "Live project list" : "No projects yet"}
+          icon={<IconBriefcase className="size-4" />}
+          tone="accent"
+        />
+        <OrgMetricCard
+          label="Latest project"
+          value={latestProject ? latestProject.name : projects ? "None" : "..."}
+          hint={latestProject ? latestProject.slug : "Create your first project"}
+          icon={<IconArrowRight className="size-4" />}
+        />
+        <OrgMetricCard
+          label="Member coverage"
+          value={memberships ? memberships.count : "..."}
+          hint="People who can operate projects"
+          icon={<IconUsers className="size-4" />}
+        />
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <OrgSectionCard title="Create project" description="Start a new project in this workspace.">
           <div className="space-y-4">
+            <div className="rounded-xl border bg-background/70 p-3">
+              <p className="text-sm text-muted-foreground">
+                Slugs are generated from the project name and remain unique in this workspace.
+              </p>
+              <p className="mt-2 font-mono text-xs text-muted-foreground">
+                Example: <span className="text-foreground">secrets-api-4821</span>
+              </p>
+            </div>
+
             <div className="flex flex-col gap-3">
               <Input
                 ref={inputRef}
                 value={name}
                 disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
-                placeholder="Project name"
+                placeholder="Project name (e.g. Secrets API)"
                 onChange={(event) => setName(event.currentTarget.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -207,8 +239,8 @@ export function Page() {
         </OrgSectionCard>
 
         <OrgSectionCard
-          title="Project list"
-          description="Search and inspect projects by name."
+          title="Project index"
+          description="Search and inspect projects by name or slug."
           action={
             <div className="text-xs text-muted-foreground">
               {projects === undefined ? "Loading..." : `${filteredProjects.length} shown`}
@@ -221,7 +253,7 @@ export function Page() {
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                placeholder="Search projects"
+                placeholder="Search projects by name or slug"
                 className="pl-9"
               />
             </div>
@@ -246,7 +278,9 @@ export function Page() {
                     <IconBriefcase />
                   </EmptyMedia>
                   <EmptyTitle>No projects yet</EmptyTitle>
-                  <EmptyDescription>Create your first project in this workspace.</EmptyDescription>
+                  <EmptyDescription>
+                    Create your first project for <span className="font-mono">/o/{orgSlug}</span>.
+                  </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
                   <Button
@@ -264,14 +298,26 @@ export function Page() {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredProjects.map((project) => (
+                {filteredProjects.map((project, index) => (
                   <div
                     key={project.id}
                     className="group relative overflow-hidden rounded-xl border bg-background/80 p-3"
                   >
                     <div className="absolute inset-y-0 left-0 w-1 bg-primary/15 transition-colors group-hover:bg-primary/50" />
                     <div className="ml-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="min-w-0 truncate text-sm font-medium">{project.name}</p>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {index < 3 ? (
+                            <Badge variant={index === 0 ? "secondary" : "outline"}>
+                              {index === 0 ? "Hot" : `#${index + 1}`}
+                            </Badge>
+                          ) : null}
+                          <p className="truncate text-sm font-medium">{project.name}</p>
+                        </div>
+                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                          {project.slug}
+                        </p>
+                      </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span>{formatDateTime(project.createdAtMs)}</span>
                         <Button

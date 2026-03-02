@@ -1,20 +1,29 @@
 import { useQuery } from "convex/react";
-import { IconArrowRight, IconDoorEnter } from "@tabler/icons-react";
+import {
+  IconArrowRight,
+  IconDoorEnter,
+  IconFingerprint,
+  IconMailShare,
+  IconServerCog,
+} from "@tabler/icons-react";
 import { OrganizationProfile, useOrganization } from "@clerk/react-router";
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import { api } from "@convex/_generated/api";
-import { OrgPageHero, OrgRoleBadge, OrgSectionCard } from "@/components/custom/org-workspace";
+import {
+  OrgMetricCard,
+  OrgPageHero,
+  OrgRoleBadge,
+  OrgSectionCard,
+} from "@/components/custom/org-workspace";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-function clearDiagnosticsHash(): void {
-  if (typeof window === "undefined" || window.location.hash !== "#advanced-diagnostics") {
-    return;
-  }
-
-  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-}
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export function Page() {
   const { orgSlug = "org" } = useParams();
@@ -22,8 +31,24 @@ export function Page() {
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
     expectedOrgSlug: orgSlug,
   });
-  const { organization, membership } = useOrganization();
-  const isWorkspaceLinked = orgClaims?.orgId != null;
+  const projects = useQuery(api.projects.listForCurrentOrg, {
+    expectedOrgSlug: orgSlug,
+  });
+  const { organization, membership, invitations, domains } = useOrganization({
+    invitations: {
+      pageSize: 8,
+      keepPreviousData: true,
+    },
+    domains: {
+      pageSize: 8,
+      keepPreviousData: true,
+    },
+  });
+
+  const domainCount = domains?.count ?? 0;
+  const inviteCount = invitations?.count ?? 0;
+  const projectCount = projects?.length ?? 0;
+  const hasWorkspaceLink = orgClaims?.orgId != null;
 
   useEffect(() => {
     function syncDiagnosticsFromHash() {
@@ -31,7 +56,9 @@ export function Page() {
         return;
       }
 
-      setIsDiagnosticsOpen(window.location.hash === "#advanced-diagnostics");
+      if (window.location.hash === "#advanced-diagnostics") {
+        setIsDiagnosticsOpen(true);
+      }
     }
 
     syncDiagnosticsFromHash();
@@ -53,6 +80,9 @@ export function Page() {
         tags={
           <>
             <OrgRoleBadge role={membership?.role ?? orgClaims?.orgRole} />
+            <Badge variant={hasWorkspaceLink ? "secondary" : "outline"}>
+              {hasWorkspaceLink ? "Access ready" : "Needs attention"}
+            </Badge>
           </>
         }
         actions={
@@ -70,17 +100,31 @@ export function Page() {
               <IconArrowRight />
               Projects
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              nativeButton={false}
-              render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
-            >
-              Diagnostics
-            </Button>
           </>
         }
       />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <OrgMetricCard
+          label="Projects in workspace"
+          value={projects === undefined ? "..." : projectCount}
+          hint="Active projects available to your team"
+          icon={<IconServerCog className="size-4" />}
+        />
+        <OrgMetricCard
+          label="Pending invites"
+          value={invitations ? inviteCount : "..."}
+          hint="Outstanding access invitations"
+          icon={<IconMailShare className="size-4" />}
+          tone={inviteCount > 0 ? "accent" : "muted"}
+        />
+        <OrgMetricCard
+          label="Verified domains"
+          value={domains ? domainCount : "..."}
+          hint="Domains approved for membership"
+          icon={<IconFingerprint className="size-4" />}
+        />
+      </div>
 
       <div className="grid gap-4 2xl:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-4">
@@ -116,85 +160,76 @@ export function Page() {
                 Projects
                 <IconArrowRight />
               </Button>
-              <Button
-                variant="ghost"
-                className="justify-between"
-                nativeButton={false}
-                render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
-              >
-                Advanced diagnostics
-                <IconArrowRight />
-              </Button>
             </div>
           </OrgSectionCard>
 
-          {isDiagnosticsOpen ? (
-            <OrgSectionCard
-              title="Advanced diagnostics"
-              description="Troubleshooting details for workspace routing and access."
-              className="scroll-mt-20"
-              action={
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    clearDiagnosticsHash();
-                    setIsDiagnosticsOpen(false);
-                  }}
-                >
-                  Hide
-                </Button>
-              }
-            >
-              <div
-                id="advanced-diagnostics"
-                className="space-y-3 rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground"
-              >
-                <p>
-                  Use this panel when workspace navigation or project access does not behave as
-                  expected.
-                </p>
-                <div className="space-y-1">
-                  <p>
-                    <span className="text-foreground">Workspace ID:</span>{" "}
-                    <span className="font-mono">{orgClaims?.orgId ?? "missing"}</span>
-                  </p>
-                  <p>
-                    <span className="text-foreground">Workspace slug:</span>{" "}
-                    <span className="font-mono">{orgClaims?.orgSlug ?? "missing"}</span>
-                  </p>
-                  <p>
-                    <span className="text-foreground">Workspace role:</span>{" "}
-                    <span className="font-mono">
-                      {(membership?.roleName || orgClaims?.orgRole || "missing").replace(
-                        /^org:/,
-                        "",
-                      )}
+          <OrgSectionCard
+            title="Advanced diagnostics"
+            description="Internal values for troubleshooting workspace access."
+            className="scroll-mt-20"
+          >
+            <div id="advanced-diagnostics">
+              <Collapsible open={isDiagnosticsOpen} onOpenChange={setIsDiagnosticsOpen}>
+                <CollapsibleTrigger className="focus-visible:ring-ring/50 w-full rounded-lg border px-3 py-2 text-left outline-none focus-visible:ring-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">
+                      {isDiagnosticsOpen ? "Hide diagnostics" : "Show diagnostics"}
                     </span>
-                  </p>
-                  <p>
-                    <span className="text-foreground">Route aligned:</span>{" "}
-                    <span className="font-mono">
-                      {orgClaims === undefined
-                        ? "loading"
-                        : orgClaims.routeMatchesActiveOrg
-                          ? "true"
-                          : "false"}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-foreground">Signed in:</span>{" "}
-                    <span className="font-mono">
-                      {orgClaims === undefined ? "loading" : orgClaims.isSignedIn ? "true" : "false"}
-                    </span>
-                  </p>
-                </div>
-                {!isWorkspaceLinked && orgClaims !== undefined ? (
-                  <p>If values are missing, switch workspaces from the sidebar and refresh.</p>
-                ) : null}
-              </div>
-            </OrgSectionCard>
-          ) : null}
+                    <Badge variant="outline">Advanced</Badge>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-3 space-y-3 rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
+                    <p>
+                      Use this panel to check workspace values when navigation or project access does
+                      not behave as expected.
+                    </p>
+                    <div className="space-y-1">
+                      <p>
+                        <span className="text-foreground">Workspace ID:</span>{" "}
+                        <span className="font-mono">{orgClaims?.orgId ?? "missing"}</span>
+                      </p>
+                      <p>
+                        <span className="text-foreground">Workspace slug:</span>{" "}
+                        <span className="font-mono">{orgClaims?.orgSlug ?? "missing"}</span>
+                      </p>
+                      <p>
+                        <span className="text-foreground">Workspace role:</span>{" "}
+                        <span className="font-mono">
+                          {(membership?.roleName || orgClaims?.orgRole || "missing").replace(
+                            /^org:/,
+                            "",
+                          )}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-foreground">Route aligned:</span>{" "}
+                        <span className="font-mono">
+                          {orgClaims === undefined
+                            ? "loading"
+                            : orgClaims.routeMatchesActiveOrg
+                              ? "true"
+                              : "false"}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-foreground">Signed in:</span>{" "}
+                        <span className="font-mono">
+                          {orgClaims === undefined ? "loading" : orgClaims.isSignedIn ? "true" : "false"}
+                        </span>
+                      </p>
+                    </div>
+                    {!hasWorkspaceLink && orgClaims !== undefined ? (
+                      <p>
+                        If workspace values are missing, switch workspaces from the sidebar and
+                        refresh.
+                      </p>
+                    ) : null}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          </OrgSectionCard>
         </div>
 
         <OrgSectionCard

@@ -35,22 +35,29 @@ export function Page() {
     <div className="flex h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <h1 className="text-lg font-semibold">Getting your workspace ready</h1>
+          <h1 className="text-lg font-semibold">Preparing your workspace</h1>
           <p className="text-sm text-muted-foreground">
-            We are routing you to the right workspace.
+            Final checks are running before we send you to your dashboard.
           </p>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {isLoading ? <p>Checking access now...</p> : null}
+          <p>
+            <strong>Status:</strong>{" "}
+            {isLoading
+              ? "Connecting..."
+              : isAuthenticated
+                ? "Ready"
+                : "Still trying"}
+          </p>
           {!isAuthenticated && !isLoading ? (
             <p className="text-muted-foreground">
-              We could not finish the check. Refresh this page or sign in again.
+              This is taking longer than expected. Refresh the page or return to sign in.
             </p>
           ) : null}
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-2">
           <Link to="/auth/sso" className={cn(buttonVariants({ variant: "outline" }))}>
-            Sign in
+            Sign-in page
           </Link>
           <SignOutButton redirectUrl="/auth/sso">
             <Button>Sign out</Button>
