@@ -36,23 +36,22 @@ export function Page() {
         <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <h1 className="text-lg font-semibold">Preparing your workspace</h1>
-          <p className="text-sm text-muted-foreground">You are signed in. Final checks are running.</p>
+          <p className="text-sm text-muted-foreground">
+            Final checks are running before we send you to your dashboard.
+          </p>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p>
-            <strong>Account:</strong> {userId}
-          </p>
-          <p>
-            <strong>Workspace sync:</strong>{" "}
+            <strong>Status:</strong>{" "}
             {isLoading
-              ? "Syncing..."
+              ? "Connecting..."
               : isAuthenticated
                 ? "Ready"
-                : "Still connecting"}
+                : "Still trying"}
           </p>
           {!isAuthenticated && !isLoading ? (
             <p className="text-muted-foreground">
-              This is taking longer than expected. Restart local services and refresh.
+              This is taking longer than expected. Refresh the page or return to sign in.
             </p>
           ) : null}
         </CardContent>

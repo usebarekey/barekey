@@ -510,44 +510,7 @@ export function Layout() {
               <SidebarTrigger />
               <Separator orientation="vertical" />
               <div className="min-w-0">
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink render={<Link to={`/o/${orgSlug}`} />}>o</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbLink render={<Link to={`/o/${orgSlug}`} />}>
-                        {orgSlug}
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    {breadcrumbSegments.map((segment, index) => {
-                      const isLast = index === breadcrumbSegments.length - 1;
-                      const segmentPath = breadcrumbSegments.slice(0, index + 1).join("/");
-                      const isNavigable = !isLast && segmentPath !== "project";
-                      const segmentLabel =
-                        navItems.find((item) => item.segment === segment)?.label ??
-                        capitalCase(segment);
-
-                      return (
-                        <Fragment key={segmentPath}>
-                          <BreadcrumbSeparator />
-                          <BreadcrumbItem>
-                            {isLast ? (
-                              <BreadcrumbPage>{segmentLabel}</BreadcrumbPage>
-                            ) : !isNavigable ? (
-                              <BreadcrumbPage>{segmentLabel}</BreadcrumbPage>
-                            ) : (
-                              <BreadcrumbLink render={<Link to={`/o/${orgSlug}/${segmentPath}`} />}>
-                                {segmentLabel}
-                              </BreadcrumbLink>
-                            )}
-                          </BreadcrumbItem>
-                        </Fragment>
-                      );
-                    })}
-                  </BreadcrumbList>
-                </Breadcrumb>
+                <p className="text-sm font-medium">{activeTitle}</p>
               </div>
             </div>
           </div>
