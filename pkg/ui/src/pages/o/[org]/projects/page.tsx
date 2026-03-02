@@ -12,7 +12,12 @@ import {
 import { Link, useParams } from "react-router-dom";
 
 import { api } from "@convex/_generated/api";
-import { OrgPageHero, OrgRoleBadge } from "@/components/custom/org-workspace";
+import {
+  OrgMetricCard,
+  OrgPageHero,
+  OrgRoleBadge,
+  OrgSectionCard,
+} from "@/components/custom/org-workspace";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -76,6 +81,7 @@ export function Page() {
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
+  const { organization } = useOrganization();
 
   const isClaimsLoading = orgClaims === undefined;
   const isMissingWorkspaceLink =
@@ -151,7 +157,6 @@ export function Page() {
         tags={
           <>
             <OrgRoleBadge role={orgClaims?.orgRole} />
-            <Badge variant="outline">Project workspace</Badge>
           </>
         }
         actions={
@@ -173,7 +178,7 @@ export function Page() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <OrgMetricCard
           label="Total projects"
           value={projects === undefined ? "..." : projects.length}
@@ -186,12 +191,6 @@ export function Page() {
           value={latestProject ? latestProject.name : projects ? "None" : "..."}
           hint={latestProject ? latestProject.slug : "Create your first project"}
           icon={<IconArrowRight className="size-4" />}
-        />
-        <OrgMetricCard
-          label="Member coverage"
-          value={memberships ? memberships.count : "..."}
-          hint="People who can operate projects"
-          icon={<IconUsers className="size-4" />}
         />
       </div>
 
@@ -268,7 +267,7 @@ export function Page() {
         </OrgSectionCard>
 
         <OrgSectionCard
-          title="Project index"
+          title="Project list"
           description="Search and inspect projects by name or slug."
           action={
             <div className="text-xs text-muted-foreground">
@@ -326,51 +325,27 @@ export function Page() {
                   ) : null}
                 </EmptyContent>
               </Empty>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {projects === undefined
-                ? Array.from({ length: 5 }).map((_, index) => (
-                    <Card key={index}>
-                      <CardContent>
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="mt-2 h-3 w-32" />
-                        <Skeleton className="mt-8 h-8 w-full" />
-                      </CardContent>
-                    </Card>
-                  ))
-                : null}
-
-              {projects !== undefined && isMissingWorkspaceLink ? (
-                <Card>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Project listing is unavailable until workspace access is restored.
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      nativeButton={false}
-                      render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
-                      className="justify-start px-0"
-                    >
-                      Open diagnostics
-                      <IconArrowRight />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : null}
-
-              {projects !== undefined && !isMissingWorkspaceLink
-                ? filteredProjects.map((project) => (
-                    <Card key={project.id} className="aspect-square">
-                      <CardHeader>
-                        <CardTitle className="line-clamp-2">{project.name}</CardTitle>
-                        <p className="text-xs text-muted-foreground">{formatDateTime(project.createdAtMs)}</p>
-                      </CardHeader>
-                      <CardContent className="flex-1" />
-                      <CardFooter>
+            ) : filteredProjects.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                No projects match <span className="font-medium text-foreground">{searchQuery}</span>.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="group relative overflow-hidden rounded-xl border bg-background/80 p-3"
+                  >
+                    <div className="absolute inset-y-0 left-0 w-1 bg-primary/15 transition-colors group-hover:bg-primary/50" />
+                    <div className="ml-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{project.name}</p>
+                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                          {project.slug}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>{formatDateTime(project.createdAtMs)}</span>
                         <Button
                           size="sm"
                           variant="outline"

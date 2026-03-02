@@ -2,16 +2,18 @@ import { useQuery } from "convex/react";
 import {
   IconArrowRight,
   IconDoorEnter,
-  IconFingerprint,
-  IconMailShare,
-  IconServerCog,
 } from "@tabler/icons-react";
 import { OrganizationProfile, useOrganization } from "@clerk/react-router";
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import { api } from "@convex/_generated/api";
-import { OrgPageHero, OrgRoleBadge, OrgSectionCard } from "@/components/custom/org-workspace";
+import {
+  OrgPageHero,
+  OrgRoleBadge,
+  OrgSectionCard,
+} from "@/components/custom/org-workspace";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -57,24 +59,8 @@ export function Page() {
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
     expectedOrgSlug: orgSlug,
   });
-  const projects = useQuery(api.projects.listForCurrentOrg, {
-    expectedOrgSlug: orgSlug,
-  });
-  const { organization, membership, invitations, domains } = useOrganization({
-    invitations: {
-      pageSize: 8,
-      keepPreviousData: true,
-    },
-    domains: {
-      pageSize: 8,
-      keepPreviousData: true,
-    },
-  });
-
-  const domainCount = domains?.count ?? 0;
-  const inviteCount = invitations?.count ?? 0;
-  const projectCount = projects?.length ?? 0;
-  const hasWorkspaceLink = orgClaims?.orgId != null;
+  const { organization, membership } = useOrganization();
+  const isWorkspaceLinked = orgClaims?.orgId != null;
 
   useEffect(() => {
     function syncDiagnosticsFromHash() {
@@ -106,9 +92,6 @@ export function Page() {
         tags={
           <>
             <OrgRoleBadge role={membership?.role ?? orgClaims?.orgRole} />
-            <Badge variant={hasWorkspaceLink ? "secondary" : "outline"}>
-              {hasWorkspaceLink ? "Access ready" : "Needs attention"}
-            </Badge>
           </>
         }
         actions={
@@ -132,33 +115,11 @@ export function Page() {
               nativeButton={false}
               render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
             >
-              Open diagnostics
+              Diagnostics
             </Button>
           </>
         }
       />
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <OrgMetricCard
-          label="Projects in workspace"
-          value={projects === undefined ? "..." : projectCount}
-          hint="Active projects available to your team"
-          icon={<IconServerCog className="size-4" />}
-        />
-        <OrgMetricCard
-          label="Pending invites"
-          value={invitations ? inviteCount : "..."}
-          hint="Outstanding access invitations"
-          icon={<IconMailShare className="size-4" />}
-          tone={inviteCount > 0 ? "accent" : "muted"}
-        />
-        <OrgMetricCard
-          label="Verified domains"
-          value={domains ? domainCount : "..."}
-          hint="Domains approved for membership"
-          icon={<IconFingerprint className="size-4" />}
-        />
-      </div>
 
       <div className="grid gap-4 2xl:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-4">
@@ -199,7 +160,7 @@ export function Page() {
 
           <OrgSectionCard
             title="Advanced diagnostics"
-            description="Internal values for troubleshooting workspace access."
+            description="Troubleshooting details for workspace routing and access."
             className="scroll-mt-20"
           >
             <div id="advanced-diagnostics">
@@ -215,8 +176,8 @@ export function Page() {
                 <CollapsibleContent>
                   <div className="mt-3 space-y-3 rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
                     <p>
-                      Use this panel to check workspace values when navigation or project access does
-                      not behave as expected.
+                      Use this panel when workspace navigation or project access does not behave as
+                      expected.
                     </p>
                     <div className="space-y-1">
                       <p>
@@ -253,10 +214,9 @@ export function Page() {
                         </span>
                       </p>
                     </div>
-                    {!hasWorkspaceLink && orgClaims !== undefined ? (
+                    {!isWorkspaceLinked && orgClaims !== undefined ? (
                       <p>
-                        If workspace values are missing, switch workspaces from the sidebar and
-                        refresh.
+                        If values are missing, switch workspaces from the sidebar and refresh.
                       </p>
                     ) : null}
                   </div>
