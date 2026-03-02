@@ -140,10 +140,22 @@ export function Page() {
       <OrgPageHero
         title="Projects"
         orgSlug={orgSlug}
-        subtitle={<>Create and manage project spaces for variables and rollouts.</>}
+        orgName={organization?.name}
+        imageUrl={organization?.imageUrl}
+        imageSeed={organization?.id}
+        subtitle={
+          <>
+            Create and manage project spaces for variables, experiments, and rollout decisions.
+            Project slugs remain unique inside <span className="font-mono">/o/{orgSlug}</span>.
+          </>
+        }
         tags={
           <>
             <OrgRoleBadge role={orgClaims?.orgRole} />
+            <Badge variant="outline">
+              <IconShieldCheck />
+              Workspace scoped
+            </Badge>
           </>
         }
         actions={
@@ -165,20 +177,146 @@ export function Page() {
         }
       />
 
-      <div className="space-y-4">
-        <div className="relative">
-          <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.currentTarget.value)}
-            placeholder="Search projects"
-            className="pl-9"
-          />
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <OrgMetricCard
+          label="Total projects"
+          value={projects === undefined ? "..." : projects.length}
+          hint={projects && projects.length > 0 ? "Live project list" : "No projects yet"}
+          icon={<IconBriefcase className="size-4" />}
+          tone="accent"
+        />
+        <OrgMetricCard
+          label="Latest project"
+          value={latestProject ? latestProject.name : projects ? "None" : "..."}
+          hint={latestProject ? latestProject.slug : "Create your first project"}
+          icon={<IconArrowRight className="size-4" />}
+        />
+        <OrgMetricCard
+          label="Member coverage"
+          value={memberships ? memberships.count : "..."}
+          hint="People who can operate projects"
+          icon={<IconUsers className="size-4" />}
+        />
+        <OrgMetricCard
+          label="Workspace access"
+          value={isClaimsLoading ? "..." : isMissingWorkspaceLink ? "Needs setup" : "Ready"}
+          hint="Required before creating and listing projects"
+          icon={<IconShieldCheck className="size-4" />}
+          tone={isMissingWorkspaceLink ? "accent" : "muted"}
+        />
+      </div>
 
-        {showEmptyState ? (
-          <div className="flex justify-center py-10">
-            <div className="w-full max-w-lg">
+      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <OrgSectionCard
+          title="Create project"
+          description="Start a new project in this workspace."
+        >
+          <div className="space-y-4">
+            <div className="rounded-xl border bg-background/70 p-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline">Slug policy</Badge>
+                <span>Generated from the project name with a short numeric suffix</span>
+              </div>
+              <p className="mt-2 font-mono text-xs text-muted-foreground">
+                Example: <span className="text-foreground">secrets-api-4821</span>
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Input
+                ref={inputRef}
+                value={name}
+                disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
+                placeholder="Project name (e.g. Secrets API)"
+                onChange={(event) => setName(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleCreateProject();
+                  }
+                }}
+              />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button disabled={isCreateDisabled} onClick={handleCreateProject}>
+                  <IconPlus />
+                  {isSubmitting ? "Creating..." : "Create project"}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
+                  onClick={() => {
+                    setName("");
+                    setErrorMessage(null);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+
+            {errorMessage ? (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            {isMissingWorkspaceLink ? (
+              <div className="rounded-xl border border-dashed p-3">
+                <p className="text-sm text-muted-foreground">
+                  Workspace setup is incomplete. Review advanced diagnostics in settings before
+                  creating projects.
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link to={`/o/${orgSlug}/settings#advanced-diagnostics`} />}
+                  className="mt-2 h-7 px-2"
+                >
+                  Open diagnostics
+                  <IconArrowRight />
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </OrgSectionCard>
+
+        <OrgSectionCard
+          title="Project index"
+          description="Search and inspect project slugs in this workspace."
+          action={
+            <div className="text-xs text-muted-foreground">
+              {projects === undefined ? "Loading..." : `${filteredProjects.length} shown`}
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="relative">
+              <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                placeholder="Search projects by name or slug"
+                className="pl-9"
+              />
+            </div>
+
+            {projects === undefined ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="rounded-xl border p-3">
+                    <Skeleton className="h-4 w-44" />
+                    <Skeleton className="mt-2 h-3 w-28" />
+                  </div>
+                ))}
+              </div>
+            ) : isMissingWorkspaceLink ? (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                Project listing is unavailable until workspace setup is complete.
+              </div>
+            ) : projects.length === 0 ? (
               <Empty>
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
@@ -186,19 +324,14 @@ export function Page() {
                   </EmptyMedia>
                   <EmptyTitle>{showNoProjectsEmpty ? "No projects yet" : "No matching projects"}</EmptyTitle>
                   <EmptyDescription>
-                    {showNoProjectsEmpty ? (
-                      "Create your first project in this workspace."
-                    ) : (
-                      <>
-                        No projects match <span className="font-medium text-foreground">{searchQuery}</span>.
-                      </>
-                    )}
+                    Create your first project for <span className="font-mono">/o/{orgSlug}</span> to
+                    start organizing your workspace.
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent className="sm:flex-row sm:justify-center">
                   <Button
-                    disabled={isClaimsLoading || isMissingWorkspaceLink}
-                    onClick={openCreateDialog}
+                    disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
+                    onClick={() => inputRef.current?.focus()}
                   >
                     <IconPlus />
                     Create project

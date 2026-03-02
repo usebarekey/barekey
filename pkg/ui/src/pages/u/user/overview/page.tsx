@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { IconArrowRight } from "@tabler/icons-react";
 
 import { api } from "@convex/_generated/api";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function Page() {
@@ -17,17 +17,18 @@ export function Page() {
       <Card>
         <CardHeader>
           <CardTitle>Account overview</CardTitle>
-          <CardDescription>Your profile and workspace access status.</CardDescription>
+          <CardDescription>Your personal workspace and profile summary.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">User slug</Badge>
+            <span className="font-mono">{userSlug}</span>
+          </div>
+
           {isLoading ? (
             <p className="text-muted-foreground">Loading account details...</p>
           ) : currentUser ? (
             <>
-              <p>
-                <span className="text-muted-foreground">Status:</span>{" "}
-                <span>Ready</span>
-              </p>
               <p>
                 <span className="text-muted-foreground">Name:</span>{" "}
                 <span>{currentUser.displayName ?? "Not set"}</span>
@@ -36,18 +37,12 @@ export function Page() {
                 <span className="text-muted-foreground">Email:</span>{" "}
                 <span>{currentUser.email ?? "Not set"}</span>
               </p>
-              <p>
-                <span className="text-muted-foreground">Profile path:</span>{" "}
-                <span className="font-mono">/u/{userSlug}</span>
-              </p>
             </>
           ) : (
-            <p className="text-muted-foreground">Your account record is still being prepared.</p>
+            <p className="text-muted-foreground">Account record not available yet.</p>
           )}
-          <Button variant="outline" nativeButton={false} render={<Link to="/o/select" />}>
-            Open workspaces
-            <IconArrowRight />
-          </Button>
+
+          <p className="text-muted-foreground">Account pages live under /u and team workspaces live under /o.</p>
         </CardContent>
       </Card>
     </div>

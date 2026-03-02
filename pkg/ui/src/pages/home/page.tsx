@@ -36,21 +36,29 @@ export function Page() {
         <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <h1 className="text-lg font-semibold">Preparing your workspace</h1>
-          <p className="text-sm text-muted-foreground">
-            You will land in the right workspace automatically.
-          </p>
+          <p className="text-sm text-muted-foreground">You are signed in. Final checks are running.</p>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {isLoading ? <p>Checking your access...</p> : null}
+          <p>
+            <strong>Account:</strong> {userId}
+          </p>
+          <p>
+            <strong>Workspace sync:</strong>{" "}
+            {isLoading
+              ? "Syncing..."
+              : isAuthenticated
+                ? "Ready"
+                : "Still connecting"}
+          </p>
           {!isAuthenticated && !isLoading ? (
             <p className="text-muted-foreground">
-              We could not finish setup. Refresh this page or sign in again.
+              This is taking longer than expected. Restart local services and refresh.
             </p>
           ) : null}
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-2">
           <Link to="/auth/sso" className={cn(buttonVariants({ variant: "outline" }))}>
-            Sign in
+            Sign-in page
           </Link>
           <SignOutButton redirectUrl="/auth/sso">
             <Button>Sign out</Button>
