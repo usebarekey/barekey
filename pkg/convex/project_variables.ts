@@ -294,8 +294,9 @@ export const applyDraftForCurrentOrgProjectStage = action({
       reservedStorageUnits = reservation.reservedUnits;
     }
 
+    let writeResult: DraftWriteResult;
     try {
-      const writeResult: DraftWriteResult = await ctx.runMutation(
+      writeResult = await ctx.runMutation(
         internal.project_variables.applyPreparedDraftForCurrentOrgProjectStageInternal,
         {
           expectedOrgSlug: args.expectedOrgSlug,
@@ -306,27 +307,6 @@ export const applyDraftForCurrentOrgProjectStage = action({
           deletes: prepared.deletes,
         },
       );
-
-      if (prepared.storageDeltaBytes !== 0) {
-        await ctx.runMutation(internal.payments.applyStorageDeltaForOrgInternal, {
-          orgId: prepared.orgId,
-          deltaBytes: prepared.storageDeltaBytes,
-        });
-      }
-
-      if (prepared.storageDeltaBytes < 0) {
-        await ctx.runAction(
-          internal.payments.compensateFeatureUnitsForCurrentOrgInternal,
-          {
-            expectedOrgSlug: args.expectedOrgSlug,
-            featureId: "storage_bytes",
-            units: Math.abs(prepared.storageDeltaBytes),
-            reason: "project_variables_apply_draft_negative_delta",
-          },
-        );
-      }
-
-      return writeResult;
     } catch (error: unknown) {
       if (reservedStorageUnits > 0) {
         try {
@@ -345,6 +325,27 @@ export const applyDraftForCurrentOrgProjectStage = action({
       }
       throw error;
     }
+
+    if (prepared.storageDeltaBytes !== 0) {
+      await ctx.runMutation(internal.payments.applyStorageDeltaForOrgInternal, {
+        orgId: prepared.orgId,
+        deltaBytes: prepared.storageDeltaBytes,
+      });
+    }
+
+    if (prepared.storageDeltaBytes < 0) {
+      await ctx.runAction(
+        internal.payments.compensateFeatureUnitsForCurrentOrgInternal,
+        {
+          expectedOrgSlug: args.expectedOrgSlug,
+          featureId: "storage_bytes",
+          units: Math.abs(prepared.storageDeltaBytes),
+          reason: "project_variables_apply_draft_negative_delta",
+        },
+      );
+    }
+
+    return writeResult;
   },
 });
 

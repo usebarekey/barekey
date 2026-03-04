@@ -127,6 +127,29 @@ function parseBatchRequest(payload: unknown): EvaluateBatchRequest | null {
   };
 }
 
+function classifyReserveError(error: unknown): {
+  status: number;
+  code: "USAGE_LIMIT_EXCEEDED" | "BILLING_UNAVAILABLE";
+  message: string;
+} {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "Billing service is temporarily unavailable.";
+  if (message === "Usage limit exceeded for this workspace plan.") {
+    return {
+      status: 402,
+      code: "USAGE_LIMIT_EXCEEDED",
+      message,
+    };
+  }
+  return {
+    status: 503,
+    code: "BILLING_UNAVAILABLE",
+    message: "Billing service is temporarily unavailable.",
+  };
+}
+
 const evaluateOne = httpAction(async (ctx, request) => {
   const requestId = readRequestId(request);
   let payload: unknown;
@@ -203,16 +226,11 @@ const evaluateOne = httpAction(async (ctx, request) => {
     );
     reservedUnits = reservation.reservedUnits;
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Unable to evaluate billing limits.";
-    const code =
-      message.toLowerCase().includes("limit") || message.toLowerCase().includes("usage")
-        ? "USAGE_LIMIT_EXCEEDED"
-        : "BILLING_UNAVAILABLE";
+    const classified = classifyReserveError(error);
     return errorResponse({
-      status: code === "USAGE_LIMIT_EXCEEDED" ? 402 : 503,
-      code,
-      message,
+      status: classified.status,
+      code: classified.code,
+      message: classified.message,
       requestId,
     });
   }
@@ -247,13 +265,14 @@ const evaluateOne = httpAction(async (ctx, request) => {
       },
     );
     if (!billingLogResult.inserted && reservedUnits > 0) {
+      const unitsToCompensate = reservedUnits;
+      reservedUnits = 0;
       await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
         expectedOrgSlug: requestOrgSlug,
         featureId: "static_requests",
-        units: reservedUnits,
+        units: unitsToCompensate,
         reason: "http_evaluate_single_duplicate_request",
       });
-      reservedUnits = 0;
     }
 
     return buildJsonResponse(200, {
@@ -264,12 +283,14 @@ const evaluateOne = httpAction(async (ctx, request) => {
   } catch (error: unknown) {
     if (reservedUnits > 0) {
       try {
+        const unitsToCompensate = reservedUnits;
+        reservedUnits = 0;
         await ctx.runAction(
           internal.payments.compensateFeatureUnitsForCurrentOrgInternal,
           {
             expectedOrgSlug: requestOrgSlug,
             featureId: "static_requests",
-            units: reservedUnits,
+            units: unitsToCompensate,
             reason: "http_evaluate_single_rollback",
           },
         );
@@ -277,13 +298,11 @@ const evaluateOne = httpAction(async (ctx, request) => {
         console.error("HTTP single evaluate rollback failed.", rollbackError);
       }
     }
+    console.error("HTTP single evaluate failed.", error);
     return errorResponse({
       status: 500,
       code: "EVALUATION_FAILED",
-      message:
-        error instanceof Error
-          ? error.message
-          : "Failed to evaluate this variable.",
+      message: "Failed to evaluate this variable.",
       requestId,
     });
   }
@@ -366,16 +385,11 @@ const evaluateBatch = httpAction(async (ctx, request) => {
     );
     reservedUnits = reservation.reservedUnits;
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Unable to evaluate billing limits.";
-    const code =
-      message.toLowerCase().includes("limit") || message.toLowerCase().includes("usage")
-        ? "USAGE_LIMIT_EXCEEDED"
-        : "BILLING_UNAVAILABLE";
+    const classified = classifyReserveError(error);
     return errorResponse({
-      status: code === "USAGE_LIMIT_EXCEEDED" ? 402 : 503,
-      code,
-      message,
+      status: classified.status,
+      code: classified.code,
+      message: classified.message,
       requestId,
     });
   }
@@ -424,13 +438,14 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       },
     );
     if (!billingLogResult.inserted && reservedUnits > 0) {
+      const unitsToCompensate = reservedUnits;
+      reservedUnits = 0;
       await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
         expectedOrgSlug: requestOrgSlug,
         featureId: "static_requests",
-        units: reservedUnits,
+        units: unitsToCompensate,
         reason: "http_evaluate_batch_duplicate_request",
       });
-      reservedUnits = 0;
     }
 
     return buildJsonResponse(200, {
@@ -439,12 +454,14 @@ const evaluateBatch = httpAction(async (ctx, request) => {
   } catch (error: unknown) {
     if (reservedUnits > 0) {
       try {
+        const unitsToCompensate = reservedUnits;
+        reservedUnits = 0;
         await ctx.runAction(
           internal.payments.compensateFeatureUnitsForCurrentOrgInternal,
           {
             expectedOrgSlug: requestOrgSlug,
             featureId: "static_requests",
-            units: reservedUnits,
+            units: unitsToCompensate,
             reason: "http_evaluate_batch_rollback",
           },
         );
@@ -452,13 +469,11 @@ const evaluateBatch = httpAction(async (ctx, request) => {
         console.error("HTTP batch evaluate rollback failed.", rollbackError);
       }
     }
+    console.error("HTTP batch evaluate failed.", error);
     return errorResponse({
       status: 500,
       code: "EVALUATION_FAILED",
-      message:
-        error instanceof Error
-          ? error.message
-          : "Failed to evaluate this batch request.",
+      message: "Failed to evaluate this batch request.",
       requestId,
     });
   }

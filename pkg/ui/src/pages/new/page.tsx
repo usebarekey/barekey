@@ -77,7 +77,6 @@ export function Page() {
   const [organizationErrorMessage, setOrganizationErrorMessage] = useState<string | null>(null);
   const [projectErrorMessage, setProjectErrorMessage] = useState<string | null>(null);
   const memberships = userMemberships.data ?? [];
-  const existingWorkspaceCount = memberships.length;
   const selectableMemberships = memberships.filter(
     (membership) =>
       typeof membership.organization.slug === "string" && membership.organization.slug.length > 0,
@@ -111,12 +110,6 @@ export function Page() {
   async function handleCreateOrganization() {
     const trimmedName = organizationName.trim();
     if (!isOrgListLoaded || isOrganizationSubmitting || trimmedName.length === 0) {
-      return;
-    }
-    if (existingWorkspaceCount > 0) {
-      setOrganizationErrorMessage(
-        "Free workspaces are limited to one organization per user. Upgrade an existing workspace to create another.",
-      );
       return;
     }
 
@@ -225,8 +218,7 @@ export function Page() {
   const isCreateOrganizationDisabled =
     !isOrgListLoaded ||
     isOrganizationSubmitting ||
-    organizationName.trim().length === 0 ||
-    existingWorkspaceCount > 0;
+    organizationName.trim().length === 0;
   const isCreateProjectDisabled =
     !isAuthLoaded ||
     !isSignedIn ||
@@ -297,12 +289,6 @@ export function Page() {
 
                 {organizationErrorMessage ? (
                   <p className="text-sm text-destructive">{organizationErrorMessage}</p>
-                ) : null}
-                {!organizationErrorMessage && existingWorkspaceCount > 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Free workspaces are limited to one organization per user.
-                    Manage billing in an existing workspace to unlock additional organizations.
-                  </p>
                 ) : null}
               </div>
             ) : (

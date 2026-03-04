@@ -118,6 +118,14 @@ function formatUsdPerThousand(amount: number): string {
   return `$${fixed}`;
 }
 
+function formatUsdPerGb(amount: number): string {
+  if (amount >= 1) {
+    return formatUsd(amount);
+  }
+  const fixed = amount.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  return `$${fixed}`;
+}
+
 function formatRequestCount(value: number): string {
   if (value >= 1_000_000 && value % 1_000_000 === 0) {
     return `${value / 1_000_000}M`;
@@ -362,7 +370,7 @@ export function Page() {
                         </div>
                         {overageMode === "with_overages" && plan.overage?.storagePerGbUsd ? (
                           <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                            then {formatUsd(plan.overage.storagePerGbUsd)} per 1 GB storage
+                            then {formatUsdPerGb(plan.overage.storagePerGbUsd)} per 1 GB storage
                           </p>
                         ) : null}
                       </div>

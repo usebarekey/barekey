@@ -152,6 +152,14 @@ function formatUsdPerThousand(amount: number): string {
   return `$${fixed}`;
 }
 
+function formatUsdPerGb(amount: number): string {
+  if (amount >= 1) {
+    return formatUsd(amount);
+  }
+  const fixed = amount.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  return `$${fixed}`;
+}
+
 function formatRequestCount(value: number): string {
   if (value >= 1_000_000 && value % 1_000_000 === 0) {
     return `${value / 1_000_000}M`;
@@ -183,6 +191,16 @@ function formatUsageProgress(used: number | null, included: number | null, unit:
         ? formatStorageBytes(included)
         : formatRequestCount(included);
   return `${usedLabel} / ${includedLabel}`;
+}
+
+function formatOverageHint(overageAllowed: boolean | null | undefined): string {
+  if (overageAllowed === true) {
+    return "Overages enabled";
+  }
+  if (overageAllowed === false) {
+    return "Overages disabled";
+  }
+  return "Usage unavailable";
 }
 
 export function Page() {
@@ -312,8 +330,16 @@ export function Page() {
         return;
       }
 
-      await refreshBillingState();
       toast.success(`Updated plan to ${nextPlanId}.`);
+      try {
+        await refreshBillingState();
+      } catch (refreshError: unknown) {
+        toast.error(
+          refreshError instanceof Error
+            ? refreshError.message
+            : "Plan updated, but failed to refresh billing details.",
+        );
+      }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to update billing plan.");
     } finally {
@@ -377,11 +403,7 @@ export function Page() {
                 )
               : "..."
           }
-          hint={
-            billingState?.usage.staticRequests.overageAllowed
-              ? "Overages enabled"
-              : "Overages disabled"
-          }
+          hint={formatOverageHint(billingState?.usage.staticRequests.overageAllowed)}
           icon={<IconBolt className="size-4" />}
         />
         <OrgMetricCard
@@ -395,11 +417,7 @@ export function Page() {
                 )
               : "..."
           }
-          hint={
-            billingState?.usage.dynamicRequests.overageAllowed
-              ? "Overages enabled"
-              : "Overages disabled"
-          }
+          hint={formatOverageHint(billingState?.usage.dynamicRequests.overageAllowed)}
           icon={<IconCpu className="size-4" />}
         />
         <OrgMetricCard
@@ -413,11 +431,7 @@ export function Page() {
                 )
               : "..."
           }
-          hint={
-            billingState?.usage.storageBytes.overageAllowed
-              ? "Overages enabled"
-              : "Overages disabled"
-          }
+          hint={formatOverageHint(billingState?.usage.storageBytes.overageAllowed)}
           icon={<IconDatabase className="size-4" />}
         />
       </div>
@@ -542,7 +556,7 @@ export function Page() {
                     </div>
                     {overageMode === "with_overages" && plan.overage.storagePerGbUsd ? (
                       <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                        then {formatUsd(plan.overage.storagePerGbUsd)} per 1 GB storage
+                        then {formatUsdPerGb(plan.overage.storagePerGbUsd)} per 1 GB storage
                       </p>
                     ) : null}
                   </div>

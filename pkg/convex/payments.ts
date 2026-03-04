@@ -599,9 +599,6 @@ export const applyStorageDeltaForOrgInternal = internalMutation({
         updatedAtMs: now,
       };
     }
-    if (existing === null) {
-      throw new Error("Storage usage row missing after initialization.");
-    }
 
     const nextEncryptedBytes = Math.max(0, existing.encryptedBytes + args.deltaBytes);
     const now = Date.now();
@@ -633,8 +630,8 @@ export const logBillingRequestInternal = internalMutation({
       .withIndex("by_org_id_and_request_key", (q) =>
         q.eq("orgId", args.orgId).eq("requestKey", args.requestKey),
       )
-      .collect();
-    if (existing.length > 0) {
+      .first();
+    if (existing !== null) {
       return { inserted: false };
     }
 
