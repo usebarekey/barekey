@@ -4,6 +4,7 @@ import * as SSO from "@/pages/auth/sso/page";
 import * as SSOCallback from "@/pages/auth/sso/callback/page";
 import * as Auth from "@/pages/auth/layout";
 import * as Home from "@/pages/home/page";
+import * as Pricing from "@/pages/pricing/page";
 import * as CreateNew from "@/pages/new/page";
 import * as OrgSelect from "@/pages/o/select/page";
 import * as OrgOverview from "@/pages/o/[org]/overview/page";
@@ -16,13 +17,18 @@ import * as OrgProjectOverview from "@/pages/o/[org]/project/[projectSlug]/overv
 import * as OrgProjectSettings from "@/pages/o/[org]/project/[projectSlug]/settings/page";
 import * as OrgProjectVariables from "@/pages/o/[org]/project/[projectSlug]/variables/page";
 import * as OrgSettings from "@/pages/o/[org]/settings/page";
+import * as UserActivity from "@/pages/u/user/activity/page";
 import * as UserOverview from "@/pages/u/user/overview/page";
+import * as UserProfile from "@/pages/u/user/profile/page";
+import * as UserSecurity from "@/pages/u/user/security/page";
 import * as UserLayout from "@/pages/u/user/layout";
+import * as UserWorkspaces from "@/pages/u/user/workspaces/page";
 
 export function Router() {
   return (
     <Routes>
       <Route path="/" element={<Home.Page />} />
+      <Route path="pricing" element={<Pricing.Page />} />
       <Route path="new" element={<CreateNew.Page />} />
       <Route path="auth" element={<Auth.Layout />}>
         <Route path="sso" element={<SSO.Page />} />
@@ -50,6 +56,10 @@ export function Router() {
         <Route path=":userSlug" element={<UserLayout.Layout />}>
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<UserOverview.Page />} />
+          <Route path="profile" element={<UserProfile.Page />} />
+          <Route path="security" element={<UserSecurity.Page />} />
+          <Route path="workspaces" element={<UserWorkspaces.Page />} />
+          <Route path="activity" element={<UserActivity.Page />} />
         </Route>
       </Route>
     </Routes>

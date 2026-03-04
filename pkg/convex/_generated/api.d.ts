@@ -15,6 +15,7 @@ import type * as orgs from "../orgs.js";
 import type * as project_stages from "../project_stages.js";
 import type * as project_variables from "../project_variables.js";
 import type * as projects from "../projects.js";
+import type * as user_preferences from "../user_preferences.js";
 import type * as users from "../users.js";
 
 import type {
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   project_stages: typeof project_stages;
   project_variables: typeof project_variables;
   projects: typeof projects;
+  user_preferences: typeof user_preferences;
   users: typeof users;
 }>;
 

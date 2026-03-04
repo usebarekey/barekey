@@ -15,6 +15,14 @@ export default defineSchema({
   })
     .index("by_clerk_user_id", ["clerkUserId"])
     .index("by_slug", ["slug"]),
+  userPreferences: defineTable({
+    clerkUserId: v.string(),
+    preferredTheme: v.union(v.literal("system"), v.literal("light"), v.literal("dark")),
+    defaultOrgSlug: v.union(v.string(), v.null()),
+    landingPreference: v.union(v.literal("account_overview"), v.literal("default_workspace")),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+  }).index("by_clerk_user_id", ["clerkUserId"]),
   projects: defineTable({
     orgId: v.string(),
     orgSlug: v.string(),
