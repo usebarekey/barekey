@@ -57,6 +57,18 @@ const userRecordValidator = v.object({
   imageUrl: v.union(v.string(), v.null()),
 });
 
+const userAccountRecordValidator = v.object({
+  clerkUserId: v.string(),
+  slug: v.string(),
+  slugBase: v.string(),
+  email: v.union(v.string(), v.null()),
+  displayName: v.union(v.string(), v.null()),
+  imageUrl: v.union(v.string(), v.null()),
+  createdAtMs: v.number(),
+  updatedAtMs: v.number(),
+  lastSeenAtMs: v.number(),
+});
+
 export const ensureCurrentUser = mutation({
   args: {},
   returns: userRecordValidator,
@@ -164,6 +176,41 @@ export const getCurrentUser = query({
       email: user.email,
       displayName: user.displayName,
       imageUrl: user.imageUrl,
+    };
+  },
+});
+
+/**
+ * Returns the current user's account record with lifecycle timestamps for timeline views.
+ */
+export const getCurrentUserAccount = query({
+  args: {},
+  returns: v.union(userAccountRecordValidator, v.null()),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      return null;
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", identity.subject))
+      .unique();
+
+    if (user === null) {
+      return null;
+    }
+
+    return {
+      clerkUserId: user.clerkUserId,
+      slug: user.slug,
+      slugBase: user.slugBase,
+      email: user.email,
+      displayName: user.displayName,
+      imageUrl: user.imageUrl,
+      createdAtMs: user.createdAtMs,
+      updatedAtMs: user.updatedAtMs,
+      lastSeenAtMs: user.lastSeenAtMs,
     };
   },
 });

@@ -37,34 +37,34 @@ const PLAN_TIERS = [
     id: "pro",
     name: "Pro",
     description: "For growing teams that need more scale and support.",
-    monthlyPriceUsd: 9,
+    monthlyPriceUsd: 9.99,
     includes: "Everything in Free, plus:",
     usage: {
-      staticRequests: "250k static requests",
-      dynamicRequests: "5k dynamic requests",
-      storage: "250 MB storage",
+      staticRequests: "1M static requests",
+      dynamicRequests: "100k dynamic requests",
+      storage: "500 MB storage",
     },
     support: ["Email support"],
     overage: {
-      dynamicPer5kUsd: 4,
-      staticPer250kUsd: 1.5,
+      dynamicPer1kUsd: 0.0265,
+      staticPer1kUsd: 0.0053,
     },
   },
   {
     id: "max",
     name: "Max",
     description: "Highest limits for production-heavy workloads.",
-    monthlyPriceUsd: 39,
+    monthlyPriceUsd: 39.99,
     includes: "Everything in Free and Pro, plus:",
     usage: {
-      staticRequests: "2M static requests",
-      dynamicRequests: "25k dynamic requests",
-      storage: "2 GB storage",
+      staticRequests: "10M static requests",
+      dynamicRequests: "1M dynamic requests",
+      storage: "5 GB storage",
     },
     support: ["Priority support", "Audit export / advanced logs"],
     overage: {
-      dynamicPer5kUsd: 2.5,
-      staticPer250kUsd: 1,
+      dynamicPer1kUsd: 0.013,
+      staticPer1kUsd: 0.0026,
     },
   },
 ] as const;
@@ -76,6 +76,7 @@ const ALWAYS_INCLUDED_FEATURES = [
   "Unlimited secrets",
   "Performance insights",
   "Analytics",
+  "Instant, advanced AI support",
 ] as const;
 
 function formatUsd(amount: number): string {
@@ -86,10 +87,8 @@ function formatUsdPerThousand(amount: number): string {
   if (amount >= 1) {
     return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
   }
-  if (amount >= 0.01) {
-    return `$${amount.toFixed(2)}`;
-  }
-  return `$${amount.toFixed(3)}`;
+  const fixed = amount.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  return `$${fixed}`;
 }
 
 export function Page() {
@@ -169,21 +168,20 @@ export function Page() {
           </div>
         }
       >
-        <div className="grid gap-3 pb-10 lg:grid-cols-3">
+        <div className="grid gap-3 pb-3 lg:grid-cols-3">
           {PLAN_TIERS.map((plan, index) => (
             <div key={plan.name} className="relative flex h-full flex-col">
-              {plan.id === "pro" ? (
-                <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-blue-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
-                  Most popular
-                </div>
-              ) : null}
-              <div
-                className={`flex h-full flex-col rounded-xl border p-6 ${
-                  plan.id === "pro"
-                    ? "border-blue-500/65 bg-blue-500/8"
-                    : "bg-background/70"
-                }`}
-              >
+                {plan.id === "pro" ? (
+                  <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-blue-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
+                    Most popular
+                  </div>
+                ) : null}
+                {plan.id === "max" ? (
+                  <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
+                    Most value
+                  </div>
+                ) : null}
+                <div className="flex h-full flex-col rounded-xl border bg-background/70 p-6">
                 <h3 className="text-xl font-semibold tracking-tight">{plan.name}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {plan.description}{" "}
@@ -218,8 +216,7 @@ export function Page() {
                     </div>
                     {overageMode === "with_overages" && plan.overage ? (
                       <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                        then {formatUsdPerThousand(plan.overage.staticPer250kUsd / 250)} per 1,000 static
-                        requests
+                        then {formatUsdPerThousand(plan.overage.staticPer1kUsd)} per 1,000 static requests
                       </p>
                     ) : null}
                   </div>
@@ -230,8 +227,7 @@ export function Page() {
                     </div>
                     {overageMode === "with_overages" && plan.overage ? (
                       <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                        then {formatUsdPerThousand(plan.overage.dynamicPer5kUsd / 5)} per 1,000 dynamic
-                        requests
+                        then {formatUsdPerThousand(plan.overage.dynamicPer1kUsd)} per 1,000 dynamic requests
                       </p>
                     ) : null}
                   </div>
@@ -279,19 +275,15 @@ export function Page() {
                     : `Downgrade to ${plan.name}`}
                 </Button>
               </div>
-              {plan.id === "free" ? (
-                <p className="absolute top-full right-0 left-0 z-10 -mt-px rounded-b-md border border-amber-400/45 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
-                  Free plan is limited to one org per user.
-                </p>
-              ) : null}
-              {overageMode === "with_overages" && plan.overage ? (
-                <p className="absolute top-full right-0 left-0 z-10 -mt-px rounded-b-md border border-violet-400/45 bg-violet-500/10 px-3 py-2 text-xs text-violet-200">
-                  Overage usage is billed monthly regardless of billing interval.
-                </p>
-              ) : null}
             </div>
           ))}
         </div>
+        <p className="pt-1 text-xs text-muted-foreground">
+          The Free plan is limited to one organization per user.
+          {overageMode === "with_overages"
+            ? " Overage usage is billed monthly regardless of billing interval."
+            : ""}
+        </p>
       </OrgSectionCard>
     </div>
   );

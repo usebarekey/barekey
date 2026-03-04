@@ -150,4 +150,42 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
+
+  /* Shiki dual-theme dark mode */
+  html.dark .shiki,
+  html.dark .shiki span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
+    font-style: var(--shiki-dark-font-style) !important;
+    font-weight: var(--shiki-dark-font-weight) !important;
+    text-decoration: var(--shiki-dark-text-decoration) !important;
+  }
+
+  .code-type-hover {
+    position: relative;
+    border-bottom: 1px dashed oklch(56% 0.021 213.5 / 0.4);
+    cursor: default;
+  }
+
+  .code-type-hover .code-type-popup {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    z-index: 50;
+    white-space: pre;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--card-foreground);
+    box-shadow: 0 2px 8px oklch(0% 0 0 / 0.08);
+    pointer-events: none;
+  }
+
+  .code-type-hover:hover .code-type-popup {
+    display: block;
+  }
 }

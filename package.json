@@ -5,6 +5,7 @@
   ],
   "scripts": {
     "convex:dev": "bunx convex dev",
+    "ui:dev": "cd pkg/ui && bun run dev",
     "lint": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore .",
     "lint:fix": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore --fix .",
     "format": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore .",

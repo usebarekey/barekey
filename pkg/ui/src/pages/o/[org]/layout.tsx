@@ -9,7 +9,6 @@ import {
   IconChevronUp,
   IconBriefcase,
   IconChartBar,
-  IconCoin,
   IconCreditCard,
   IconLogout2,
   IconPlus,
@@ -81,6 +80,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
 import { api } from "@convex/_generated/api";
+import { useTheme } from "theme-watcher";
 
 const navItems = [
   { label: "Overview", icon: IconChartBar, segment: "overview" },
@@ -151,6 +151,7 @@ function SidebarUserMenu() {
   const navigate = useNavigate();
   const { user } = useUser();
   const clerk = useClerk();
+  const { resolvedTheme, toggleMode } = useTheme();
   const currentUser = useQuery(api.users.getCurrentUser, {});
 
   const displayName =
@@ -219,32 +220,15 @@ function SidebarUserMenu() {
           <DropdownMenuItem
             onClick={() => {
               if (userPath) {
-                void navigate(`${userPath}?panel=settings`);
+                void navigate(userPath.replace("/overview", "/profile"));
               }
             }}
             disabled={userPath === null}
           >
             <IconSettingsCog />
             <span>User settings</span>
-            <Badge variant="outline" className="ml-auto h-4 px-1 text-[10px]">
-              Soon
-            </Badge>
           </DropdownMenuItem>
 
-          <DropdownMenuItem
-            onClick={() => {
-              if (userPath) {
-                void navigate(`${userPath}?panel=billing`);
-              }
-            }}
-            disabled={userPath === null}
-          >
-            <IconCreditCard />
-            <span>Billing</span>
-            <Badge variant="outline" className="ml-auto h-4 px-1 text-[10px]">
-              Soon
-            </Badge>
-          </DropdownMenuItem>
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
@@ -252,12 +236,14 @@ function SidebarUserMenu() {
         <DropdownMenuGroup>
           <DropdownMenuItem
             onClick={() => {
-              void navigate("/o/select");
+              toggleMode();
             }}
           >
-            <IconCoin />
-            <span>Switch workspace</span>
-            <DropdownMenuShortcut>O</DropdownMenuShortcut>
+            <IconSettings />
+            <span>Toggle theme</span>
+            <Badge variant="outline" className="ml-auto h-4 px-1 text-[10px]">
+              {resolvedTheme === "dark" ? "Dark" : "Light"}
+            </Badge>
           </DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
