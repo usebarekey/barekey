@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   IconChevronDown,
@@ -165,7 +165,7 @@ export function Page() {
         }
       : "skip",
   );
-  const applyDraft = useMutation(api.project_variables.applyDraftForCurrentOrgProjectStage);
+  const applyDraft = useAction(api.project_variables.applyDraftForCurrentOrgProjectStage);
   const decryptVariable = useMutation(api.project_variables.decryptValueForCurrentOrgProjectStage);
   const ensureDefaultStages = useMutation(api.project_stages.ensureDefaultStagesForCurrentOrgProject);
   const currentDraft =

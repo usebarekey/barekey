@@ -1,5 +1,18 @@
 # TODO (Chores / Later)
 
+## 2026-03-04 [REVISIT] Payments + usage limits + overages MVP shipped
+
+Implemented:
+- Convex Autumn component wired via `pkg/convex/convex.config.ts`.
+- New payments module (`pkg/convex/payments.ts`) for pricing catalog, billing state, plan changes, billing portal, storage usage mirror, and metering helpers.
+- HTTP SDK endpoints in `pkg/convex/http.ts` for `/v1/env/evaluate` and `/v1/env/evaluate-batch` with auth checks, usage metering, and rollback handling.
+- Variable draft apply moved to action flow (`prepare -> reserve -> commit -> compensate`) in `pkg/convex/project_variables.ts` so storage usage is reserved before writes.
+- UI pricing/billing pages switched to backend-driven catalog + live usage state.
+- Free org cap UI guard added to new-org flow.
+
+Known follow-up:
+- HTTP evaluate endpoints currently meter `static_requests` only; dynamic decision paths (`ab_roll`/`rollout`) still need separate `dynamic_requests` metering once those evaluation branches land.
+
 ## 2026-02-28 [URGENT] Convex deploy blocked in prod
 
 Blocker:

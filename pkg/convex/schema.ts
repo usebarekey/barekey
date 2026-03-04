@@ -73,4 +73,19 @@ export default defineSchema({
     .index("by_project_id_and_stage_slug", ["projectId", "stageSlug"])
     .index("by_project_id_and_stage_slug_and_name", ["projectId", "stageSlug", "name"])
     .index("by_org_id_and_project_id", ["orgId", "projectId"]),
+  orgStorageUsage: defineTable({
+    orgId: v.string(),
+    encryptedBytes: v.number(),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+  }).index("by_org_id", ["orgId"]),
+  billingRequestLog: defineTable({
+    orgId: v.string(),
+    requestKey: v.string(),
+    featureId: v.string(),
+    units: v.number(),
+    createdAtMs: v.number(),
+  })
+    .index("by_org_id_and_request_key", ["orgId", "requestKey"])
+    .index("by_org_id_and_created_at_ms", ["orgId", "createdAtMs"]),
 });

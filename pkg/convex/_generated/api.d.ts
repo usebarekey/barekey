@@ -8,10 +8,13 @@
  * @module
  */
 
+import type * as autumn from "../autumn.js";
 import type * as dev_auth from "../dev_auth.js";
+import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_encryption from "../lib/encryption.js";
 import type * as orgs from "../orgs.js";
+import type * as payments from "../payments.js";
 import type * as project_stages from "../project_stages.js";
 import type * as project_variables from "../project_variables.js";
 import type * as projects from "../projects.js";
@@ -25,10 +28,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  autumn: typeof autumn;
   dev_auth: typeof dev_auth;
+  http: typeof http;
   "lib/auth": typeof lib_auth;
   "lib/encryption": typeof lib_encryption;
   orgs: typeof orgs;
+  payments: typeof payments;
   project_stages: typeof project_stages;
   project_variables: typeof project_variables;
   projects: typeof projects;
@@ -62,4 +68,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  autumn: {};
+};

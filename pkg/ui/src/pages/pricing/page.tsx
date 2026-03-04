@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useAction } from "convex/react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   IconArrowRight,
@@ -12,64 +13,90 @@ import {
 } from "@tabler/icons-react";
 import { useAuth } from "@clerk/react-router";
 
-import { Nav, Footer } from "@/pages/home/landing";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { api } from "@convex/_generated/api";
+import { buttonVariants } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Nav, Footer } from "@/pages/home/landing";
 import { cn } from "@/lib/utils";
 
-const PLAN_TIERS = [
+type PlanId = "free" | "pro" | "max";
+type BillingInterval = "monthly" | "annually";
+type OverageMode = "without_overages" | "with_overages";
+
+type PlanDisplayMetadata = {
+  id: PlanId;
+  name: string;
+  description: string;
+  includes: string | null;
+  support: Array<string>;
+  defaultMonthlyPriceUsd: number;
+  defaultStaticRequests: number;
+  defaultDynamicRequests: number;
+  defaultStorageBytes: number;
+  defaultStaticOveragePer1kUsd: number | null;
+  defaultDynamicOveragePer1kUsd: number | null;
+  defaultStorageOveragePerGbUsd: number | null;
+};
+
+type PricingVariant = {
+  productId: string;
+  tier: PlanId;
+  interval: BillingInterval;
+  overageMode: OverageMode;
+  monthlyPriceUsd: number;
+  includedStaticRequests: number;
+  includedDynamicRequests: number;
+  includedStorageBytes: number;
+  staticOveragePer1kUsd: number | null;
+  dynamicOveragePer1kUsd: number | null;
+  storageOveragePerGbUsd: number | null;
+  isConfiguredInAutumn: boolean;
+};
+
+const PLAN_METADATA: Array<PlanDisplayMetadata> = [
   {
     id: "free",
     name: "Free",
     description: "Best for personal projects and early experimentation.",
-    monthlyPriceUsd: 0,
     includes: null,
-    usage: {
-      staticRequests: "10k static requests",
-      dynamicRequests: "500 dynamic requests",
-      storage: "25 MB storage",
-    },
     support: ["Community support"],
-    overage: null,
+    defaultMonthlyPriceUsd: 0,
+    defaultStaticRequests: 10_000,
+    defaultDynamicRequests: 500,
+    defaultStorageBytes: 25_000_000,
+    defaultStaticOveragePer1kUsd: null,
+    defaultDynamicOveragePer1kUsd: null,
+    defaultStorageOveragePerGbUsd: null,
   },
   {
     id: "pro",
     name: "Pro",
     description: "For growing teams that need more scale and support.",
-    monthlyPriceUsd: 9.99,
     includes: "Everything in Free, plus:",
-    usage: {
-      staticRequests: "1M static requests",
-      dynamicRequests: "100k dynamic requests",
-      storage: "500 MB storage",
-    },
     support: ["Email support"],
-    overage: {
-      dynamicPer1kUsd: 0.0265,
-      staticPer1kUsd: 0.0053,
-    },
+    defaultMonthlyPriceUsd: 9.99,
+    defaultStaticRequests: 1_000_000,
+    defaultDynamicRequests: 100_000,
+    defaultStorageBytes: 500_000_000,
+    defaultStaticOveragePer1kUsd: 0.0053,
+    defaultDynamicOveragePer1kUsd: 0.0265,
+    defaultStorageOveragePerGbUsd: null,
   },
   {
     id: "max",
     name: "Max",
     description: "Highest limits for production-heavy workloads.",
-    monthlyPriceUsd: 39.99,
     includes: "Everything in Free and Pro, plus:",
-    usage: {
-      staticRequests: "10M static requests",
-      dynamicRequests: "1M dynamic requests",
-      storage: "5 GB storage",
-    },
     support: ["Priority support", "Audit export / advanced logs"],
-    overage: {
-      dynamicPer1kUsd: 0.013,
-      staticPer1kUsd: 0.0026,
-    },
+    defaultMonthlyPriceUsd: 39.99,
+    defaultStaticRequests: 10_000_000,
+    defaultDynamicRequests: 1_000_000,
+    defaultStorageBytes: 5_000_000_000,
+    defaultStaticOveragePer1kUsd: 0.0026,
+    defaultDynamicOveragePer1kUsd: 0.013,
+    defaultStorageOveragePerGbUsd: null,
   },
-] as const;
-
-type BillingInterval = "monthly" | "annually";
-type OverageMode = "without_overages" | "with_overages";
+];
 
 const ALWAYS_INCLUDED_FEATURES = [
   "Unlimited projects",
@@ -91,8 +118,31 @@ function formatUsdPerThousand(amount: number): string {
   return `$${fixed}`;
 }
 
+function formatRequestCount(value: number): string {
+  if (value >= 1_000_000 && value % 1_000_000 === 0) {
+    return `${value / 1_000_000}M`;
+  }
+  if (value >= 1_000 && value % 1_000 === 0) {
+    return `${value / 1_000}k`;
+  }
+  return value.toLocaleString();
+}
+
+function formatStorageBytes(value: number): string {
+  if (value >= 1_000_000_000 && value % 1_000_000_000 === 0) {
+    return `${value / 1_000_000_000} GB storage`;
+  }
+  if (value >= 1_000_000) {
+    const mb = value / 1_000_000;
+    const rounded = mb % 1 === 0 ? mb.toFixed(0) : mb.toFixed(1);
+    return `${rounded} MB storage`;
+  }
+  return `${value} B storage`;
+}
+
 export function Page() {
   const { isLoaded, isSignedIn, orgSlug } = useAuth();
+  const getPricingCatalog = useAction(api.payments.getPricingCatalogPublic);
   const dashboardPath = orgSlug ? `/o/${orgSlug}/overview` : "/o/select";
   const billingPath = orgSlug ? `/o/${orgSlug}/billing` : "/o/select";
   const hasSignedInSession = isLoaded && !!isSignedIn;
@@ -100,10 +150,30 @@ export function Page() {
   const [scrolled, setScrolled] = useState(false);
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [overageMode, setOverageMode] = useState<OverageMode>("without_overages");
+  const [variants, setVariants] = useState<Array<PricingVariant> | null>(null);
 
   useEffect(() => {
     document.title = "Pricing · Barekey";
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getPricingCatalog({})
+      .then((result) => {
+        if (!cancelled) {
+          setVariants(result.variants as Array<PricingVariant>);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVariants(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getPricingCatalog]);
 
   useEffect(() => {
     function onScroll() {
@@ -113,9 +183,56 @@ export function Page() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const planTiers = useMemo(() => {
+    return PLAN_METADATA.map((plan) => {
+      const selectedVariant =
+        variants?.find(
+          (variant) =>
+            variant.tier === plan.id &&
+            variant.interval === (plan.id === "free" ? "monthly" : billingInterval) &&
+            variant.overageMode ===
+              (plan.id === "free" ? "without_overages" : overageMode),
+        ) ?? null;
+
+      const monthlyPriceUsd = selectedVariant?.monthlyPriceUsd ?? plan.defaultMonthlyPriceUsd;
+      const staticRequests =
+        selectedVariant?.includedStaticRequests ?? plan.defaultStaticRequests;
+      const dynamicRequests =
+        selectedVariant?.includedDynamicRequests ?? plan.defaultDynamicRequests;
+      const storageBytes =
+        selectedVariant?.includedStorageBytes ?? plan.defaultStorageBytes;
+      const staticOveragePer1kUsd =
+        selectedVariant?.staticOveragePer1kUsd ?? plan.defaultStaticOveragePer1kUsd;
+      const dynamicOveragePer1kUsd =
+        selectedVariant?.dynamicOveragePer1kUsd ?? plan.defaultDynamicOveragePer1kUsd;
+      const storageOveragePerGbUsd =
+        selectedVariant?.storageOveragePerGbUsd ?? plan.defaultStorageOveragePerGbUsd;
+
+      return {
+        ...plan,
+        monthlyPriceUsd,
+        usage: {
+          staticRequests: `${formatRequestCount(staticRequests)} static requests`,
+          dynamicRequests: `${formatRequestCount(dynamicRequests)} dynamic requests`,
+          storage: formatStorageBytes(storageBytes),
+        },
+        overage:
+          staticOveragePer1kUsd === null &&
+          dynamicOveragePer1kUsd === null &&
+          storageOveragePerGbUsd === null
+            ? null
+            : {
+                staticPer1kUsd: staticOveragePer1kUsd,
+                dynamicPer1kUsd: dynamicOveragePer1kUsd,
+                storagePerGbUsd: storageOveragePerGbUsd,
+              },
+      };
+    });
+  }, [billingInterval, overageMode, variants]);
+
   return (
     <div className="min-h-screen">
-      <Nav scrolled={scrolled} isSignedIn={isLoaded && !!isSignedIn} dashboardPath={dashboardPath} />
+      <Nav scrolled={scrolled} isSignedIn={hasSignedInSession} dashboardPath={dashboardPath} />
 
       <section className="pt-28 pb-16 md:pt-36 md:pb-24">
         <div className="mx-auto max-w-5xl px-6">
@@ -125,7 +242,7 @@ export function Page() {
               Simple, transparent pricing
             </h1>
             <p className="mx-auto max-w-lg text-muted-foreground leading-relaxed">
-              Start free. Scale when you're ready. No surprises.
+              Start free. Scale when you&apos;re ready. No surprises.
             </p>
           </div>
 
@@ -165,7 +282,7 @@ export function Page() {
           </div>
 
           <div className="mt-10 grid gap-4 lg:grid-cols-3">
-            {PLAN_TIERS.map((plan) => {
+            {planTiers.map((plan) => {
               const ctaPath = hasSignedInSession
                 ? plan.id === "free"
                   ? dashboardPath
@@ -203,13 +320,10 @@ export function Page() {
                         <>
                           Available for{" "}
                           <span className="font-semibold text-foreground">
-                            {formatUsd(
-                              billingInterval === "annually"
-                                ? plan.monthlyPriceUsd * 0.8
-                                : plan.monthlyPriceUsd,
-                            )}
+                            {formatUsd(plan.monthlyPriceUsd)}
                           </span>{" "}
-                          per month{billingInterval === "annually" ? ", billed annually." : "."}
+                          per month
+                          {billingInterval === "annually" ? ", billed annually." : "."}
                         </>
                       )}
                     </p>
@@ -224,7 +338,7 @@ export function Page() {
                           <IconBolt className="mt-0.5 size-4 shrink-0" />
                           <span>{plan.usage.staticRequests}</span>
                         </div>
-                        {overageMode === "with_overages" && plan.overage ? (
+                        {overageMode === "with_overages" && plan.overage?.staticPer1kUsd ? (
                           <p className="ml-6 mt-0.5 text-sm text-foreground/60">
                             then {formatUsdPerThousand(plan.overage.staticPer1kUsd)} per 1,000 static requests
                           </p>
@@ -235,15 +349,22 @@ export function Page() {
                           <IconCpu className="mt-0.5 size-4 shrink-0" />
                           <span>{plan.usage.dynamicRequests}</span>
                         </div>
-                        {overageMode === "with_overages" && plan.overage ? (
+                        {overageMode === "with_overages" && plan.overage?.dynamicPer1kUsd ? (
                           <p className="ml-6 mt-0.5 text-sm text-foreground/60">
                             then {formatUsdPerThousand(plan.overage.dynamicPer1kUsd)} per 1,000 dynamic requests
                           </p>
                         ) : null}
                       </div>
-                      <div className="flex items-start gap-2">
-                        <IconDatabase className="mt-0.5 size-4 shrink-0" />
-                        <span>{plan.usage.storage}</span>
+                      <div>
+                        <div className="flex items-start gap-2">
+                          <IconDatabase className="mt-0.5 size-4 shrink-0" />
+                          <span>{plan.usage.storage}</span>
+                        </div>
+                        {overageMode === "with_overages" && plan.overage?.storagePerGbUsd ? (
+                          <p className="ml-6 mt-0.5 text-sm text-foreground/60">
+                            then {formatUsd(plan.overage.storagePerGbUsd)} per 1 GB storage
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                     <div className="mt-5 space-y-2 text-sm text-muted-foreground">

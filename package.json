@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.0.1",
+    "@useautumn/convex": "^0.0.23",
+    "autumn-js": "^0.1.81",
     "convex": "^1.32.0"
   },
   "devDependencies": {
