@@ -13,6 +13,10 @@ Implemented:
 Known follow-up:
 - HTTP evaluate endpoints currently meter `static_requests` only; dynamic decision paths (`ab_roll`/`rollout`) still need separate `dynamic_requests` metering once those evaluation branches land.
 
+Merge status:
+- PR `#16` is open for this work.
+- This change touches secret encryption/decryption write/evaluate flow in `project_variables.ts`, so autonomous merge is intentionally paused until human review per repo policy.
+
 ## 2026-02-28 [URGENT] Convex deploy blocked in prod
 
 Blocker:
