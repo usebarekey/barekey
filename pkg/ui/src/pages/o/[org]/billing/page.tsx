@@ -615,14 +615,24 @@ export function Page() {
                     isBillingStateLoading ||
                     isPlanSubmitting ||
                     !billingState?.canManageBilling ||
-                    (currentPlanId !== null && plan.id === currentPlanId)
+                    (currentPlanId !== null &&
+                      plan.id === currentPlanId &&
+                      billingState.currentInterval ===
+                        (plan.id === "free" ? "monthly" : billingInterval) &&
+                      billingState.currentOverageMode ===
+                        (plan.id === "free" ? "without_overages" : overageMode))
                   }
                   onClick={() => {
                     void handleChangePlan(plan.id);
                   }}
                 >
                   {plan.id === currentPlanId
-                    ? `On ${plan.name}`
+                    ? billingState?.currentInterval ===
+                          (plan.id === "free" ? "monthly" : billingInterval) &&
+                        billingState.currentOverageMode ===
+                          (plan.id === "free" ? "without_overages" : overageMode)
+                      ? `On ${plan.name}`
+                      : `Update ${plan.name}`
                     : currentPlanId === null
                       ? plan.id === "free"
                         ? "Activate Free"

@@ -122,6 +122,19 @@ export function Page() {
   }, [organization?.name, orgSlug]);
 
   useEffect(() => {
+    if (
+      orgClaims === undefined ||
+      !orgClaims.isSignedIn ||
+      orgClaims.orgId === null ||
+      !orgClaims.routeMatchesActiveOrg
+    ) {
+      setIsWorkspacePlanStatusLoading(false);
+      setIsWorkspacePlanless(false);
+      setIsWorkspaceBillingUnavailable(false);
+      setWorkspacePlanStatusErrorMessage(null);
+      return;
+    }
+
     let cancelled = false;
     setIsWorkspacePlanStatusLoading(true);
     setIsWorkspacePlanless(false);
@@ -157,7 +170,7 @@ export function Page() {
     return () => {
       cancelled = true;
     };
-  }, [getWorkspacePlanStatus, orgSlug]);
+  }, [getWorkspacePlanStatus, orgClaims, orgSlug]);
 
   function openCreateDialog() {
     if (isClaimsLoading || isMissingWorkspaceLink || isCreateBlockedByBilling) {
