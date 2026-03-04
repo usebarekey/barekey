@@ -88,7 +88,7 @@ export function generateUserSlugCandidate(input: {
   fullName?: string | null;
 }): string {
   const base = getUserSlugBaseFromIdentity(input);
-  return `${base}${randomNumericSuffix(4)}`;
+  return `${base}-${randomNumericSuffix(4)}`;
 }
 
 export function generateDefaultOrgName(input: {

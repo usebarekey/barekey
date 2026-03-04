@@ -46,7 +46,10 @@ function getErrorMessage(error: unknown): string {
       return error.message;
     }
 
-    if (normalizedMessage.includes("planless")) {
+    if (
+      normalizedMessage.includes("planless") ||
+      normalizedMessage.includes("without a plan")
+    ) {
       return "This workspace is disabled until you select a billing plan.";
     }
 
@@ -249,7 +252,7 @@ export function Page() {
             ) : null}
             {!isWorkspacePlanStatusLoading && isWorkspacePlanless ? (
               <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                This workspace is planless and currently disabled for project creation.
+                This workspace is without a plan and currently disabled for project creation.
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button variant="outline" nativeButton={false} render={<Link to={`/o/${orgSlug}/billing`} />}>
                     Choose billing plan

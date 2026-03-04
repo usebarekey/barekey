@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
-import { requireIdentity } from "./lib/auth";
+import { getOrgClaimsFromIdentity, requireIdentity } from "./lib/auth";
 
 const RESERVED_USER_SLUG_BASES = new Set([
   "auth",
@@ -66,11 +67,19 @@ const userAccountRecordValidator = v.object({
   lastSeenAtMs: v.number(),
 });
 
+const currentUserFreePlanCreditValidator = v.object({
+  totalCredits: v.number(),
+  remainingCredits: v.number(),
+  assignedOrgId: v.union(v.string(), v.null()),
+  assignedOrgSlug: v.union(v.string(), v.null()),
+});
+
 export const ensureCurrentUser = mutation({
   args: {},
   returns: userRecordValidator,
   handler: async (ctx) => {
     const identity = await requireIdentity(ctx);
+    const orgClaims = getOrgClaimsFromIdentity(identity);
     const now = Date.now();
     const clerkUserId = identity.subject;
     const email = identity.email ?? null;
@@ -91,6 +100,13 @@ export const ensureCurrentUser = mutation({
         lastSeenAtMs: now,
       });
 
+      await ctx.runMutation(internal.payments.ensureFreePlanCreditForClerkUserInternal, {
+        clerkUserId,
+        orgId: orgClaims.orgId,
+        orgSlug: orgClaims.orgSlug,
+        consumeForOrgIfAvailable: true,
+      });
+
       return {
         clerkUserId: existingUser.clerkUserId,
         slug: existingUser.slug,
@@ -105,7 +121,7 @@ export const ensureCurrentUser = mutation({
     let slug: string | null = null;
     for (const suffixLength of [4, 6] as const) {
       for (let attempt = 0; attempt < 12; attempt += 1) {
-        const candidate = `${slugBase}${randomNumericSuffix(suffixLength)}`;
+        const candidate = `${slugBase}-${randomNumericSuffix(suffixLength)}`;
         const collision = await ctx.db
           .query("users")
           .withIndex("by_slug", (q) => q.eq("slug", candidate))
@@ -135,6 +151,13 @@ export const ensureCurrentUser = mutation({
       createdAtMs: now,
       updatedAtMs: now,
       lastSeenAtMs: now,
+    });
+
+    await ctx.runMutation(internal.payments.ensureFreePlanCreditForClerkUserInternal, {
+      clerkUserId,
+      orgId: orgClaims.orgId,
+      orgSlug: orgClaims.orgSlug,
+      consumeForOrgIfAvailable: true,
     });
 
     return {
@@ -238,6 +261,37 @@ export const getBySlug = query({
       clerkUserId: user.clerkUserId,
       slug: user.slug,
       displayName: user.displayName,
+    };
+  },
+});
+
+/**
+ * Returns the current user's free workspace credit status and assignment.
+ */
+export const getCurrentUserFreePlanCredit = query({
+  args: {},
+  returns: currentUserFreePlanCreditValidator,
+  handler: async (ctx) => {
+    const identity = await requireIdentity(ctx);
+    const credit = await ctx.db
+      .query("userFreePlanCredits")
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", identity.subject))
+      .unique();
+
+    if (credit === null) {
+      return {
+        totalCredits: 1,
+        remainingCredits: 1,
+        assignedOrgId: null,
+        assignedOrgSlug: null,
+      };
+    }
+
+    return {
+      totalCredits: credit.totalCredits,
+      remainingCredits: credit.remainingCredits,
+      assignedOrgId: credit.assignedOrgId,
+      assignedOrgSlug: credit.assignedOrgSlug,
     };
   },
 });

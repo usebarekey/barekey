@@ -1,11 +1,13 @@
 import { useQuery } from "convex/react";
 import {
   IconArrowLeft,
-  IconChartBar,
+  IconCopy,
+  IconDownload,
+  IconFileCode,
   IconListDetails,
-  IconSettings,
   IconSettingsCog,
 } from "@tabler/icons-react";
+import { useMemo, useState } from "react";
 import {
   Link,
   NavLink,
@@ -13,17 +15,26 @@ import {
   useLocation,
   useParams,
 } from "react-router-dom";
+import { toast } from "sonner";
 
 import { api } from "@convex/_generated/api";
+import { CodeBlock } from "@/components/custom/code-block";
 import { OrgPageHero, OrgRoleBadge } from "@/components/custom/org-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const projectNavItems = [
   { label: "Variables", segment: "variables", icon: IconListDetails },
-  { label: "Overview", segment: "overview", icon: IconChartBar },
   { label: "Settings", segment: "settings", icon: IconSettingsCog },
 ] as const;
 
@@ -35,9 +46,23 @@ export type ProjectRouteContext = {
   updatedAtMs: number;
 };
 
+function buildRuntimeConfigSnippet(orgSlug: string, projectSlug: string): string {
+  return JSON.stringify(
+    {
+      org: orgSlug,
+      project: projectSlug,
+      environment: "development",
+    },
+    null,
+    2,
+  );
+}
+
 export function Layout() {
   const { orgSlug = "org", projectSlug = "project" } = useParams();
   const { pathname } = useLocation();
+  const [isRuntimeConfigDialogOpen, setIsRuntimeConfigDialogOpen] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied" | "failed">("idle");
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
@@ -49,6 +74,35 @@ export function Layout() {
   const activeSegment = pathname.startsWith(projectBasePath)
     ? pathname.slice(projectBasePath.length).replace(/^\/+/, "").split("/")[0] || "variables"
     : "variables";
+  const runtimeConfigSnippet = useMemo(
+    () => buildRuntimeConfigSnippet(orgSlug, projectSlug),
+    [orgSlug, projectSlug],
+  );
+
+  async function handleCopyRuntimeConfig(): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(runtimeConfigSnippet);
+      setCopyFeedback("copied");
+      return true;
+    } catch {
+      setCopyFeedback("failed");
+      return false;
+    }
+  }
+
+  function handleDownloadRuntimeConfig() {
+    const blob = new Blob([runtimeConfigSnippet], {
+      type: "application/json;charset=utf-8",
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = downloadUrl;
+    anchor.download = "barekey.json";
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(downloadUrl);
+  }
 
   if (projects === undefined || orgClaims === undefined) {
     return (
@@ -93,55 +147,44 @@ export function Layout() {
             <OrgRoleBadge role={orgClaims.orgRole} />
           </>
         }
-        actions={
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link to={`/o/${orgSlug}/projects`} />}
-            >
-              <IconArrowLeft />
-              All projects
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              nativeButton={false}
-              render={<Link to={`${projectBasePath}/settings`} />}
-            >
-              <IconSettings />
-              Project settings
-            </Button>
-          </>
-        }
       />
 
-      <nav className="flex flex-wrap gap-2 rounded-xl border bg-card p-2">
-        {projectNavItems.map((item) => {
-          const href = `${projectBasePath}/${item.segment}`;
-          const isActive =
-            item.segment === "variables"
-              ? activeSegment === "variables"
-              : item.segment === "overview"
-                ? activeSegment === "overview"
+      <nav className="flex items-center justify-between gap-2 rounded-xl border bg-card p-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {projectNavItems.map((item) => {
+            const href = `${projectBasePath}/${item.segment}`;
+            const isActive =
+              item.segment === "variables"
+                ? activeSegment === "variables"
                 : pathname.startsWith(href);
 
-          return (
-            <NavLink
-              key={item.segment}
-              to={href}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg border border-transparent px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors",
-                "hover:border-border hover:bg-muted/55 hover:text-foreground",
-                isActive && "border-border bg-background text-foreground shadow-xs",
-              )}
-            >
-              <item.icon className="size-4" />
-              <span>{item.label}</span>
-            </NavLink>
-          );
-        })}
+            return (
+              <NavLink
+                key={item.segment}
+                to={href}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-lg border border-transparent px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors",
+                  "hover:border-border hover:bg-muted/55 hover:text-foreground",
+                  isActive && "border-border bg-background text-foreground shadow-xs",
+                )}
+              >
+                <item.icon className="size-4" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onClick={() => {
+            setIsRuntimeConfigDialogOpen(true);
+          }}
+        >
+          <IconFileCode className="size-4" />
+          Runtime config
+        </Button>
       </nav>
 
       <Outlet
@@ -155,6 +198,65 @@ export function Layout() {
           } satisfies ProjectRouteContext
         }
       />
+
+      <Dialog
+        open={isRuntimeConfigDialogOpen}
+        onOpenChange={(open) => {
+          setIsRuntimeConfigDialogOpen(open);
+          if (!open) {
+            setCopyFeedback("idle");
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>barekey.json</DialogTitle>
+            <DialogDescription>
+              Project runtime defaults for CLI/SDK integration.
+            </DialogDescription>
+          </DialogHeader>
+          <CodeBlock
+            code={runtimeConfigSnippet}
+            lang="json"
+            className="max-h-[46vh] overflow-auto rounded-xl border bg-card [&_.shiki]:!bg-transparent [&_pre]:!m-0 [&_pre]:!bg-transparent"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const copied = await handleCopyRuntimeConfig();
+                if (copied) {
+                  toast.info("Copied to clipboard.", {
+                    icon: <IconCopy className="size-4" />,
+                  });
+                } else {
+                  toast.error("Unable to copy snippet.");
+                }
+                setIsRuntimeConfigDialogOpen(false);
+              }}
+            >
+              <IconCopy className="size-4" />
+              {copyFeedback === "copied"
+                ? "Copied"
+                : copyFeedback === "failed"
+                  ? "Copy failed"
+                  : "Copy snippet"}
+            </Button>
+            <Button
+              onClick={() => {
+                handleDownloadRuntimeConfig();
+                toast.info("Downloaded barekey.json.", {
+                  icon: <IconDownload className="size-4" />,
+                });
+                setIsRuntimeConfigDialogOpen(false);
+              }}
+            >
+              <IconDownload className="size-4" />
+              Download barekey.json
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

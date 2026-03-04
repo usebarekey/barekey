@@ -15,6 +15,20 @@ export default defineSchema({
   })
     .index("by_clerk_user_id", ["clerkUserId"])
     .index("by_slug", ["slug"]),
+  userFreePlanCredits: defineTable({
+    clerkUserId: v.string(),
+    totalCredits: v.number(),
+    remainingCredits: v.number(),
+    assignedOrgId: v.union(v.string(), v.null()),
+    assignedOrgSlug: v.union(v.string(), v.null()),
+    consumedAtMs: v.union(v.number(), v.null()),
+    revokedAtMs: v.union(v.number(), v.null()),
+    revokedReason: v.union(v.string(), v.null()),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+  })
+    .index("by_clerk_user_id", ["clerkUserId"])
+    .index("by_assigned_org_id", ["assignedOrgId"]),
   userPreferences: defineTable({
     clerkUserId: v.string(),
     preferredTheme: v.union(v.literal("system"), v.literal("light"), v.literal("dark")),

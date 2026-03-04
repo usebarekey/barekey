@@ -193,6 +193,14 @@ const billingVariantValidator = v.object({
   isConfiguredInAutumn: v.boolean(),
 });
 
+const scheduledPlanChangeValidator = v.object({
+  productId: v.string(),
+  tier: v.union(v.literal("free"), v.literal("pro"), v.literal("max")),
+  interval: v.union(v.literal("monthly"), v.literal("annually")),
+  overageMode: v.union(v.literal("without_overages"), v.literal("with_overages")),
+  monthlyPriceUsd: v.number(),
+});
+
 type BillingVariant = {
   productId: string;
   tier: BillingTierValue;
@@ -206,6 +214,14 @@ type BillingVariant = {
   dynamicOveragePer1kUsd: number | null;
   storageOveragePerGbUsd: number | null;
   isConfiguredInAutumn: boolean;
+};
+
+type ScheduledPlanChange = {
+  productId: string;
+  tier: BillingTierValue;
+  interval: BillingIntervalValue;
+  overageMode: OverageModeValue;
+  monthlyPriceUsd: number;
 };
 
 const featureUsageValidator = v.object({
@@ -236,6 +252,8 @@ type BillingStateResponse = {
   currentTier: BillingTierValue | null;
   currentInterval: BillingIntervalValue | null;
   currentOverageMode: OverageModeValue | null;
+  hasScheduledPlanChange: boolean;
+  scheduledPlanChange: ScheduledPlanChange | null;
   usage: {
     staticRequests: FeatureUsage;
     dynamicRequests: FeatureUsage;
@@ -244,6 +262,20 @@ type BillingStateResponse = {
   storageMirrorBytes: number;
   variants: Array<BillingVariant>;
 };
+
+function toDisabledFeatureUsage(input: {
+  featureId: string;
+}): FeatureUsage {
+  return {
+    featureId: input.featureId,
+    allowed: false,
+    usage: 0,
+    includedUsage: 0,
+    usageLimit: 0,
+    overageAllowed: false,
+    nextResetAtMs: null,
+  };
+}
 
 type WorkspacePlanStatusResponse = {
   orgId: string;
@@ -262,12 +294,96 @@ type ReserveFeatureUnitsResult = {
   errorCode: "USAGE_LIMIT_EXCEEDED" | "BILLING_UNAVAILABLE" | null;
 };
 
+const freePlanCreditStateValidator = v.object({
+  clerkUserId: v.string(),
+  totalCredits: v.number(),
+  remainingCredits: v.number(),
+  assignedOrgId: v.union(v.string(), v.null()),
+  assignedOrgSlug: v.union(v.string(), v.null()),
+  consumedAtMs: v.union(v.number(), v.null()),
+  revokedAtMs: v.union(v.number(), v.null()),
+  revokedReason: v.union(v.string(), v.null()),
+});
+
+type FreePlanCreditState = {
+  clerkUserId: string;
+  totalCredits: number;
+  remainingCredits: number;
+  assignedOrgId: string | null;
+  assignedOrgSlug: string | null;
+  consumedAtMs: number | null;
+  revokedAtMs: number | null;
+  revokedReason: string | null;
+};
+
+type ConsumeFreePlanCreditResult = {
+  granted: boolean;
+  reason:
+    | "granted"
+    | "already_assigned"
+    | "assigned_elsewhere"
+    | "no_remaining_credits";
+  credit: FreePlanCreditState;
+};
+
+function toFreePlanCreditState(input: {
+  clerkUserId: string;
+  totalCredits: number;
+  remainingCredits: number;
+  assignedOrgId: string | null;
+  assignedOrgSlug: string | null;
+  consumedAtMs: number | null;
+  revokedAtMs: number | null;
+  revokedReason: string | null;
+}): FreePlanCreditState {
+  return {
+    clerkUserId: input.clerkUserId,
+    totalCredits: input.totalCredits,
+    remainingCredits: input.remainingCredits,
+    assignedOrgId: input.assignedOrgId,
+    assignedOrgSlug: input.assignedOrgSlug,
+    consumedAtMs: input.consumedAtMs,
+    revokedAtMs: input.revokedAtMs,
+    revokedReason: input.revokedReason,
+  };
+}
+
 function normalizeFiniteNumber(input: unknown): number | null {
   return typeof input === "number" && Number.isFinite(input) ? input : null;
 }
 
 function normalizeString(input: unknown): string | null {
   return typeof input === "string" && input.length > 0 ? input : null;
+}
+
+function hasForceCheckoutUpgradeDowngradeError(error: unknown): boolean {
+  const text =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : JSON.stringify(error);
+  const normalized = text.toLowerCase();
+  return (
+    normalized.includes("force_checkout") &&
+    normalized.includes("upgrade") &&
+    normalized.includes("downgrade")
+  );
+}
+
+function normalizeRecurringPriceToMonthly(input: {
+  price: number;
+  interval: string | null;
+  intervalCount: number | null;
+}): number {
+  const count = input.intervalCount !== null && input.intervalCount > 0 ? input.intervalCount : 1;
+  if (input.interval === "year") {
+    return input.price / (count * 12);
+  }
+  if (input.interval === "month") {
+    return input.price / count;
+  }
+  return input.price;
 }
 
 function isBillingManagerRole(role: string | null): boolean {
@@ -304,6 +420,8 @@ function readProductCatalog(
       const price = normalizeFiniteNumber(item.price);
       const billingUnits = normalizeFiniteNumber(item.billing_units) ?? 1;
       const featureId = normalizeString(item.feature_id);
+      const interval = normalizeString(item.interval);
+      const intervalCount = normalizeFiniteNumber(item.interval_count);
       const includedUsageRaw = item.included_usage;
       const includedUsage =
         typeof includedUsageRaw === "number" && Number.isFinite(includedUsageRaw)
@@ -311,7 +429,11 @@ function readProductCatalog(
           : null;
 
       if (monthlyPriceUsd === null && price !== null && featureId === null) {
-        monthlyPriceUsd = price;
+        monthlyPriceUsd = normalizeRecurringPriceToMonthly({
+          price,
+          interval,
+          intervalCount,
+        });
       }
 
       if (featureId === FeatureId.StaticRequests) {
@@ -409,13 +531,56 @@ function resolveProductId(input: {
   return match.productId;
 }
 
+function resolveVariant(input: {
+  variants: Array<BillingVariant>;
+  tier: BillingTierValue;
+  interval: BillingIntervalValue;
+  overageMode: OverageModeValue;
+}): BillingVariant {
+  const match = input.variants.find(
+    (entry) =>
+      entry.tier === input.tier &&
+      entry.interval === input.interval &&
+      entry.overageMode === input.overageMode,
+  );
+  if (!match) {
+    throw new Error("Unable to resolve the requested billing plan.");
+  }
+  return match;
+}
+
+async function hasFreePlanCreditAssignedToOrg(
+  ctx: ActionCtx,
+  input: {
+    orgId: string;
+  },
+): Promise<boolean> {
+  const credit = await ctx.runQuery(internal.payments.getFreePlanCreditForOrgIdInternal, {
+    orgId: input.orgId,
+  });
+  return credit !== null;
+}
+
 function readCurrentProductId(customerData: unknown): string | null {
+  const normalized = readCustomerProducts(customerData);
+  const active =
+    normalized.find((entry) => entry.status === "active") ??
+    normalized.find((entry) => entry.status === "trialing") ??
+    normalized.find((entry) => entry.status === "past_due") ??
+    normalized.find((entry) => entry.status === "scheduled");
+  return active?.id ?? null;
+}
+
+function readCustomerProducts(customerData: unknown): Array<{
+  id: string;
+  status: string;
+}> {
   if (typeof customerData !== "object" || customerData === null) {
-    return null;
+    return [];
   }
   const products = (customerData as { products?: unknown }).products;
   if (!Array.isArray(products)) {
-    return null;
+    return [];
   }
 
   const normalized = products
@@ -432,13 +597,7 @@ function readCurrentProductId(customerData: unknown): string | null {
       return { id, status };
     })
     .filter((value): value is { id: string; status: string } => value !== null);
-
-  const active =
-    normalized.find((entry) => entry.status === "active") ??
-    normalized.find((entry) => entry.status === "trialing") ??
-    normalized.find((entry) => entry.status === "past_due") ??
-    normalized.find((entry) => entry.status === "scheduled");
-  return active?.id ?? null;
+  return normalized;
 }
 
 function readCurrentVariantFromProductId(input: string | null): {
@@ -460,6 +619,13 @@ function readCurrentVariantFromProductId(input: string | null): {
     interval: matched.interval,
     overageMode: matched.overageMode,
   };
+}
+
+function readDefaultVariantByProductId(input: string | null): DefaultVariant | null {
+  if (input === null) {
+    return null;
+  }
+  return DEFAULT_VARIANTS.find((variant) => variant.productId === input) ?? null;
 }
 
 async function readFeatureUsage(
@@ -684,6 +850,390 @@ export const logBillingRequestInternal = internalMutation({
   },
 });
 
+export const getFreePlanCreditForClerkUserIdInternal = internalQuery({
+  args: {
+    clerkUserId: v.string(),
+  },
+  returns: v.union(freePlanCreditStateValidator, v.null()),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("userFreePlanCredits")
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .unique();
+    if (row === null) {
+      return null;
+    }
+    return toFreePlanCreditState(row);
+  },
+});
+
+export const getFreePlanCreditForOrgIdInternal = internalQuery({
+  args: {
+    orgId: v.string(),
+  },
+  returns: v.union(freePlanCreditStateValidator, v.null()),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("userFreePlanCredits")
+      .withIndex("by_assigned_org_id", (q) => q.eq("assignedOrgId", args.orgId))
+      .first();
+    if (row === null) {
+      return null;
+    }
+    return toFreePlanCreditState(row);
+  },
+});
+
+export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
+  args: {
+    clerkUserId: v.string(),
+    orgId: v.union(v.string(), v.null()),
+    orgSlug: v.union(v.string(), v.null()),
+    consumeForOrgIfAvailable: v.boolean(),
+  },
+  returns: freePlanCreditStateValidator,
+  handler: async (ctx, args): Promise<FreePlanCreditState> => {
+    const now = Date.now();
+    let row = await ctx.db
+      .query("userFreePlanCredits")
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .unique();
+
+    if (row === null) {
+      const rowId = await ctx.db.insert("userFreePlanCredits", {
+        clerkUserId: args.clerkUserId,
+        totalCredits: 1,
+        remainingCredits: 1,
+        assignedOrgId: null,
+        assignedOrgSlug: null,
+        consumedAtMs: null,
+        revokedAtMs: null,
+        revokedReason: null,
+        createdAtMs: now,
+        updatedAtMs: now,
+      });
+      row = {
+        _id: rowId,
+        _creationTime: now,
+        clerkUserId: args.clerkUserId,
+        totalCredits: 1,
+        remainingCredits: 1,
+        assignedOrgId: null,
+        assignedOrgSlug: null,
+        consumedAtMs: null,
+        revokedAtMs: null,
+        revokedReason: null,
+        createdAtMs: now,
+        updatedAtMs: now,
+      };
+    }
+
+    if (
+      args.consumeForOrgIfAvailable &&
+      args.orgId !== null &&
+      row.assignedOrgId === null &&
+      row.remainingCredits > 0
+    ) {
+      const nextRemainingCredits = Math.max(0, row.remainingCredits - 1);
+      await ctx.db.patch(row._id, {
+        remainingCredits: nextRemainingCredits,
+        assignedOrgId: args.orgId,
+        assignedOrgSlug: args.orgSlug,
+        consumedAtMs: now,
+        revokedAtMs: null,
+        revokedReason: null,
+        updatedAtMs: now,
+      });
+      row = {
+        ...row,
+        remainingCredits: nextRemainingCredits,
+        assignedOrgId: args.orgId,
+        assignedOrgSlug: args.orgSlug,
+        consumedAtMs: now,
+        revokedAtMs: null,
+        revokedReason: null,
+        updatedAtMs: now,
+      };
+    } else if (
+      args.orgId !== null &&
+      row.assignedOrgId === args.orgId &&
+      row.assignedOrgSlug !== args.orgSlug
+    ) {
+      await ctx.db.patch(row._id, {
+        assignedOrgSlug: args.orgSlug,
+        updatedAtMs: now,
+      });
+      row = {
+        ...row,
+        assignedOrgSlug: args.orgSlug,
+        updatedAtMs: now,
+      };
+    }
+
+    return toFreePlanCreditState(row);
+  },
+});
+
+export const consumeFreePlanCreditForCurrentOrgInternal = internalMutation({
+  args: {
+    clerkUserId: v.string(),
+    orgId: v.string(),
+    orgSlug: v.union(v.string(), v.null()),
+  },
+  returns: v.object({
+    granted: v.boolean(),
+    reason: v.union(
+      v.literal("granted"),
+      v.literal("already_assigned"),
+      v.literal("assigned_elsewhere"),
+      v.literal("no_remaining_credits"),
+    ),
+    credit: freePlanCreditStateValidator,
+  }),
+  handler: async (ctx, args): Promise<ConsumeFreePlanCreditResult> => {
+    const now = Date.now();
+    let row = await ctx.db
+      .query("userFreePlanCredits")
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .unique();
+
+    if (row === null) {
+      const rowId = await ctx.db.insert("userFreePlanCredits", {
+        clerkUserId: args.clerkUserId,
+        totalCredits: 1,
+        remainingCredits: 1,
+        assignedOrgId: null,
+        assignedOrgSlug: null,
+        consumedAtMs: null,
+        revokedAtMs: null,
+        revokedReason: null,
+        createdAtMs: now,
+        updatedAtMs: now,
+      });
+      row = {
+        _id: rowId,
+        _creationTime: now,
+        clerkUserId: args.clerkUserId,
+        totalCredits: 1,
+        remainingCredits: 1,
+        assignedOrgId: null,
+        assignedOrgSlug: null,
+        consumedAtMs: null,
+        revokedAtMs: null,
+        revokedReason: null,
+        createdAtMs: now,
+        updatedAtMs: now,
+      };
+    }
+
+    if (row.assignedOrgId === args.orgId) {
+      if (row.assignedOrgSlug !== args.orgSlug) {
+        await ctx.db.patch(row._id, {
+          assignedOrgSlug: args.orgSlug,
+          updatedAtMs: now,
+        });
+        row = {
+          ...row,
+          assignedOrgSlug: args.orgSlug,
+          updatedAtMs: now,
+        };
+      }
+      return {
+        granted: true,
+        reason: "already_assigned",
+        credit: toFreePlanCreditState(row),
+      };
+    }
+
+    if (row.assignedOrgId !== null && row.assignedOrgId !== args.orgId) {
+      return {
+        granted: false,
+        reason: "assigned_elsewhere",
+        credit: toFreePlanCreditState(row),
+      };
+    }
+
+    if (row.remainingCredits <= 0) {
+      return {
+        granted: false,
+        reason: "no_remaining_credits",
+        credit: toFreePlanCreditState(row),
+      };
+    }
+
+    const nextRemainingCredits = Math.max(0, row.remainingCredits - 1);
+    await ctx.db.patch(row._id, {
+      remainingCredits: nextRemainingCredits,
+      assignedOrgId: args.orgId,
+      assignedOrgSlug: args.orgSlug,
+      consumedAtMs: now,
+      revokedAtMs: null,
+      revokedReason: null,
+      updatedAtMs: now,
+    });
+    const patched = {
+      ...row,
+      remainingCredits: nextRemainingCredits,
+      assignedOrgId: args.orgId,
+      assignedOrgSlug: args.orgSlug,
+      consumedAtMs: now,
+      revokedAtMs: null,
+      revokedReason: null,
+      updatedAtMs: now,
+    };
+    return {
+      granted: true,
+      reason: "granted",
+      credit: toFreePlanCreditState(patched),
+    };
+  },
+});
+
+export const revokeFreePlanCreditForCurrentOrgInternal = internalMutation({
+  args: {
+    clerkUserId: v.string(),
+    orgId: v.string(),
+    reason: v.union(v.string(), v.null()),
+  },
+  returns: v.object({
+    revoked: v.boolean(),
+    reason: v.union(
+      v.literal("revoked"),
+      v.literal("already_available"),
+      v.literal("not_assigned_to_org"),
+    ),
+    credit: freePlanCreditStateValidator,
+  }),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    let row = await ctx.db
+      .query("userFreePlanCredits")
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .unique();
+
+    if (row === null) {
+      const rowId = await ctx.db.insert("userFreePlanCredits", {
+        clerkUserId: args.clerkUserId,
+        totalCredits: 1,
+        remainingCredits: 1,
+        assignedOrgId: null,
+        assignedOrgSlug: null,
+        consumedAtMs: null,
+        revokedAtMs: null,
+        revokedReason: null,
+        createdAtMs: now,
+        updatedAtMs: now,
+      });
+      row = {
+        _id: rowId,
+        _creationTime: now,
+        clerkUserId: args.clerkUserId,
+        totalCredits: 1,
+        remainingCredits: 1,
+        assignedOrgId: null,
+        assignedOrgSlug: null,
+        consumedAtMs: null,
+        revokedAtMs: null,
+        revokedReason: null,
+        createdAtMs: now,
+        updatedAtMs: now,
+      };
+      return {
+        revoked: false,
+        reason: "already_available" as const,
+        credit: toFreePlanCreditState(row),
+      };
+    }
+
+    if (row.assignedOrgId === null) {
+      return {
+        revoked: false,
+        reason: "already_available" as const,
+        credit: toFreePlanCreditState(row),
+      };
+    }
+
+    if (row.assignedOrgId !== args.orgId) {
+      return {
+        revoked: false,
+        reason: "not_assigned_to_org" as const,
+        credit: toFreePlanCreditState(row),
+      };
+    }
+
+    const nextRemainingCredits = Math.min(row.totalCredits, row.remainingCredits + 1);
+    await ctx.db.patch(row._id, {
+      remainingCredits: nextRemainingCredits,
+      assignedOrgId: null,
+      assignedOrgSlug: null,
+      revokedAtMs: now,
+      revokedReason: args.reason ?? "manual_revoke",
+      updatedAtMs: now,
+    });
+    const patched = {
+      ...row,
+      remainingCredits: nextRemainingCredits,
+      assignedOrgId: null,
+      assignedOrgSlug: null,
+      revokedAtMs: now,
+      revokedReason: args.reason ?? "manual_revoke",
+      updatedAtMs: now,
+    };
+    return {
+      revoked: true,
+      reason: "revoked" as const,
+      credit: toFreePlanCreditState(patched),
+    };
+  },
+});
+
+export const revokeFreePlanCreditByOrgIdInternal = internalMutation({
+  args: {
+    orgId: v.string(),
+    reason: v.union(v.string(), v.null()),
+  },
+  returns: v.object({
+    revoked: v.boolean(),
+    credit: v.union(freePlanCreditStateValidator, v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const row = await ctx.db
+      .query("userFreePlanCredits")
+      .withIndex("by_assigned_org_id", (q) => q.eq("assignedOrgId", args.orgId))
+      .first();
+    if (row === null) {
+      return {
+        revoked: false,
+        credit: null,
+      };
+    }
+
+    const nextRemainingCredits = Math.min(row.totalCredits, row.remainingCredits + 1);
+    await ctx.db.patch(row._id, {
+      remainingCredits: nextRemainingCredits,
+      assignedOrgId: null,
+      assignedOrgSlug: null,
+      revokedAtMs: now,
+      revokedReason: args.reason ?? "manual_revoke",
+      updatedAtMs: now,
+    });
+    const patched = {
+      ...row,
+      remainingCredits: nextRemainingCredits,
+      assignedOrgId: null,
+      assignedOrgSlug: null,
+      revokedAtMs: now,
+      revokedReason: args.reason ?? "manual_revoke",
+      updatedAtMs: now,
+    };
+    return {
+      revoked: true,
+      credit: toFreePlanCreditState(patched),
+    };
+  },
+});
+
 export const reserveFeatureUnitsForCurrentOrgInternal = internalAction({
   args: {
     expectedOrgSlug: v.string(),
@@ -705,6 +1255,10 @@ export const reserveFeatureUnitsForCurrentOrgInternal = internalAction({
     if (activeOrg.orgSlug !== null) {
       assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
     }
+
+    await ctx.runAction(internal.payments.assertWorkspacePlanForCurrentOrgInternal, {
+      expectedOrgSlug: args.expectedOrgSlug,
+    });
 
     if (!Number.isFinite(args.units) || args.units <= 0) {
       return {
@@ -784,16 +1338,25 @@ export const getWorkspacePlanStatusForCurrentOrg = action({
 
     const currentProductId = readCurrentProductId(customerResult.data);
     const currentVariant = readCurrentVariantFromProductId(currentProductId);
+    const hasAssignedFreePlanCredit =
+      currentVariant?.tier === BillingTier.Free
+        ? await hasFreePlanCreditAssignedToOrg(ctx, {
+            orgId: activeOrg.orgId,
+          })
+        : false;
+    const isWithoutPlan =
+      currentProductId === null ||
+      (currentVariant?.tier === BillingTier.Free && !hasAssignedFreePlanCredit);
 
     return {
       orgId: activeOrg.orgId,
       orgRole: activeOrg.orgRole,
       canManageBilling: isBillingManagerRole(activeOrg.orgRole),
-      currentProductId,
-      currentTier: currentVariant?.tier ?? null,
-      currentInterval: currentVariant?.interval ?? null,
-      currentOverageMode: currentVariant?.overageMode ?? null,
-      isPlanless: currentProductId === null,
+      currentProductId: isWithoutPlan ? null : currentProductId,
+      currentTier: isWithoutPlan ? null : currentVariant?.tier ?? null,
+      currentInterval: isWithoutPlan ? null : currentVariant?.interval ?? null,
+      currentOverageMode: isWithoutPlan ? null : currentVariant?.overageMode ?? null,
+      isPlanless: isWithoutPlan,
       billingUnavailable: false,
     };
   },
@@ -824,10 +1387,18 @@ export const assertWorkspacePlanForCurrentOrgInternal = internalAction({
 
     const currentProductId = readCurrentProductId(customerResult.data);
     if (currentProductId === null) {
-      throw new Error("This workspace is planless. Choose a billing plan to enable projects.");
+      throw new Error("This workspace is without a plan. Choose a billing plan to enable projects.");
     }
 
     const currentVariant = readCurrentVariantFromProductId(currentProductId);
+    if (currentVariant?.tier === BillingTier.Free) {
+      const hasAssignedFreePlanCredit = await hasFreePlanCreditAssignedToOrg(ctx, {
+        orgId: activeOrg.orgId,
+      });
+      if (!hasAssignedFreePlanCredit) {
+        throw new Error("This workspace is without a plan. Choose a billing plan to enable projects.");
+      }
+    }
     return {
       orgId: activeOrg.orgId,
       currentProductId,
@@ -890,6 +1461,8 @@ export const getBillingStateForCurrentOrg = action({
       v.literal("with_overages"),
       v.null(),
     ),
+    hasScheduledPlanChange: v.boolean(),
+    scheduledPlanChange: v.union(scheduledPlanChangeValidator, v.null()),
     usage: v.object({
       staticRequests: featureUsageValidator,
       dynamicRequests: featureUsageValidator,
@@ -939,27 +1512,87 @@ export const getBillingStateForCurrentOrg = action({
     const dynamicUsage: FeatureUsage = resultBundle[3];
     const storageUsage: FeatureUsage = resultBundle[4];
 
+    const allProducts = readCustomerProducts(customerResult.data);
     const currentProductId = readCurrentProductId(customerResult.data);
+    const hasScheduledPlanChange = allProducts.some(
+      (entry) => entry.status === "scheduled" && entry.id !== currentProductId,
+    );
+    const scheduledProduct = allProducts.find(
+      (entry) => entry.status === "scheduled" && entry.id !== currentProductId,
+    );
+    const scheduledVariantFromCatalog =
+      variants.find((variant) => variant.productId === (scheduledProduct?.id ?? "")) ?? null;
+    const scheduledVariantFromFallback = readCurrentVariantFromProductId(scheduledProduct?.id ?? null);
+    const scheduledDefaultVariant = readDefaultVariantByProductId(scheduledProduct?.id ?? null);
+    const scheduledPlanChange: ScheduledPlanChange | null =
+      scheduledProduct !== undefined &&
+      scheduledVariantFromFallback !== null
+        ? {
+            productId: scheduledProduct.id,
+            tier: scheduledVariantFromCatalog?.tier ?? scheduledVariantFromFallback.tier,
+            interval:
+              scheduledVariantFromCatalog?.interval ?? scheduledVariantFromFallback.interval,
+            overageMode:
+              scheduledVariantFromCatalog?.overageMode ??
+              scheduledVariantFromFallback.overageMode,
+            monthlyPriceUsd:
+              scheduledVariantFromCatalog?.monthlyPriceUsd ??
+              scheduledDefaultVariant?.monthlyPriceUsd ??
+              0,
+          }
+        : null;
     const currentVariantFromCatalog: BillingVariant | null =
       variants.find((variant) => variant.productId === currentProductId) ?? null;
     const currentVariantFromFallback = readCurrentVariantFromProductId(currentProductId);
+    const currentTier =
+      currentVariantFromCatalog?.tier ?? currentVariantFromFallback?.tier ?? null;
+    const hasAssignedFreePlanCredit =
+      currentTier === BillingTier.Free
+        ? await hasFreePlanCreditAssignedToOrg(ctx, {
+            orgId: activeOrg.orgId,
+          })
+        : false;
+    const isWithoutPlan =
+      currentProductId === null ||
+      (currentTier === BillingTier.Free && !hasAssignedFreePlanCredit);
+    const effectiveStaticUsage = isWithoutPlan
+      ? toDisabledFeatureUsage({
+          featureId: FeatureId.StaticRequests,
+        })
+      : staticUsage;
+    const effectiveDynamicUsage = isWithoutPlan
+      ? toDisabledFeatureUsage({
+          featureId: FeatureId.DynamicRequests,
+        })
+      : dynamicUsage;
+    const effectiveStorageUsage = isWithoutPlan
+      ? toDisabledFeatureUsage({
+          featureId: FeatureId.StorageBytes,
+        })
+      : storageUsage;
 
     return {
       orgId: activeOrg.orgId,
       orgRole: activeOrg.orgRole,
       canManageBilling: isBillingManagerRole(activeOrg.orgRole),
-      currentProductId,
-      currentTier: currentVariantFromCatalog?.tier ?? currentVariantFromFallback?.tier ?? null,
+      currentProductId: isWithoutPlan ? null : currentProductId,
+      currentTier: isWithoutPlan ? null : currentTier,
       currentInterval:
-        currentVariantFromCatalog?.interval ?? currentVariantFromFallback?.interval ?? null,
+        isWithoutPlan
+          ? null
+          : currentVariantFromCatalog?.interval ?? currentVariantFromFallback?.interval ?? null,
       currentOverageMode:
-        currentVariantFromCatalog?.overageMode ??
-        currentVariantFromFallback?.overageMode ??
-        null,
+        isWithoutPlan
+          ? null
+          : currentVariantFromCatalog?.overageMode ??
+            currentVariantFromFallback?.overageMode ??
+            null,
+      hasScheduledPlanChange,
+      scheduledPlanChange,
       usage: {
-        staticRequests: staticUsage,
-        dynamicRequests: dynamicUsage,
-        storageBytes: storageUsage,
+        staticRequests: effectiveStaticUsage,
+        dynamicRequests: effectiveDynamicUsage,
+        storageBytes: effectiveStorageUsage,
       },
       storageMirrorBytes: ensuredStorage.encryptedBytes,
       variants,
@@ -979,6 +1612,12 @@ export const changePlanForCurrentOrg = action({
     attachedProductId: v.string(),
     checkoutRequired: v.boolean(),
     checkoutUrl: v.union(v.string(), v.null()),
+    changeOutcome: v.union(
+      v.literal("applied"),
+      v.literal("scheduled"),
+      v.literal("submitted"),
+    ),
+    effectiveProductId: v.union(v.string(), v.null()),
   }),
   handler: async (
     ctx,
@@ -987,6 +1626,8 @@ export const changePlanForCurrentOrg = action({
     attachedProductId: string;
     checkoutRequired: boolean;
     checkoutUrl: string | null;
+    changeOutcome: "applied" | "scheduled" | "submitted";
+    effectiveProductId: string | null;
   }> => {
     const identity = await requireIdentity(ctx);
     const activeOrg = requireActiveOrgIdClaims(identity);
@@ -997,29 +1638,170 @@ export const changePlanForCurrentOrg = action({
       throw new Error("Only organization admins can change billing plans.");
     }
 
-    const productId = resolveProductId({
+    const variants = await resolvePricingVariants(ctx);
+    const targetVariant = resolveVariant({
+      variants,
       tier: args.tier,
       interval: args.interval,
       overageMode: args.overageMode,
     });
+    const fallbackProductId = resolveProductId({
+      tier: args.tier,
+      interval: args.interval,
+      overageMode: args.overageMode,
+    });
+    if (!targetVariant.isConfiguredInAutumn) {
+      throw new Error(
+        `This billing plan is not configured in Autumn yet (${fallbackProductId}). Configure pricing products first.`,
+      );
+    }
+    const productId = targetVariant.productId;
 
-    await ctx.runAction(api.autumn.createCustomer, {
+    const customerResult = await ctx.runAction(api.autumn.createCustomer, {
       errorOnNotFound: false,
     });
+    if (customerResult.error !== null) {
+      throw new Error("Billing service is temporarily unavailable.");
+    }
+    const currentProductId = readCurrentProductId(customerResult.data);
+    const currentVariant =
+      variants.find((variant) => variant.productId === currentProductId) ??
+      readCurrentVariantFromProductId(currentProductId);
 
-    const attachResult = await ctx.runAction(api.autumn.attach, {
+    const existingOrgFreeCredit = await ctx.runQuery(
+      internal.payments.getFreePlanCreditForOrgIdInternal,
+      {
+        orgId: activeOrg.orgId,
+      },
+    );
+
+    let consumedFreeCreditReason: ConsumeFreePlanCreditResult["reason"] | null = null;
+    if (args.tier === BillingTier.Free && existingOrgFreeCredit === null) {
+      const consumeResult = await ctx.runMutation(
+        internal.payments.consumeFreePlanCreditForCurrentOrgInternal,
+        {
+          clerkUserId: identity.subject,
+          orgId: activeOrg.orgId,
+          orgSlug: activeOrg.orgSlug,
+        },
+      );
+      consumedFreeCreditReason = consumeResult.reason;
+      if (!consumeResult.granted) {
+        if (consumeResult.reason === "assigned_elsewhere") {
+          throw new Error(
+            "Your free workspace credit is already assigned to another workspace. Revoke it there before activating free here.",
+          );
+        }
+        throw new Error(
+          "Your free workspace credit is unavailable. Revoke an existing free assignment or choose a paid plan.",
+        );
+      }
+    }
+
+    const shouldForceCheckout =
+      args.tier !== BillingTier.Free &&
+      (currentVariant === null || currentVariant.tier === BillingTier.Free);
+
+    let attachResult = await ctx.runAction(api.autumn.attach, {
       productId,
-      forceCheckout: args.tier !== BillingTier.Free,
+      forceCheckout: shouldForceCheckout,
       successUrl: args.successUrl ?? undefined,
     });
+    if (
+      (attachResult.error !== null || attachResult.data === null) &&
+      shouldForceCheckout &&
+      hasForceCheckoutUpgradeDowngradeError(attachResult.error)
+    ) {
+      attachResult = await ctx.runAction(api.autumn.attach, {
+        productId,
+        forceCheckout: false,
+        successUrl: args.successUrl ?? undefined,
+      });
+    }
     if (attachResult.error !== null || attachResult.data === null) {
+      if (args.tier === BillingTier.Free && consumedFreeCreditReason === "granted") {
+        await ctx.runMutation(internal.payments.revokeFreePlanCreditByOrgIdInternal, {
+          orgId: activeOrg.orgId,
+          reason: "attach_failed",
+        });
+      }
       throw new Error("Unable to start checkout for this billing change.");
+    }
+
+    if (
+      args.tier !== BillingTier.Free &&
+      currentVariant !== null &&
+      currentVariant.tier === BillingTier.Free
+    ) {
+      await ctx.runMutation(internal.payments.revokeFreePlanCreditByOrgIdInternal, {
+        orgId: activeOrg.orgId,
+        reason: "upgraded_to_paid",
+      });
+    }
+
+    const checkoutUrl = attachResult.data.checkout_url ?? null;
+    if (checkoutUrl !== null) {
+      return {
+        attachedProductId: productId,
+        checkoutRequired: true,
+        checkoutUrl,
+        changeOutcome: "submitted",
+        effectiveProductId: currentProductId,
+      };
+    }
+
+    let effectiveProductId: string | null = currentProductId;
+    let changeOutcome: "applied" | "scheduled" | "submitted" = "submitted";
+    const customerAfterAttachResult = await ctx.runAction(api.autumn.createCustomer, {
+      errorOnNotFound: false,
+    });
+    if (customerAfterAttachResult.error === null) {
+      effectiveProductId = readCurrentProductId(customerAfterAttachResult.data);
+      const allProducts = readCustomerProducts(customerAfterAttachResult.data);
+      const targetStatus =
+        allProducts.find((entry) => entry.id === productId)?.status ?? null;
+      if (effectiveProductId === productId) {
+        changeOutcome = "applied";
+      } else if (targetStatus === "scheduled") {
+        changeOutcome = "scheduled";
+      }
     }
 
     return {
       attachedProductId: productId,
-      checkoutRequired: Boolean(attachResult.data.checkout_url),
-      checkoutUrl: attachResult.data.checkout_url ?? null,
+      checkoutRequired: false,
+      checkoutUrl: null,
+      changeOutcome,
+      effectiveProductId,
+    };
+  },
+});
+
+export const revokeFreePlanCreditForCurrentOrg = action({
+  args: {
+    expectedOrgSlug: v.string(),
+  },
+  returns: v.object({
+    revoked: v.boolean(),
+  }),
+  handler: async (ctx, args): Promise<{ revoked: boolean }> => {
+    const identity = await requireIdentity(ctx);
+    const activeOrg = requireActiveOrgIdClaims(identity);
+    if (activeOrg.orgSlug !== null) {
+      assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+    }
+    if (!isBillingManagerRole(activeOrg.orgRole)) {
+      throw new Error("Only organization admins can revoke free workspace credits.");
+    }
+
+    const revokeResult: { revoked: boolean; credit: FreePlanCreditState | null } =
+      await ctx.runMutation(internal.payments.revokeFreePlanCreditByOrgIdInternal, {
+        orgId: activeOrg.orgId,
+        reason: "manual_revoke",
+      });
+
+    return {
+      revoked: revokeResult.revoked,
     };
   },
 });

@@ -33,7 +33,7 @@ async function allocateUniqueProjectSlug(
 ): Promise<string> {
   for (const suffixLength of [4, 6] as const) {
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      const candidate = `${args.slugBase}${randomNumericSuffix(suffixLength)}`;
+      const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
       const existing = await ctx.db
         .query("projects")
         .withIndex("by_org_id_and_slug", (q) =>

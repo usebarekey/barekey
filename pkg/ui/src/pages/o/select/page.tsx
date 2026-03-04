@@ -31,6 +31,9 @@ export function Page() {
 
   const memberships = userMemberships.data ?? [];
   const hasMemberships = memberships.length > 0;
+  const hasActiveOrgMembership =
+    orgSlug !== null &&
+    memberships.some((membership) => membership.organization.slug === orgSlug);
 
   async function handleCreateDefaultOrg() {
     if (!isOrgListLoaded || !isSignedIn || user == null) {
@@ -105,7 +108,7 @@ export function Page() {
     void handleCreateDefaultOrg();
   }, [hasMemberships, isAuthLoaded, isCreatingDefaultOrg, isOrgListLoaded, isSignedIn, orgSlug, user]);
 
-  if (isAuthLoaded && isSignedIn && orgSlug) {
+  if (isAuthLoaded && isSignedIn && isOrgListLoaded && orgSlug && hasActiveOrgMembership) {
     return <Navigate to={`/o/${orgSlug}/overview`} replace />;
   }
 
@@ -131,7 +134,7 @@ export function Page() {
               <div>
                 <p className="text-sm font-medium">Default organization bootstrap</p>
                 <p className="text-sm text-muted-foreground">
-                  Creates a workspace slug like <span className="font-mono">johndoeorg5831</span>.
+                  Creates a workspace slug like <span className="font-mono">johndoeorg-5831</span>.
                 </p>
               </div>
               <Button

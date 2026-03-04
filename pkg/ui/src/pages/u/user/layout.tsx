@@ -1,26 +1,51 @@
-import { useAuth, useOrganizationList } from "@clerk/react-router";
+import { useAuth, useClerk, useUser } from "@clerk/react-router";
 import { useQuery } from "convex/react";
 import {
-  IconActivity,
-  IconBriefcase,
-  IconShieldLock,
+  IconArrowLeft,
+  IconChevronRight,
+  IconChevronUp,
+  IconHome2,
+  IconLogout2,
+  IconSettings,
   IconSettingsCog,
-  IconUserCircle,
 } from "@tabler/icons-react";
-import { useState } from "react";
-import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  NavLink,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import { Logo } from "@/components/custom/logo";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -38,33 +63,164 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useEnsureCurrentUserRecord } from "@/hooks/use-ensure-current-user-record";
+import { generateGradientDataUrl } from "@/lib/generate-gradient";
 import { api } from "@convex/_generated/api";
+import { useTheme } from "theme-watcher";
 
-const CREATE_WORKSPACE_SELECT_VALUE = "__create_workspace__";
-const NO_WORKSPACE_SELECT_VALUE = "__no_workspace__";
-
-const navItems = [
-  { label: "Overview", icon: IconUserCircle, segment: "overview" },
-  { label: "Profile", icon: IconSettingsCog, segment: "profile" },
-  { label: "Security", icon: IconShieldLock, segment: "security" },
-  { label: "Workspaces", icon: IconBriefcase, segment: "workspaces" },
-  { label: "Activity", icon: IconActivity, segment: "activity" },
+const profileCardLinks = [
+  { label: "Profile Information", sectionId: "profile-information" },
+  { label: "Free Workspace Credit", sectionId: "free-workspace-credit" },
+  { label: "Appearance Defaults", sectionId: "appearance-defaults" },
 ] as const;
 
-export function Layout() {
+const securityCardLinks = [
+  { label: "Linked Accounts", sectionId: "linked-accounts" },
+  { label: "Sessions", sectionId: "sessions" },
+  { label: "Danger Zone", sectionId: "danger-zone" },
+] as const;
+
+function initials(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.slice(0, 1).toUpperCase())
+    .join("");
+}
+
+function SidebarUserMenu({
+  dashboardPath,
+  userPath,
+  currentUserSlug,
+}: {
+  dashboardPath: string;
+  userPath: string;
+  currentUserSlug: string;
+}) {
   const navigate = useNavigate();
+  const { user } = useUser();
+  const clerk = useClerk();
+  const { resolvedTheme, toggleMode } = useTheme();
+
+  const displayName =
+    user?.fullName?.trim() ||
+    user?.username?.trim() ||
+    user?.firstName?.trim() ||
+    "Account";
+  const email =
+    user?.primaryEmailAddress?.emailAddress ??
+    user?.emailAddresses?.[0]?.emailAddress ??
+    null;
+  const avatarSeed = user?.id ?? currentUserSlug ?? "user";
+  const avatarSrc =
+    user?.imageUrl ?? generateGradientDataUrl(avatarSeed, { size: 96 });
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={
+          "ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/40 p-2 text-left outline-hidden transition-colors group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1"
+        }
+      >
+        <Avatar
+          size="sm"
+          className="border-sidebar-border group-data-[collapsible=icon]:size-6"
+        >
+          <AvatarImage src={avatarSrc} />
+          <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+          <p className="truncate text-sm font-medium">{displayName}</p>
+          <p className="text-muted-foreground truncate text-xs">
+            {email ?? "No email"}
+          </p>
+        </div>
+        <IconChevronUp className="size-4 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        side="top"
+        align="start"
+        sideOffset={8}
+        className="w-72 min-w-72 rounded-xl p-1.5"
+      >
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-2 py-2">
+            <div className="flex items-center gap-3">
+              <Avatar>
+                <AvatarImage src={avatarSrc} />
+                <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {displayName}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {email ?? "No email"}
+                </p>
+              </div>
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => {
+              void navigate(userPath);
+            }}
+          >
+            <IconSettingsCog />
+            <span>Profile settings</span>
+            <DropdownMenuShortcut>U</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => {
+              void navigate(dashboardPath);
+            }}
+          >
+            <IconHome2 />
+            <span>Go to Dashboard</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => {
+              toggleMode();
+            }}
+          >
+            <IconSettings />
+            <span>Toggle theme</span>
+            <Badge variant="outline" className="ml-auto h-4 px-1 text-[10px]">
+              {resolvedTheme === "dark" ? "Dark" : "Light"}
+            </Badge>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => {
+              void clerk.signOut({
+                redirectUrl: "/auth/sso",
+              });
+            }}
+          >
+            <IconLogout2 />
+            <span>Log out</span>
+            <DropdownMenuShortcut>⇧Q</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function Layout() {
   const { userSlug = "user" } = useParams();
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const { isLoaded, isSignedIn, orgSlug: activeOrgSlug } = useAuth();
-  const {
-    isLoaded: isOrgListLoaded,
-    setActive,
-    userMemberships,
-  } = useOrganizationList({
-    userMemberships: true,
-  });
-  const [switchError, setSwitchError] = useState<string | null>(null);
-  const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
   const currentUser = useQuery(api.users.getCurrentUser, {});
   useEnsureCurrentUserRecord();
 
@@ -72,52 +228,46 @@ export function Layout() {
   const relativePath = pathname.startsWith(userBasePath)
     ? pathname.slice(userBasePath.length).replace(/^\/+/, "")
     : "";
-  const activeSegment = relativePath.split("/").filter(Boolean)[0] ?? "overview";
-  const activeTitle = navItems.find((item) => item.segment === activeSegment)?.label ?? "Account";
-
-  const memberships = userMemberships.data ?? [];
-  const selectableMemberships = memberships.filter((membership) =>
-    Boolean(membership.organization.slug),
-  );
-  const activeWorkspaceMembership =
-    selectableMemberships.find((membership) => membership.organization.slug === activeOrgSlug) ?? null;
-  const workspaceSelectValue =
-    activeWorkspaceMembership?.organization.slug ?? NO_WORKSPACE_SELECT_VALUE;
-
-  async function handleWorkspaceSwitch(nextOrgSlug: string) {
+  const activeLegacySegment = relativePath.split("/").filter(Boolean)[0] ?? "";
+  const requestedSectionIdFromPath = (() => {
     if (
-      nextOrgSlug === NO_WORKSPACE_SELECT_VALUE ||
-      nextOrgSlug === CREATE_WORKSPACE_SELECT_VALUE ||
-      isSwitchingWorkspace
+      activeLegacySegment === "profile" ||
+      activeLegacySegment === "overview"
     ) {
-      if (nextOrgSlug === CREATE_WORKSPACE_SELECT_VALUE) {
-        void navigate("/new?type=organization");
-      }
-      return;
+      return "profile-information";
     }
-
-    const nextMembership = selectableMemberships.find(
-      (membership) => membership.organization.slug === nextOrgSlug,
-    );
-    if (!nextMembership) {
-      return;
+    if (activeLegacySegment === "security") {
+      return "linked-accounts";
     }
+    return "";
+  })();
+  const requestedSectionId =
+    hash.replace(/^#/, "") || requestedSectionIdFromPath;
+  const activeSectionId = [...profileCardLinks, ...securityCardLinks].some(
+    (item) => item.sectionId === requestedSectionId,
+  )
+    ? requestedSectionId
+    : "profile-information";
+  const isProfileSectionActive = profileCardLinks.some(
+    (item) => item.sectionId === activeSectionId,
+  );
+  const isSecuritySectionActive = securityCardLinks.some(
+    (item) => item.sectionId === activeSectionId,
+  );
+  const [isProfileOpen, setIsProfileOpen] = useState(isProfileSectionActive);
+  const [isSecurityOpen, setIsSecurityOpen] = useState(isSecuritySectionActive);
 
-    setIsSwitchingWorkspace(true);
-    setSwitchError(null);
-
-    try {
-      if (!setActive) {
-        throw new Error("Workspace switching is unavailable right now.");
-      }
-      await setActive({ organization: nextMembership.organization.id });
-      void navigate(`/o/${nextOrgSlug}/overview`);
-    } catch (error: unknown) {
-      setSwitchError(error instanceof Error ? error.message : "Failed to switch workspace.");
-    } finally {
-      setIsSwitchingWorkspace(false);
+  useEffect(() => {
+    if (isProfileSectionActive) {
+      setIsProfileOpen(true);
     }
-  }
+  }, [isProfileSectionActive]);
+
+  useEffect(() => {
+    if (isSecuritySectionActive) {
+      setIsSecurityOpen(true);
+    }
+  }, [isSecuritySectionActive]);
 
   if (!isLoaded) {
     return (
@@ -140,8 +290,15 @@ export function Layout() {
   }
 
   if (currentUser.slug !== userSlug) {
-    return <Navigate to={`/u/${currentUser.slug}/${activeSegment}`} replace />;
+    return (
+      <Navigate to={`/u/${currentUser.slug}#${activeSectionId}`} replace />
+    );
   }
+
+  const userPath = `/u/${currentUser.slug}#profile-information`;
+  const dashboardPath = activeOrgSlug
+    ? `/o/${activeOrgSlug}/overview`
+    : "/o/select";
 
   return (
     <SidebarProvider>
@@ -151,86 +308,109 @@ export function Layout() {
         </SidebarHeader>
 
         <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>Account</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {navItems.map((item) => {
-                  const href = `/u/${currentUser.slug}/${item.segment}`;
-                  const isActive =
-                    item.segment === "overview"
-                      ? pathname === `/u/${userSlug}` || pathname === href
-                      : pathname.startsWith(href);
+          <Collapsible
+            open={isProfileOpen}
+            onOpenChange={(nextOpen) => {
+              setIsProfileOpen(nextOpen);
+            }}
+            className="group/collapsible"
+          >
+            <SidebarGroup>
+              <SidebarGroupLabel
+                render={<CollapsibleTrigger />}
+                className={`group/label text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${isProfileSectionActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}`}
+              >
+                Profile
+                <IconChevronRight
+                  className={`ml-auto transition-transform ${isProfileOpen ? "rotate-90" : ""}`}
+                />
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu className="gap-1">
+                    {profileCardLinks.map((item) => {
+                      const href = `/u/${currentUser.slug}#${item.sectionId}`;
+                      const isActive = activeSectionId === item.sectionId;
 
-                  return (
-                    <SidebarMenuItem key={item.segment}>
-                      <SidebarMenuButton isActive={isActive} render={<NavLink to={href} />}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+                      return (
+                        <SidebarMenuItem key={item.sectionId}>
+                          <SidebarMenuButton
+                            className="pl-5 text-muted-foreground"
+                            isActive={isActive}
+                            render={<a href={href} />}
+                          >
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+
+          <Collapsible
+            open={isSecurityOpen}
+            onOpenChange={(nextOpen) => {
+              setIsSecurityOpen(nextOpen);
+            }}
+            className="group/collapsible"
+          >
+            <SidebarGroup>
+              <SidebarGroupLabel
+                render={<CollapsibleTrigger />}
+                className={`group/label text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${isSecuritySectionActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}`}
+              >
+                Security
+                <IconChevronRight
+                  className={`ml-auto transition-transform ${isSecurityOpen ? "rotate-90" : ""}`}
+                />
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu className="gap-1">
+                    {securityCardLinks.map((item) => {
+                      const href = `/u/${currentUser.slug}#${item.sectionId}`;
+                      const isActive = activeSectionId === item.sectionId;
+
+                      return (
+                        <SidebarMenuItem key={item.sectionId}>
+                          <SidebarMenuButton
+                            className="pl-5 text-muted-foreground"
+                            isActive={isActive}
+                            render={<a href={href} />}
+                          >
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
         </SidebarContent>
 
-        <SidebarFooter className="gap-2 text-xs text-muted-foreground">
-          <p className="truncate group-data-[collapsible=icon]:hidden">@{currentUser.slug}</p>
-          <Select
-            value={workspaceSelectValue}
-            onValueChange={(value) => {
-              if (value === null) {
-                return;
-              }
-              void handleWorkspaceSwitch(value);
-            }}
-          >
-            <SelectTrigger className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:[&>svg:last-child]:hidden">
-              <SelectValue>
-                {activeWorkspaceMembership ? (
-                  <span className="truncate">{activeWorkspaceMembership.organization.name}</span>
-                ) : (
-                  <span className="truncate text-muted-foreground">No workspace selected</span>
-                )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent align="start">
-              {selectableMemberships.length > 0 ? (
-                selectableMemberships.map((membership) => (
-                  <SelectItem
-                    key={membership.organization.id}
-                    value={membership.organization.slug ?? NO_WORKSPACE_SELECT_VALUE}
-                  >
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate">{membership.organization.name}</span>
-                      <span className="truncate text-[11px] text-muted-foreground">
-                        @{membership.organization.slug}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))
-              ) : (
-                <SelectItem value={NO_WORKSPACE_SELECT_VALUE} disabled={true}>
-                  No workspaces available
-                </SelectItem>
-              )}
-              <SelectSeparator />
-              <SelectItem value={CREATE_WORKSPACE_SELECT_VALUE}>Create workspace</SelectItem>
-            </SelectContent>
-          </Select>
-          {switchError ? <p className="text-xs text-destructive">{switchError}</p> : null}
-          {!isOrgListLoaded ? <p className="text-xs">Loading workspaces...</p> : null}
+        <SidebarFooter className="gap-2">
           <Button
             size="sm"
-            variant="outline"
-            className="justify-start group-data-[collapsible=icon]:hidden"
+            variant="secondary"
+            className="justify-start group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1"
             nativeButton={false}
-            render={<Link to="/o/select" />}
+            render={<NavLink to={dashboardPath} />}
           >
-            Organization selector
+            <IconArrowLeft />
+            <span className="group-data-[collapsible=icon]:hidden">
+              Go back
+            </span>
           </Button>
+          <SidebarUserMenu
+            dashboardPath={dashboardPath}
+            userPath={userPath}
+            currentUserSlug={currentUser.slug}
+          />
         </SidebarFooter>
 
         <SidebarRail />
@@ -241,7 +421,17 @@ export function Layout() {
           <div className="flex items-center gap-2">
             <SidebarTrigger />
             <Separator orientation="vertical" />
-            <p className="text-sm font-medium">{activeTitle}</p>
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{currentUser.slug}</BreadcrumbPage>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Profile</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </div>
         </header>
 
