@@ -92,27 +92,33 @@ export function Page() {
             <CardTitle className="text-base">Timeline</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p className="flex items-start gap-2">
-              <IconClock className="mt-0.5 size-4" />
-              <span>
-                Account created:{" "}
-                <span className="text-foreground">{formatDateTime(currentUser?.createdAtMs ?? null)}</span>
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <IconClock className="mt-0.5 size-4" />
-              <span>
-                Last seen:{" "}
-                <span className="text-foreground">{formatDateTime(currentUser?.lastSeenAtMs ?? null)}</span>
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <IconClock className="mt-0.5 size-4" />
-              <span>
-                Preferences updated:{" "}
-                <span className="text-foreground">{formatDateTime(preferences?.updatedAtMs ?? null)}</span>
-              </span>
-            </p>
+            {isAccountLoading || isPreferencesLoading ? (
+              <p>Loading timeline...</p>
+            ) : (
+              <>
+                <p className="flex items-start gap-2">
+                  <IconClock className="mt-0.5 size-4" />
+                  <span>
+                    Account created:{" "}
+                    <span className="text-foreground">{formatDateTime(currentUser?.createdAtMs ?? null)}</span>
+                  </span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <IconClock className="mt-0.5 size-4" />
+                  <span>
+                    Last seen:{" "}
+                    <span className="text-foreground">{formatDateTime(currentUser?.lastSeenAtMs ?? null)}</span>
+                  </span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <IconClock className="mt-0.5 size-4" />
+                  <span>
+                    Preferences updated:{" "}
+                    <span className="text-foreground">{formatDateTime(preferences?.updatedAtMs ?? null)}</span>
+                  </span>
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 

@@ -48,22 +48,19 @@ function randomNumericSuffix(length: number): string {
   return String(value).padStart(length, "0");
 }
 
-const userRecordValidator = v.object({
+const userRecordFields = {
   clerkUserId: v.string(),
   slug: v.string(),
   slugBase: v.string(),
   email: v.union(v.string(), v.null()),
   displayName: v.union(v.string(), v.null()),
   imageUrl: v.union(v.string(), v.null()),
-});
+};
+
+const userRecordValidator = v.object(userRecordFields);
 
 const userAccountRecordValidator = v.object({
-  clerkUserId: v.string(),
-  slug: v.string(),
-  slugBase: v.string(),
-  email: v.union(v.string(), v.null()),
-  displayName: v.union(v.string(), v.null()),
-  imageUrl: v.union(v.string(), v.null()),
+  ...userRecordFields,
   createdAtMs: v.number(),
   updatedAtMs: v.number(),
   lastSeenAtMs: v.number(),

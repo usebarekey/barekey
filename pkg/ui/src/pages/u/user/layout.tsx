@@ -82,8 +82,7 @@ export function Layout() {
   const activeWorkspaceMembership =
     selectableMemberships.find((membership) => membership.organization.slug === activeOrgSlug) ?? null;
   const workspaceSelectValue =
-    activeWorkspaceMembership?.organization.slug ??
-    (selectableMemberships[0]?.organization.slug ?? NO_WORKSPACE_SELECT_VALUE);
+    activeWorkspaceMembership?.organization.slug ?? NO_WORKSPACE_SELECT_VALUE;
 
   async function handleWorkspaceSwitch(nextOrgSlug: string) {
     if (

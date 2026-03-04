@@ -55,12 +55,15 @@ export function Page() {
 
   const isPreferencesLoading = preferences === undefined;
   const isDisabled = isSaving || isPreferencesLoading;
+  const savedPreferredTheme = preferences?.preferredTheme ?? PreferredTheme.System;
+  const savedDefaultOrgSlug = preferences?.defaultOrgSlug ?? NO_DEFAULT_WORKSPACE;
+  const savedLandingPreference =
+    preferences?.landingPreference ?? LandingPreference.AccountOverview;
   const isDirty =
     !isPreferencesLoading &&
-    preferences !== null &&
-    (preferences.preferredTheme !== preferredTheme ||
-      (preferences.defaultOrgSlug ?? NO_DEFAULT_WORKSPACE) !== defaultOrgSlug ||
-      preferences.landingPreference !== landingPreference);
+    (savedPreferredTheme !== preferredTheme ||
+      savedDefaultOrgSlug !== defaultOrgSlug ||
+      savedLandingPreference !== landingPreference);
 
   async function handleSavePreferences() {
     if (isDisabled || !isDirty) {

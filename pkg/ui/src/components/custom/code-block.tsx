@@ -4,21 +4,36 @@ import type { Highlighter } from "shiki";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const supportedLanguages = ["typescript"] as const;
+type SupportedCodeBlockLanguage = (typeof supportedLanguages)[number];
+
 let highlighter: Highlighter | null = null;
 let highlighterPromise: Promise<Highlighter> | null = null;
 
 function getHighlighter() {
-  if (highlighter) return Promise.resolve(highlighter);
-  if (highlighterPromise) return highlighterPromise;
-  highlighterPromise = import("shiki").then((shiki) =>
-    shiki.createHighlighter({
-      themes: ["github-light", "github-dark"],
-      langs: ["typescript"],
-    }),
-  ).then((h) => {
-    highlighter = h;
-    return h;
-  });
+  if (highlighter) {
+    return Promise.resolve(highlighter);
+  }
+  if (highlighterPromise) {
+    return highlighterPromise;
+  }
+
+  highlighterPromise = import("shiki")
+    .then((shiki) =>
+      shiki.createHighlighter({
+        themes: ["github-light", "github-dark"],
+        langs: [...supportedLanguages],
+      }),
+    )
+    .then((h) => {
+      highlighter = h;
+      return h;
+    })
+    .catch((error: unknown) => {
+      highlighterPromise = null;
+      throw error;
+    });
+
   return highlighterPromise;
 }
 
@@ -28,25 +43,53 @@ export function CodeBlock({
   className,
 }: {
   code: string;
-  lang?: string;
+  lang?: SupportedCodeBlockLanguage;
   className?: string;
 }) {
   const [html, setHtml] = useState<string | null>(null);
+  const [hasRenderError, setHasRenderError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    getHighlighter().then((h) => {
-      if (cancelled) return;
-      const result = h.codeToHtml(code, {
-        lang,
-        themes: { light: "github-light", dark: "github-dark" },
+    setHtml(null);
+    setHasRenderError(false);
+
+    void getHighlighter()
+      .then((h) => {
+        if (cancelled) {
+          return;
+        }
+        const result = h.codeToHtml(code, {
+          lang,
+          themes: { light: "github-light", dark: "github-dark" },
+        });
+        setHtml(result);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasRenderError(true);
+        }
       });
-      setHtml(result);
-    });
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, [code, lang]);
 
-  if (!html) {
+  if (hasRenderError) {
+    return (
+      <pre
+        className={cn(
+          "overflow-x-auto rounded-lg border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed",
+          className,
+        )}
+      >
+        <code>{code}</code>
+      </pre>
+    );
+  }
+
+  if (html === null) {
     return (
       <div className={cn("font-mono text-sm", className)}>
         <Skeleton className="h-48 w-full" />

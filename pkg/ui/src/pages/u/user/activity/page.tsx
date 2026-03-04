@@ -24,6 +24,7 @@ export function Page() {
   const { orgSlug: activeOrgSlug } = useAuth();
   const account = useQuery(getCurrentUserAccountRef, {});
   const preferences = useQuery(getCurrentUserPreferencesRef, {});
+  const isLoading = account === undefined || preferences === undefined;
 
   const timeline: Array<TimelineEntry> = [
     {
@@ -72,23 +73,27 @@ export function Page() {
             </p>
           </div>
 
-          <div className="space-y-2">
-            {timeline.map((entry) => (
-              <div key={entry.id} className="rounded-lg border bg-background/70 p-3 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="flex items-center gap-2 font-medium">
-                    <IconActivityHeartbeat className="size-4 text-cyan-300" />
-                    {entry.label}
-                  </p>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <IconClock className="size-3.5" />
-                    {formatDateTime(entry.timestampMs)}
-                  </p>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading activity timeline...</p>
+          ) : (
+            <div className="space-y-2">
+              {timeline.map((entry) => (
+                <div key={entry.id} className="rounded-lg border bg-background/70 p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="flex items-center gap-2 font-medium">
+                      <IconActivityHeartbeat className="size-4 text-cyan-300" />
+                      {entry.label}
+                    </p>
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <IconClock className="size-3.5" />
+                      {formatDateTime(entry.timestampMs)}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">{entry.detail}</p>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">{entry.detail}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

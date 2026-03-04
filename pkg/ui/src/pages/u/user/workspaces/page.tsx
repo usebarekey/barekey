@@ -24,11 +24,6 @@ export function Page() {
   const [activeActionSlug, setActiveActionSlug] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const memberships = userMemberships.data ?? [];
-  const selectableMemberships = memberships.filter((membership) =>
-    Boolean(membership.organization.slug),
-  );
-
   async function handleOpenWorkspace(nextOrgSlug: string, nextOrgId: string) {
     setActiveActionSlug(nextOrgSlug);
     setActionError(null);
@@ -70,6 +65,11 @@ export function Page() {
       </div>
     );
   }
+
+  const memberships = userMemberships.data ?? [];
+  const selectableMemberships = memberships.filter((membership) =>
+    Boolean(membership.organization.slug),
+  );
 
   return (
     <div className="space-y-4">

@@ -122,6 +122,11 @@ export function Page() {
   }
 
   async function handleRevokeSession(sessionId: string) {
+    if (sessionId === activeSessionId) {
+      setSessionActionError("Use sign out to end the current session.");
+      return;
+    }
+
     const nextSession = availableSessions.find((session) => session.id === sessionId);
     if (!nextSession) {
       return;
@@ -297,6 +302,9 @@ export function Page() {
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-mono text-xs text-muted-foreground">{session.id}</p>
                   <div className="flex items-center gap-2">
+                    {session.id === activeSessionId ? (
+                      <Badge variant="outline">Current</Badge>
+                    ) : null}
                     <Badge variant="secondary">
                       <IconShieldCheck className="mr-1 size-3.5" />
                       {session.status}
@@ -304,13 +312,17 @@ export function Page() {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={revokingSessionId === session.id}
+                      disabled={session.id === activeSessionId || revokingSessionId === session.id}
                       onClick={() => {
                         void handleRevokeSession(session.id);
                       }}
                     >
                       <IconLogout2 className="size-3.5" />
-                      {revokingSessionId === session.id ? "Revoking..." : "Revoke"}
+                      {session.id === activeSessionId
+                        ? "Current session"
+                        : revokingSessionId === session.id
+                          ? "Revoking..."
+                          : "Revoke"}
                     </Button>
                   </div>
                 </div>

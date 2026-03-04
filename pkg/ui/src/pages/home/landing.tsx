@@ -240,6 +240,8 @@ export function LandingPage({ isSignedIn, dashboardPath }: { isSignedIn: boolean
     function onScroll() {
       setScrolled(window.scrollY > 16);
     }
+
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
