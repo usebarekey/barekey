@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import {
   IconBolt,
   IconCheck,
@@ -9,68 +9,129 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 import { useOrganization } from "@clerk/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { api } from "@convex/_generated/api";
-import { OrgPageHero, OrgRoleBadge, OrgSectionCard } from "@/components/custom/org-workspace";
+import {
+  OrgMetricCard,
+  OrgPageHero,
+  OrgRoleBadge,
+  OrgSectionCard,
+} from "@/components/custom/org-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-const PLAN_TIERS = [
+type PlanId = "free" | "pro" | "max";
+type BillingInterval = "monthly" | "annually";
+type OverageMode = "without_overages" | "with_overages";
+
+type BillingVariant = {
+  productId: string;
+  tier: PlanId;
+  interval: BillingInterval;
+  overageMode: OverageMode;
+  monthlyPriceUsd: number;
+  includedStaticRequests: number;
+  includedDynamicRequests: number;
+  includedStorageBytes: number;
+  staticOveragePer1kUsd: number | null;
+  dynamicOveragePer1kUsd: number | null;
+  storageOveragePerGbUsd: number | null;
+  isConfiguredInAutumn: boolean;
+};
+
+type BillingState = {
+  orgId: string;
+  orgRole: string | null;
+  canManageBilling: boolean;
+  currentProductId: string | null;
+  currentTier: PlanId | null;
+  currentInterval: BillingInterval | null;
+  currentOverageMode: OverageMode | null;
+  usage: {
+    staticRequests: {
+      usage: number | null;
+      includedUsage: number | null;
+      overageAllowed: boolean | null;
+    };
+    dynamicRequests: {
+      usage: number | null;
+      includedUsage: number | null;
+      overageAllowed: boolean | null;
+    };
+    storageBytes: {
+      usage: number | null;
+      includedUsage: number | null;
+      overageAllowed: boolean | null;
+    };
+  };
+  storageMirrorBytes: number;
+  variants: Array<BillingVariant>;
+};
+
+type PlanDisplayMetadata = {
+  id: PlanId;
+  name: string;
+  description: string;
+  includes: string | null;
+  support: Array<string>;
+  fallbackMonthlyPriceUsd: number;
+  fallbackStaticRequests: number;
+  fallbackDynamicRequests: number;
+  fallbackStorageBytes: number;
+  fallbackStaticOveragePer1kUsd: number | null;
+  fallbackDynamicOveragePer1kUsd: number | null;
+  fallbackStorageOveragePerGbUsd: number | null;
+};
+
+const PLAN_METADATA: Array<PlanDisplayMetadata> = [
   {
     id: "free",
     name: "Free",
     description: "Best for personal projects and early experimentation.",
-    monthlyPriceUsd: 0,
     includes: null,
-    usage: {
-      staticRequests: "10k static requests",
-      dynamicRequests: "500 dynamic requests",
-      storage: "25 MB storage",
-    },
     support: ["Community support"],
-    overage: null,
+    fallbackMonthlyPriceUsd: 0,
+    fallbackStaticRequests: 10_000,
+    fallbackDynamicRequests: 500,
+    fallbackStorageBytes: 25_000_000,
+    fallbackStaticOveragePer1kUsd: null,
+    fallbackDynamicOveragePer1kUsd: null,
+    fallbackStorageOveragePerGbUsd: null,
   },
   {
     id: "pro",
     name: "Pro",
     description: "For growing teams that need more scale and support.",
-    monthlyPriceUsd: 9.99,
     includes: "Everything in Free, plus:",
-    usage: {
-      staticRequests: "1M static requests",
-      dynamicRequests: "100k dynamic requests",
-      storage: "500 MB storage",
-    },
     support: ["Email support"],
-    overage: {
-      dynamicPer1kUsd: 0.0265,
-      staticPer1kUsd: 0.0053,
-    },
+    fallbackMonthlyPriceUsd: 9.99,
+    fallbackStaticRequests: 1_000_000,
+    fallbackDynamicRequests: 100_000,
+    fallbackStorageBytes: 500_000_000,
+    fallbackStaticOveragePer1kUsd: 0.0053,
+    fallbackDynamicOveragePer1kUsd: 0.0265,
+    fallbackStorageOveragePerGbUsd: null,
   },
   {
     id: "max",
     name: "Max",
     description: "Highest limits for production-heavy workloads.",
-    monthlyPriceUsd: 39.99,
     includes: "Everything in Free and Pro, plus:",
-    usage: {
-      staticRequests: "10M static requests",
-      dynamicRequests: "1M dynamic requests",
-      storage: "5 GB storage",
-    },
     support: ["Priority support", "Audit export / advanced logs"],
-    overage: {
-      dynamicPer1kUsd: 0.013,
-      staticPer1kUsd: 0.0026,
-    },
+    fallbackMonthlyPriceUsd: 39.99,
+    fallbackStaticRequests: 10_000_000,
+    fallbackDynamicRequests: 1_000_000,
+    fallbackStorageBytes: 5_000_000_000,
+    fallbackStaticOveragePer1kUsd: 0.0026,
+    fallbackDynamicOveragePer1kUsd: 0.013,
+    fallbackStorageOveragePerGbUsd: null,
   },
-] as const;
-type PlanId = (typeof PLAN_TIERS)[number]["id"];
-type BillingInterval = "monthly" | "annually";
-type OverageMode = "without_overages" | "with_overages";
+];
+
 const ALWAYS_INCLUDED_FEATURES = [
   "Unlimited projects",
   "Unlimited secrets",
@@ -91,22 +152,220 @@ function formatUsdPerThousand(amount: number): string {
   return `$${fixed}`;
 }
 
+function formatUsdPerGb(amount: number): string {
+  if (amount >= 1) {
+    return formatUsd(amount);
+  }
+  const fixed = amount.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  return `$${fixed}`;
+}
+
+function formatRequestCount(value: number): string {
+  if (value >= 1_000_000 && value % 1_000_000 === 0) {
+    return `${value / 1_000_000}M`;
+  }
+  if (value >= 1_000 && value % 1_000 === 0) {
+    return `${value / 1_000}k`;
+  }
+  return value.toLocaleString();
+}
+
+function formatStorageBytes(value: number): string {
+  if (value >= 1_000_000_000 && value % 1_000_000_000 === 0) {
+    return `${value / 1_000_000_000} GB`;
+  }
+  if (value >= 1_000_000) {
+    const mb = value / 1_000_000;
+    const rounded = mb % 1 === 0 ? mb.toFixed(0) : mb.toFixed(1);
+    return `${rounded} MB`;
+  }
+  return `${value} B`;
+}
+
+function formatUsageProgress(used: number | null, included: number | null, unit: string): string {
+  const usedLabel = used === null ? "0" : unit === "bytes" ? formatStorageBytes(used) : formatRequestCount(used);
+  const includedLabel =
+    included === null
+      ? "unlimited"
+      : unit === "bytes"
+        ? formatStorageBytes(included)
+        : formatRequestCount(included);
+  return `${usedLabel} / ${includedLabel}`;
+}
+
+function formatOverageHint(overageAllowed: boolean | null | undefined): string {
+  if (overageAllowed === true) {
+    return "Overages enabled";
+  }
+  if (overageAllowed === false) {
+    return "Overages disabled";
+  }
+  return "Usage unavailable";
+}
+
 export function Page() {
   const { orgSlug = "org" } = useParams();
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
     expectedOrgSlug: orgSlug,
   });
   const { organization } = useOrganization();
-  const isOrgClaimsLoading = orgClaims === undefined;
-  const currentPlanId: PlanId = "free";
-  const currentPlanIndex = PLAN_TIERS.findIndex((tier) => tier.id === currentPlanId);
+  const getBillingState = useAction(api.payments.getBillingStateForCurrentOrg);
+  const changePlan = useAction(api.payments.changePlanForCurrentOrg);
+  const openBillingPortal = useAction(api.payments.openBillingPortalForCurrentOrg);
+
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [overageMode, setOverageMode] = useState<OverageMode>("without_overages");
+  const [billingState, setBillingState] = useState<BillingState | null>(null);
+  const [isBillingStateLoading, setIsBillingStateLoading] = useState(true);
+  const [isPlanSubmitting, setIsPlanSubmitting] = useState(false);
+  const [isPortalSubmitting, setIsPortalSubmitting] = useState(false);
+
+  const isOrgClaimsLoading = orgClaims === undefined;
 
   useEffect(() => {
     const orgLabel = organization?.name?.trim() || orgSlug;
     document.title = `${orgLabel} · Billing`;
   }, [organization?.name, orgSlug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsBillingStateLoading(true);
+
+    void getBillingState({
+      expectedOrgSlug: orgSlug,
+    })
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setBillingState(result as BillingState);
+        if (result.currentInterval) {
+          setBillingInterval(result.currentInterval);
+        }
+        if (result.currentOverageMode) {
+          setOverageMode(result.currentOverageMode);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : "Failed to load billing details.");
+          setBillingState(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsBillingStateLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getBillingState, orgSlug]);
+
+  const currentPlanId: PlanId | null = billingState?.currentTier ?? null;
+  const currentPlanIndex =
+    currentPlanId === null ? -1 : PLAN_METADATA.findIndex((tier) => tier.id === currentPlanId);
+
+  const planTiers = useMemo(() => {
+    return PLAN_METADATA.map((plan) => {
+      const selectedVariant =
+        billingState?.variants.find(
+          (variant) =>
+            variant.tier === plan.id &&
+            variant.interval === (plan.id === "free" ? "monthly" : billingInterval) &&
+            variant.overageMode ===
+              (plan.id === "free" ? "without_overages" : overageMode),
+        ) ?? null;
+
+      return {
+        ...plan,
+        monthlyPriceUsd: selectedVariant?.monthlyPriceUsd ?? plan.fallbackMonthlyPriceUsd,
+        usage: {
+          staticRequests: `${formatRequestCount(
+            selectedVariant?.includedStaticRequests ?? plan.fallbackStaticRequests,
+          )} static requests`,
+          dynamicRequests: `${formatRequestCount(
+            selectedVariant?.includedDynamicRequests ?? plan.fallbackDynamicRequests,
+          )} dynamic requests`,
+          storage: `${formatStorageBytes(
+            selectedVariant?.includedStorageBytes ?? plan.fallbackStorageBytes,
+          )} storage`,
+        },
+        overage: {
+          staticPer1kUsd:
+            selectedVariant?.staticOveragePer1kUsd ?? plan.fallbackStaticOveragePer1kUsd,
+          dynamicPer1kUsd:
+            selectedVariant?.dynamicOveragePer1kUsd ?? plan.fallbackDynamicOveragePer1kUsd,
+          storagePerGbUsd:
+            selectedVariant?.storageOveragePerGbUsd ?? plan.fallbackStorageOveragePerGbUsd,
+        },
+      };
+    });
+  }, [billingInterval, billingState?.variants, overageMode]);
+
+  async function refreshBillingState(): Promise<void> {
+    const refreshed = await getBillingState({
+      expectedOrgSlug: orgSlug,
+    });
+    setBillingState(refreshed as BillingState);
+  }
+
+  async function handleChangePlan(nextPlanId: PlanId): Promise<void> {
+    if (!billingState || !billingState.canManageBilling || isPlanSubmitting) {
+      return;
+    }
+
+    setIsPlanSubmitting(true);
+    try {
+      const result = await changePlan({
+        expectedOrgSlug: orgSlug,
+        tier: nextPlanId,
+        interval: nextPlanId === "free" ? "monthly" : billingInterval,
+        overageMode: nextPlanId === "free" ? "without_overages" : overageMode,
+        successUrl: window.location.href,
+      });
+
+      if (result.checkoutRequired && result.checkoutUrl) {
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
+
+      toast.success(`Updated plan to ${nextPlanId}.`);
+      try {
+        await refreshBillingState();
+      } catch (refreshError: unknown) {
+        toast.error(
+          refreshError instanceof Error
+            ? refreshError.message
+            : "Plan updated, but failed to refresh billing details.",
+        );
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to update billing plan.");
+    } finally {
+      setIsPlanSubmitting(false);
+    }
+  }
+
+  async function handleOpenBillingPortal(): Promise<void> {
+    if (!billingState || !billingState.canManageBilling || isPortalSubmitting) {
+      return;
+    }
+
+    setIsPortalSubmitting(true);
+    try {
+      const result = await openBillingPortal({
+        expectedOrgSlug: orgSlug,
+        returnUrl: window.location.href,
+      });
+      window.location.assign(result.portalUrl);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to open billing portal.");
+    } finally {
+      setIsPortalSubmitting(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -116,7 +375,7 @@ export function Page() {
         orgName={organization?.name}
         imageUrl={organization?.imageUrl}
         imageSeed={organization?.id}
-        subtitle={<>Organization plans and workspace billing tiers.</>}
+        subtitle={<>Organization plans, usage limits, and workspace billing settings.</>}
         tags={
           <>
             {isOrgClaimsLoading ? (
@@ -124,9 +383,62 @@ export function Page() {
             ) : (
               <OrgRoleBadge role={orgClaims.orgRole} />
             )}
+            {billingState ? (
+              <Badge variant={billingState.canManageBilling ? "default" : "outline"}>
+                {billingState.canManageBilling ? "Billing admin" : "Read-only"}
+              </Badge>
+            ) : null}
+            {billingState?.currentTier === null && !isBillingStateLoading ? (
+              <Badge variant="outline">Planless workspace</Badge>
+            ) : null}
           </>
         }
       />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <OrgMetricCard
+          label="Static Requests"
+          value={
+            billingState
+              ? formatUsageProgress(
+                  billingState.usage.staticRequests.usage,
+                  billingState.usage.staticRequests.includedUsage,
+                  "requests",
+                )
+              : "..."
+          }
+          hint={formatOverageHint(billingState?.usage.staticRequests.overageAllowed)}
+          icon={<IconBolt className="size-4" />}
+        />
+        <OrgMetricCard
+          label="Dynamic Requests"
+          value={
+            billingState
+              ? formatUsageProgress(
+                  billingState.usage.dynamicRequests.usage,
+                  billingState.usage.dynamicRequests.includedUsage,
+                  "requests",
+                )
+              : "..."
+          }
+          hint={formatOverageHint(billingState?.usage.dynamicRequests.overageAllowed)}
+          icon={<IconCpu className="size-4" />}
+        />
+        <OrgMetricCard
+          label="Storage"
+          value={
+            billingState
+              ? formatUsageProgress(
+                  billingState.usage.storageBytes.usage ?? billingState.storageMirrorBytes,
+                  billingState.usage.storageBytes.includedUsage,
+                  "bytes",
+                )
+              : "..."
+          }
+          hint={formatOverageHint(billingState?.usage.storageBytes.overageAllowed)}
+          icon={<IconDatabase className="size-4" />}
+        />
+      </div>
 
       <OrgSectionCard
         title="Plans"
@@ -165,23 +477,43 @@ export function Page() {
               <ToggleGroupItem value="monthly">Monthly</ToggleGroupItem>
               <ToggleGroupItem value="annually">Annually (-20%)</ToggleGroupItem>
             </ToggleGroup>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void handleOpenBillingPortal();
+              }}
+              disabled={
+                isBillingStateLoading ||
+                !billingState?.canManageBilling ||
+                isPortalSubmitting
+              }
+            >
+              {isPortalSubmitting ? "Opening..." : "Manage billing"}
+            </Button>
           </div>
         }
       >
+        {billingState?.currentTier === null && !isBillingStateLoading ? (
+          <div className="mb-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+            This workspace is planless and currently disabled. Select a plan to enable project
+            creation and usage tracking.
+          </div>
+        ) : null}
         <div className="grid gap-3 pb-3 lg:grid-cols-3">
-          {PLAN_TIERS.map((plan, index) => (
+          {planTiers.map((plan, index) => (
             <div key={plan.name} className="relative flex h-full flex-col">
-                {plan.id === "pro" ? (
-                  <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-blue-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
-                    Most popular
-                  </div>
-                ) : null}
-                {plan.id === "max" ? (
-                  <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
-                    Most value
-                  </div>
-                ) : null}
-                <div className="flex h-full flex-col rounded-xl border bg-background/70 p-6">
+              {plan.id === "pro" ? (
+                <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-blue-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
+                  Most popular
+                </div>
+              ) : null}
+              {plan.id === "max" ? (
+                <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
+                  Most value
+                </div>
+              ) : null}
+              <div className="flex h-full flex-col rounded-xl border bg-background/70 p-6">
                 <h3 className="text-xl font-semibold tracking-tight">{plan.name}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {plan.description}{" "}
@@ -193,11 +525,7 @@ export function Page() {
                     <>
                       Available for{" "}
                       <span className="font-semibold text-foreground">
-                        {formatUsd(
-                          billingInterval === "annually"
-                            ? plan.monthlyPriceUsd * 0.8
-                            : plan.monthlyPriceUsd,
-                        )}
+                        {formatUsd(plan.monthlyPriceUsd)}
                       </span>{" "}
                       per month{billingInterval === "annually" ? ", billed annually." : "."}
                     </>
@@ -214,7 +542,7 @@ export function Page() {
                       <IconBolt className="mt-0.5 size-4 shrink-0" />
                       <span>{plan.usage.staticRequests}</span>
                     </div>
-                    {overageMode === "with_overages" && plan.overage ? (
+                    {overageMode === "with_overages" && plan.overage.staticPer1kUsd ? (
                       <p className="ml-6 mt-0.5 text-sm text-foreground/60">
                         then {formatUsdPerThousand(plan.overage.staticPer1kUsd)} per 1,000 static requests
                       </p>
@@ -225,15 +553,22 @@ export function Page() {
                       <IconCpu className="mt-0.5 size-4 shrink-0" />
                       <span>{plan.usage.dynamicRequests}</span>
                     </div>
-                    {overageMode === "with_overages" && plan.overage ? (
+                    {overageMode === "with_overages" && plan.overage.dynamicPer1kUsd ? (
                       <p className="ml-6 mt-0.5 text-sm text-foreground/60">
                         then {formatUsdPerThousand(plan.overage.dynamicPer1kUsd)} per 1,000 dynamic requests
                       </p>
                     ) : null}
                   </div>
-                  <div className="flex items-start gap-2">
-                    <IconDatabase className="mt-0.5 size-4 shrink-0" />
-                    <span>{plan.usage.storage}</span>
+                  <div>
+                    <div className="flex items-start gap-2">
+                      <IconDatabase className="mt-0.5 size-4 shrink-0" />
+                      <span>{plan.usage.storage}</span>
+                    </div>
+                    {overageMode === "with_overages" && plan.overage.storagePerGbUsd ? (
+                      <p className="ml-6 mt-0.5 text-sm text-foreground/60">
+                        then {formatUsdPerGb(plan.overage.storagePerGbUsd)} per 1 GB storage
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="mt-5 space-y-2 text-sm text-muted-foreground">
@@ -265,21 +600,54 @@ export function Page() {
                 </div>
                 <Button
                   className="mt-4"
-                  variant={plan.id === currentPlanId ? "secondary" : index > currentPlanIndex ? "default" : "outline"}
-                  disabled={plan.id === currentPlanId}
+                  variant={
+                    plan.id === currentPlanId
+                      ? "secondary"
+                      : currentPlanId === null
+                        ? plan.id === "pro"
+                          ? "default"
+                          : "outline"
+                        : index > currentPlanIndex
+                        ? "default"
+                        : "outline"
+                  }
+                  disabled={
+                    isBillingStateLoading ||
+                    isPlanSubmitting ||
+                    !billingState?.canManageBilling ||
+                    (currentPlanId !== null &&
+                      plan.id === currentPlanId &&
+                      billingState.currentInterval ===
+                        (plan.id === "free" ? "monthly" : billingInterval) &&
+                      billingState.currentOverageMode ===
+                        (plan.id === "free" ? "without_overages" : overageMode))
+                  }
+                  onClick={() => {
+                    void handleChangePlan(plan.id);
+                  }}
                 >
                   {plan.id === currentPlanId
-                    ? `On ${plan.name}`
-                    : index > currentPlanIndex
-                    ? `Upgrade to ${plan.name}`
-                    : `Downgrade to ${plan.name}`}
+                    ? billingState?.currentInterval ===
+                          (plan.id === "free" ? "monthly" : billingInterval) &&
+                        billingState.currentOverageMode ===
+                          (plan.id === "free" ? "without_overages" : overageMode)
+                      ? `On ${plan.name}`
+                      : `Update ${plan.name}`
+                    : currentPlanId === null
+                      ? plan.id === "free"
+                        ? "Activate Free"
+                        : `Choose ${plan.name}`
+                      : index > currentPlanIndex
+                        ? `Upgrade to ${plan.name}`
+                        : `Downgrade to ${plan.name}`}
                 </Button>
               </div>
             </div>
           ))}
         </div>
         <p className="pt-1 text-xs text-muted-foreground">
-          The Free plan is limited to one organization per user.
+          You can create unlimited organizations. New workspaces start planless and stay disabled
+          until a billing plan is selected.
           {overageMode === "with_overages"
             ? " Overage usage is billed monthly regardless of billing interval."
             : ""}

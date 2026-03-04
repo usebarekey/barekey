@@ -1,4 +1,4 @@
-import { useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   SignedIn,
@@ -25,6 +25,19 @@ import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
 
 type CreateKind = "project" | "organization";
+type PlanId = "free" | "pro" | "max";
+
+type WorkspacePlanStatus = {
+  orgId: string;
+  orgRole: string | null;
+  canManageBilling: boolean;
+  currentProductId: string | null;
+  currentTier: PlanId | null;
+  currentInterval: "monthly" | "annually" | null;
+  currentOverageMode: "without_overages" | "with_overages" | null;
+  isPlanless: boolean;
+  billingUnavailable: boolean;
+};
 
 function resolveCreateKind(value: string | null, fallback: CreateKind): CreateKind {
   if (value === "project" || value === "organization") {
@@ -40,6 +53,14 @@ function getProjectErrorMessage(error: unknown): string {
 
     if (normalizedMessage.includes("project name")) {
       return error.message;
+    }
+
+    if (normalizedMessage.includes("planless")) {
+      return "This workspace is disabled until you select a billing plan.";
+    }
+
+    if (normalizedMessage.includes("billing service")) {
+      return "Billing is temporarily unavailable. Please try again.";
     }
 
     if (
@@ -67,7 +88,8 @@ export function Page() {
   } = useOrganizationList({
     userMemberships: true,
   });
-  const createProject = useMutation(api.projects.createForCurrentOrg);
+  const createProject = useAction(api.projects.createForCurrentOrg);
+  const getWorkspacePlanStatus = useAction(api.payments.getWorkspacePlanStatusForCurrentOrg);
 
   const [organizationName, setOrganizationName] = useState("");
   const [projectName, setProjectName] = useState("");
@@ -76,6 +98,11 @@ export function Page() {
   const [isSwitchingOrganization, setIsSwitchingOrganization] = useState(false);
   const [organizationErrorMessage, setOrganizationErrorMessage] = useState<string | null>(null);
   const [projectErrorMessage, setProjectErrorMessage] = useState<string | null>(null);
+  const [workspacePlanStatus, setWorkspacePlanStatus] = useState<WorkspacePlanStatus | null>(null);
+  const [isWorkspacePlanStatusLoading, setIsWorkspacePlanStatusLoading] = useState(false);
+  const [workspacePlanStatusErrorMessage, setWorkspacePlanStatusErrorMessage] = useState<
+    string | null
+  >(null);
   const memberships = userMemberships.data ?? [];
   const selectableMemberships = memberships.filter(
     (membership) =>
@@ -94,6 +121,44 @@ export function Page() {
   useEffect(() => {
     document.title = createKind === "project" ? "Create Project" : "Create Organization";
   }, [createKind]);
+
+  useEffect(() => {
+    if (!isAuthLoaded || !isSignedIn || !orgSlug || createKind !== "project") {
+      setWorkspacePlanStatus(null);
+      setIsWorkspacePlanStatusLoading(false);
+      setWorkspacePlanStatusErrorMessage(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsWorkspacePlanStatusLoading(true);
+    setWorkspacePlanStatusErrorMessage(null);
+    void getWorkspacePlanStatus({
+      expectedOrgSlug: orgSlug,
+    })
+      .then((result) => {
+        if (!cancelled) {
+          setWorkspacePlanStatus(result as WorkspacePlanStatus);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setWorkspacePlanStatus(null);
+          setWorkspacePlanStatusErrorMessage(
+            getProjectErrorMessage(error) || "Unable to verify workspace billing status.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsWorkspacePlanStatusLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [createKind, getWorkspacePlanStatus, isAuthLoaded, isSignedIn, orgSlug]);
 
   function setCreateKind(nextKind: CreateKind) {
     if (nextKind === createKind) {
@@ -163,6 +228,10 @@ export function Page() {
       !isSignedIn ||
       isProjectSubmitting ||
       isSwitchingOrganization ||
+      isWorkspacePlanStatusLoading ||
+      workspacePlanStatus?.isPlanless === true ||
+      workspacePlanStatus?.billingUnavailable === true ||
+      workspacePlanStatusErrorMessage !== null ||
       !orgSlug ||
       trimmedName.length === 0
     ) {
@@ -216,12 +285,18 @@ export function Page() {
   }
 
   const isCreateOrganizationDisabled =
-    !isOrgListLoaded || isOrganizationSubmitting || organizationName.trim().length === 0;
+    !isOrgListLoaded ||
+    isOrganizationSubmitting ||
+    organizationName.trim().length === 0;
   const isCreateProjectDisabled =
     !isAuthLoaded ||
     !isSignedIn ||
     isProjectSubmitting ||
     isSwitchingOrganization ||
+    isWorkspacePlanStatusLoading ||
+    workspacePlanStatus?.isPlanless === true ||
+    workspacePlanStatus?.billingUnavailable === true ||
+    workspacePlanStatusErrorMessage !== null ||
     !orgSlug ||
     projectName.trim().length === 0;
 
@@ -353,6 +428,21 @@ export function Page() {
 
                 {isSwitchingOrganization ? (
                   <p className="text-xs text-muted-foreground">Switching organization...</p>
+                ) : isWorkspacePlanStatusLoading ? (
+                  <p className="text-xs text-muted-foreground">Checking workspace billing status...</p>
+                ) : workspacePlanStatus?.isPlanless ? (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    This workspace is planless and currently disabled for project creation.
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button variant="outline" render={<Link to={`/o/${orgSlug}/billing`} />}>
+                        Choose billing plan
+                      </Button>
+                    </div>
+                  </div>
+                ) : workspacePlanStatus?.billingUnavailable ? (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    Billing is temporarily unavailable, so project creation is paused right now.
+                  </div>
                 ) : orgSlug ? (
                   <p className="text-xs text-muted-foreground">
                     Creating in workspace <span className="font-mono">{orgSlug}</span>.
@@ -373,6 +463,9 @@ export function Page() {
 
                 {projectErrorMessage ? (
                   <p className="text-sm text-destructive">{projectErrorMessage}</p>
+                ) : null}
+                {workspacePlanStatusErrorMessage ? (
+                  <p className="text-sm text-destructive">{workspacePlanStatusErrorMessage}</p>
                 ) : null}
               </div>
             )}

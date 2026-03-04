@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -46,6 +46,14 @@ function getErrorMessage(error: unknown): string {
       return error.message;
     }
 
+    if (normalizedMessage.includes("planless")) {
+      return "This workspace is disabled until you select a billing plan.";
+    }
+
+    if (normalizedMessage.includes("billing service")) {
+      return "Billing is temporarily unavailable. Please try again.";
+    }
+
     if (
       normalizedMessage.includes("workspace") ||
       normalizedMessage.includes("organization") ||
@@ -64,8 +72,15 @@ export function Page() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isWorkspacePlanStatusLoading, setIsWorkspacePlanStatusLoading] = useState(true);
+  const [isWorkspacePlanless, setIsWorkspacePlanless] = useState(false);
+  const [isWorkspaceBillingUnavailable, setIsWorkspaceBillingUnavailable] = useState(false);
+  const [workspacePlanStatusErrorMessage, setWorkspacePlanStatusErrorMessage] = useState<
+    string | null
+  >(null);
   const dialogInputRef = useRef<HTMLInputElement | null>(null);
-  const createProject = useMutation(api.projects.createForCurrentOrg);
+  const createProject = useAction(api.projects.createForCurrentOrg);
+  const getWorkspacePlanStatus = useAction(api.payments.getWorkspacePlanStatusForCurrentOrg);
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
     expectedOrgSlug: orgSlug,
   });
@@ -77,8 +92,17 @@ export function Page() {
   const isClaimsLoading = orgClaims === undefined;
   const isMissingWorkspaceLink =
     orgClaims !== undefined && orgClaims.isSignedIn && orgClaims.orgId === null;
+  const isCreateBlockedByBilling =
+    isWorkspacePlanStatusLoading ||
+    isWorkspacePlanless ||
+    isWorkspaceBillingUnavailable ||
+    workspacePlanStatusErrorMessage !== null;
   const isCreateDisabled =
-    isSubmitting || isClaimsLoading || isMissingWorkspaceLink || name.trim().length === 0;
+    isSubmitting ||
+    isClaimsLoading ||
+    isMissingWorkspaceLink ||
+    isCreateBlockedByBilling ||
+    name.trim().length === 0;
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredProjects = (projects ?? []).filter((project) => {
     if (normalizedQuery.length === 0) {
@@ -92,19 +116,64 @@ export function Page() {
     !isMissingWorkspaceLink &&
     projects.length === 0 &&
     filteredProjects.length === 0;
-  const showNoMatchesEmpty =
-    projects !== undefined &&
-    !isMissingWorkspaceLink &&
-    projects.length > 0 &&
-    filteredProjects.length === 0;
-
   useEffect(() => {
     const orgLabel = organization?.name?.trim() || orgSlug;
     document.title = `${orgLabel} · Projects`;
   }, [organization?.name, orgSlug]);
 
+  useEffect(() => {
+    if (
+      orgClaims === undefined ||
+      !orgClaims.isSignedIn ||
+      orgClaims.orgId === null ||
+      !orgClaims.routeMatchesActiveOrg
+    ) {
+      setIsWorkspacePlanStatusLoading(false);
+      setIsWorkspacePlanless(false);
+      setIsWorkspaceBillingUnavailable(false);
+      setWorkspacePlanStatusErrorMessage(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsWorkspacePlanStatusLoading(true);
+    setIsWorkspacePlanless(false);
+    setIsWorkspaceBillingUnavailable(false);
+    setWorkspacePlanStatusErrorMessage(null);
+
+    void getWorkspacePlanStatus({
+      expectedOrgSlug: orgSlug,
+    })
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setIsWorkspacePlanless(result.isPlanless);
+        setIsWorkspaceBillingUnavailable(result.billingUnavailable);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setWorkspacePlanStatusErrorMessage(
+          error instanceof Error && error.message.length > 0
+            ? error.message
+            : "Unable to verify workspace billing status.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsWorkspacePlanStatusLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getWorkspacePlanStatus, orgClaims, orgSlug]);
+
   function openCreateDialog() {
-    if (isClaimsLoading || isMissingWorkspaceLink) {
+    if (isClaimsLoading || isMissingWorkspaceLink || isCreateBlockedByBilling) {
       return;
     }
 
@@ -114,7 +183,13 @@ export function Page() {
 
   async function handleCreateProject() {
     const trimmedName = name.trim();
-    if (trimmedName.length === 0 || isSubmitting || isClaimsLoading || isMissingWorkspaceLink) {
+    if (
+      trimmedName.length === 0 ||
+      isSubmitting ||
+      isClaimsLoading ||
+      isMissingWorkspaceLink ||
+      isCreateBlockedByBilling
+    ) {
       return;
     }
 
@@ -167,6 +242,31 @@ export function Page() {
                 className="pl-9"
               />
             </div>
+            {isWorkspacePlanStatusLoading ? (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                Checking workspace billing status...
+              </div>
+            ) : null}
+            {!isWorkspacePlanStatusLoading && isWorkspacePlanless ? (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                This workspace is planless and currently disabled for project creation.
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button variant="outline" nativeButton={false} render={<Link to={`/o/${orgSlug}/billing`} />}>
+                    Choose billing plan
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {!isWorkspacePlanStatusLoading && isWorkspaceBillingUnavailable ? (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                Billing is temporarily unavailable, so project creation is paused right now.
+              </div>
+            ) : null}
+            {workspacePlanStatusErrorMessage ? (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-destructive">
+                {workspacePlanStatusErrorMessage}
+              </div>
+            ) : null}
 
             {projects === undefined ? (
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -196,16 +296,23 @@ export function Page() {
                   </EmptyMedia>
                   <EmptyTitle>{showNoProjectsEmpty ? "No projects yet" : "No matching projects"}</EmptyTitle>
                   <EmptyDescription>
-                    Create your first project in this workspace.
+                    {isWorkspacePlanless
+                      ? "Select a billing plan to enable project creation in this workspace."
+                      : "Create your first project in this workspace."}
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent className="sm:flex-row sm:justify-center">
                   <Button
-                    disabled={isSubmitting || isClaimsLoading || isMissingWorkspaceLink}
+                    disabled={
+                      isSubmitting ||
+                      isClaimsLoading ||
+                      isMissingWorkspaceLink ||
+                      isCreateBlockedByBilling
+                    }
                     onClick={openCreateDialog}
                   >
                     <IconPlus />
-                    Create project
+                    {isWorkspacePlanless ? "Project creation disabled" : "Create project"}
                   </Button>
                   {projects !== undefined && projects.length > 0 && normalizedQuery.length > 0 ? (
                     <Button variant="outline" onClick={() => setSearchQuery("")}>
