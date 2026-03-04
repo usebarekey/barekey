@@ -245,6 +245,23 @@ type BillingStateResponse = {
   variants: Array<BillingVariant>;
 };
 
+type WorkspacePlanStatusResponse = {
+  orgId: string;
+  orgRole: string | null;
+  canManageBilling: boolean;
+  currentProductId: string | null;
+  currentTier: BillingTierValue | null;
+  currentInterval: BillingIntervalValue | null;
+  currentOverageMode: OverageModeValue | null;
+  isPlanless: boolean;
+  billingUnavailable: boolean;
+};
+
+type ReserveFeatureUnitsResult = {
+  reservedUnits: number;
+  errorCode: "USAGE_LIMIT_EXCEEDED" | "BILLING_UNAVAILABLE" | null;
+};
+
 function normalizeFiniteNumber(input: unknown): number | null {
   return typeof input === "number" && Number.isFinite(input) ? input : null;
 }
@@ -422,6 +439,27 @@ function readCurrentProductId(customerData: unknown): string | null {
     normalized.find((entry) => entry.status === "past_due") ??
     normalized.find((entry) => entry.status === "scheduled");
   return active?.id ?? null;
+}
+
+function readCurrentVariantFromProductId(input: string | null): {
+  tier: BillingTierValue;
+  interval: BillingIntervalValue;
+  overageMode: OverageModeValue;
+} | null {
+  if (input === null) {
+    return null;
+  }
+
+  const matched = DEFAULT_VARIANTS.find((variant) => variant.productId === input);
+  if (!matched) {
+    return null;
+  }
+
+  return {
+    tier: matched.tier,
+    interval: matched.interval,
+    overageMode: matched.overageMode,
+  };
 }
 
 async function readFeatureUsage(
@@ -655,8 +693,13 @@ export const reserveFeatureUnitsForCurrentOrgInternal = internalAction({
   },
   returns: v.object({
     reservedUnits: v.number(),
+    errorCode: v.union(
+      v.literal("USAGE_LIMIT_EXCEEDED"),
+      v.literal("BILLING_UNAVAILABLE"),
+      v.null(),
+    ),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<ReserveFeatureUnitsResult> => {
     const identity = await requireIdentity(ctx);
     const activeOrg = requireActiveOrgIdClaims(identity);
     if (activeOrg.orgSlug !== null) {
@@ -666,6 +709,7 @@ export const reserveFeatureUnitsForCurrentOrgInternal = internalAction({
     if (!Number.isFinite(args.units) || args.units <= 0) {
       return {
         reservedUnits: 0,
+        errorCode: null,
       };
     }
 
@@ -676,14 +720,118 @@ export const reserveFeatureUnitsForCurrentOrgInternal = internalAction({
     });
 
     if (result.error !== null || result.data === null) {
-      throw new Error("Billing service is temporarily unavailable.");
+      return {
+        reservedUnits: 0,
+        errorCode: "BILLING_UNAVAILABLE",
+      };
     }
     if (!result.data.allowed) {
-      throw new Error("Usage limit exceeded for this workspace plan.");
+      return {
+        reservedUnits: 0,
+        errorCode: "USAGE_LIMIT_EXCEEDED",
+      };
     }
 
     return {
       reservedUnits: args.units,
+      errorCode: null,
+    };
+  },
+});
+
+export const getWorkspacePlanStatusForCurrentOrg = action({
+  args: {
+    expectedOrgSlug: v.string(),
+  },
+  returns: v.object({
+    orgId: v.string(),
+    orgRole: v.union(v.string(), v.null()),
+    canManageBilling: v.boolean(),
+    currentProductId: v.union(v.string(), v.null()),
+    currentTier: v.union(v.literal("free"), v.literal("pro"), v.literal("max"), v.null()),
+    currentInterval: v.union(v.literal("monthly"), v.literal("annually"), v.null()),
+    currentOverageMode: v.union(
+      v.literal("without_overages"),
+      v.literal("with_overages"),
+      v.null(),
+    ),
+    isPlanless: v.boolean(),
+    billingUnavailable: v.boolean(),
+  }),
+  handler: async (ctx, args): Promise<WorkspacePlanStatusResponse> => {
+    const identity = await requireIdentity(ctx);
+    const activeOrg = requireActiveOrgIdClaims(identity);
+    if (activeOrg.orgSlug !== null) {
+      assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+    }
+
+    const customerResult = await ctx.runAction(api.autumn.createCustomer, {
+      errorOnNotFound: false,
+    });
+    if (customerResult.error !== null) {
+      return {
+        orgId: activeOrg.orgId,
+        orgRole: activeOrg.orgRole,
+        canManageBilling: isBillingManagerRole(activeOrg.orgRole),
+        currentProductId: null,
+        currentTier: null,
+        currentInterval: null,
+        currentOverageMode: null,
+        isPlanless: false,
+        billingUnavailable: true,
+      };
+    }
+
+    const currentProductId = readCurrentProductId(customerResult.data);
+    const currentVariant = readCurrentVariantFromProductId(currentProductId);
+
+    return {
+      orgId: activeOrg.orgId,
+      orgRole: activeOrg.orgRole,
+      canManageBilling: isBillingManagerRole(activeOrg.orgRole),
+      currentProductId,
+      currentTier: currentVariant?.tier ?? null,
+      currentInterval: currentVariant?.interval ?? null,
+      currentOverageMode: currentVariant?.overageMode ?? null,
+      isPlanless: currentProductId === null,
+      billingUnavailable: false,
+    };
+  },
+});
+
+export const assertWorkspacePlanForCurrentOrgInternal = internalAction({
+  args: {
+    expectedOrgSlug: v.string(),
+  },
+  returns: v.object({
+    orgId: v.string(),
+    currentProductId: v.string(),
+    currentTier: v.union(v.literal("free"), v.literal("pro"), v.literal("max"), v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    const activeOrg = requireActiveOrgIdClaims(identity);
+    if (activeOrg.orgSlug !== null) {
+      assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+    }
+
+    const customerResult = await ctx.runAction(api.autumn.createCustomer, {
+      errorOnNotFound: false,
+    });
+    if (customerResult.error !== null) {
+      throw new Error("Billing service is temporarily unavailable.");
+    }
+
+    const currentProductId = readCurrentProductId(customerResult.data);
+    if (currentProductId === null) {
+      throw new Error("This workspace is planless. Choose a billing plan to enable projects.");
+    }
+
+    const currentVariant = readCurrentVariantFromProductId(currentProductId);
+    return {
+      orgId: activeOrg.orgId,
+      currentProductId,
+      currentTier: currentVariant?.tier ?? null,
     };
   },
 });
@@ -792,17 +940,22 @@ export const getBillingStateForCurrentOrg = action({
     const storageUsage: FeatureUsage = resultBundle[4];
 
     const currentProductId = readCurrentProductId(customerResult.data);
-    const currentVariant: BillingVariant | null =
+    const currentVariantFromCatalog: BillingVariant | null =
       variants.find((variant) => variant.productId === currentProductId) ?? null;
+    const currentVariantFromFallback = readCurrentVariantFromProductId(currentProductId);
 
     return {
       orgId: activeOrg.orgId,
       orgRole: activeOrg.orgRole,
       canManageBilling: isBillingManagerRole(activeOrg.orgRole),
       currentProductId,
-      currentTier: currentVariant?.tier ?? null,
-      currentInterval: currentVariant?.interval ?? null,
-      currentOverageMode: currentVariant?.overageMode ?? null,
+      currentTier: currentVariantFromCatalog?.tier ?? currentVariantFromFallback?.tier ?? null,
+      currentInterval:
+        currentVariantFromCatalog?.interval ?? currentVariantFromFallback?.interval ?? null,
+      currentOverageMode:
+        currentVariantFromCatalog?.overageMode ??
+        currentVariantFromFallback?.overageMode ??
+        null,
       usage: {
         staticRequests: staticUsage,
         dynamicRequests: dynamicUsage,

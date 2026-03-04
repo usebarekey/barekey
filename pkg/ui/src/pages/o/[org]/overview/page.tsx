@@ -1,4 +1,4 @@
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import {
   IconArrowUpRight,
   IconArrowRight,
@@ -8,7 +8,7 @@ import {
 } from "@tabler/icons-react";
 import { useOrganization } from "@clerk/react-router";
 import { Link, useParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { api } from "@convex/_generated/api";
 import {
@@ -29,6 +29,9 @@ export function Page() {
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
+  const getWorkspacePlanStatus = useAction(api.payments.getWorkspacePlanStatusForCurrentOrg);
+  const [isWorkspacePlanless, setIsWorkspacePlanless] = useState(false);
+  const [isWorkspaceBillingUnavailable, setIsWorkspaceBillingUnavailable] = useState(false);
   const { organization } = useOrganization();
   const recentProjects = (projects ?? []).slice(0, 5);
   const isOrgClaimsLoading = orgClaims === undefined;
@@ -37,6 +40,29 @@ export function Page() {
     const orgLabel = organization?.name?.trim() || orgSlug;
     document.title = `${orgLabel} · Overview`;
   }, [organization?.name, orgSlug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getWorkspacePlanStatus({
+      expectedOrgSlug: orgSlug,
+    })
+      .then((result) => {
+        if (!cancelled) {
+          setIsWorkspacePlanless(result.isPlanless);
+          setIsWorkspaceBillingUnavailable(result.billingUnavailable);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIsWorkspacePlanless(false);
+          setIsWorkspaceBillingUnavailable(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getWorkspacePlanStatus, orgSlug]);
 
   return (
     <div className="space-y-6">
@@ -54,9 +80,30 @@ export function Page() {
             ) : (
               <OrgRoleBadge role={orgClaims.orgRole} />
             )}
+            {isWorkspacePlanless ? <Badge variant="outline">Planless workspace</Badge> : null}
           </>
         }
       />
+
+      {isWorkspacePlanless ? (
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+          This workspace is planless and currently disabled for project creation.
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-3"
+            nativeButton={false}
+            render={<Link to={`/o/${orgSlug}/billing`} />}
+          >
+            Choose billing plan
+          </Button>
+        </div>
+      ) : null}
+      {!isWorkspacePlanless && isWorkspaceBillingUnavailable ? (
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+          Billing status is temporarily unavailable.
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <OrgMetricCard

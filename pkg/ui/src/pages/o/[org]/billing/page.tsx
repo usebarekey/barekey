@@ -263,8 +263,9 @@ export function Page() {
     };
   }, [getBillingState, orgSlug]);
 
-  const currentPlanId: PlanId = billingState?.currentTier ?? "free";
-  const currentPlanIndex = PLAN_METADATA.findIndex((tier) => tier.id === currentPlanId);
+  const currentPlanId: PlanId | null = billingState?.currentTier ?? null;
+  const currentPlanIndex =
+    currentPlanId === null ? -1 : PLAN_METADATA.findIndex((tier) => tier.id === currentPlanId);
 
   const planTiers = useMemo(() => {
     return PLAN_METADATA.map((plan) => {
@@ -387,6 +388,9 @@ export function Page() {
                 {billingState.canManageBilling ? "Billing admin" : "Read-only"}
               </Badge>
             ) : null}
+            {billingState?.currentTier === null && !isBillingStateLoading ? (
+              <Badge variant="outline">Planless workspace</Badge>
+            ) : null}
           </>
         }
       />
@@ -490,6 +494,12 @@ export function Page() {
           </div>
         }
       >
+        {billingState?.currentTier === null && !isBillingStateLoading ? (
+          <div className="mb-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+            This workspace is planless and currently disabled. Select a plan to enable project
+            creation and usage tracking.
+          </div>
+        ) : null}
         <div className="grid gap-3 pb-3 lg:grid-cols-3">
           {planTiers.map((plan, index) => (
             <div key={plan.name} className="relative flex h-full flex-col">
@@ -593,7 +603,11 @@ export function Page() {
                   variant={
                     plan.id === currentPlanId
                       ? "secondary"
-                      : index > currentPlanIndex
+                      : currentPlanId === null
+                        ? plan.id === "pro"
+                          ? "default"
+                          : "outline"
+                        : index > currentPlanIndex
                         ? "default"
                         : "outline"
                   }
@@ -601,7 +615,7 @@ export function Page() {
                     isBillingStateLoading ||
                     isPlanSubmitting ||
                     !billingState?.canManageBilling ||
-                    plan.id === currentPlanId
+                    (currentPlanId !== null && plan.id === currentPlanId)
                   }
                   onClick={() => {
                     void handleChangePlan(plan.id);
@@ -609,16 +623,21 @@ export function Page() {
                 >
                   {plan.id === currentPlanId
                     ? `On ${plan.name}`
-                    : index > currentPlanIndex
-                      ? `Upgrade to ${plan.name}`
-                      : `Downgrade to ${plan.name}`}
+                    : currentPlanId === null
+                      ? plan.id === "free"
+                        ? "Activate Free"
+                        : `Choose ${plan.name}`
+                      : index > currentPlanIndex
+                        ? `Upgrade to ${plan.name}`
+                        : `Downgrade to ${plan.name}`}
                 </Button>
               </div>
             </div>
           ))}
         </div>
         <p className="pt-1 text-xs text-muted-foreground">
-          The Free plan is limited to one organization per user.
+          You can create unlimited organizations. New workspaces start planless and stay disabled
+          until a billing plan is selected.
           {overageMode === "with_overages"
             ? " Overage usage is billed monthly regardless of billing interval."
             : ""}

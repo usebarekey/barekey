@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 
-import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { action, internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import {
   assertExpectedOrgSlug,
@@ -73,6 +75,18 @@ const projectListItemValidator = v.object({
   secretCount: v.number(),
 });
 
+type ProjectSummary = {
+  id: Id<"projects">;
+  orgId: string;
+  orgSlug: string;
+  name: string;
+  slug: string;
+  slugBase: string;
+  createdByClerkUserId: string;
+  createdAtMs: number;
+  updatedAtMs: number;
+};
+
 const DEFAULT_PROJECT_STAGES = [
   {
     slug: "development",
@@ -88,13 +102,46 @@ const DEFAULT_PROJECT_STAGES = [
   },
 ] as const;
 
-export const createForCurrentOrg = mutation({
+export const createForCurrentOrg = action({
   args: {
     expectedOrgSlug: v.string(),
     name: v.string(),
   },
   returns: projectSummaryValidator,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<ProjectSummary> => {
+    const identity = await requireIdentity(ctx);
+    const activeOrg = requireActiveOrgIdClaims(identity);
+    if (activeOrg.orgSlug !== null) {
+      assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+    }
+
+    const trimmedName = args.name.trim();
+    if (trimmedName.length === 0) {
+      throw new Error("Project name is required.");
+    }
+
+    if (trimmedName.length > 120) {
+      throw new Error("Project name must be 120 characters or fewer.");
+    }
+
+    await ctx.runAction(internal.payments.assertWorkspacePlanForCurrentOrgInternal, {
+      expectedOrgSlug: args.expectedOrgSlug,
+    });
+
+    return await ctx.runMutation(internal.projects.createForCurrentOrgInternal, {
+      expectedOrgSlug: args.expectedOrgSlug,
+      name: trimmedName,
+    });
+  },
+});
+
+export const createForCurrentOrgInternal = internalMutation({
+  args: {
+    expectedOrgSlug: v.string(),
+    name: v.string(),
+  },
+  returns: projectSummaryValidator,
+  handler: async (ctx, args): Promise<ProjectSummary> => {
     const identity = await requireIdentity(ctx);
     const activeOrg = requireActiveOrgIdClaims(identity);
     if (activeOrg.orgSlug !== null) {

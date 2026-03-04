@@ -419,7 +419,8 @@ export function Page() {
           </div>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            The Free plan is limited to one organization per user.
+            You can create unlimited organizations. New workspaces start planless and stay disabled
+            until a billing plan is selected.
             {overageMode === "with_overages"
               ? " Overage usage is billed monthly regardless of billing interval."
               : ""}

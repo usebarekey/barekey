@@ -291,6 +291,12 @@ export const applyDraftForCurrentOrgProjectStage = action({
           reason: "project_variables_apply_draft",
         },
       );
+      if (reservation.errorCode === "USAGE_LIMIT_EXCEEDED") {
+        throw new Error("Usage limit exceeded for this workspace plan.");
+      }
+      if (reservation.errorCode === "BILLING_UNAVAILABLE") {
+        throw new Error("Billing service is temporarily unavailable.");
+      }
       reservedStorageUnits = reservation.reservedUnits;
     }
 
