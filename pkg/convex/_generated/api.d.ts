@@ -9,6 +9,7 @@
  */
 
 import type * as autumn from "../autumn.js";
+import type * as cli_auth from "../cli_auth.js";
 import type * as dev_auth from "../dev_auth.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -18,6 +19,7 @@ import type * as payments from "../payments.js";
 import type * as project_stages from "../project_stages.js";
 import type * as project_variables from "../project_variables.js";
 import type * as projects from "../projects.js";
+import type * as typegen from "../typegen.js";
 import type * as user_preferences from "../user_preferences.js";
 import type * as users from "../users.js";
 
@@ -29,6 +31,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   autumn: typeof autumn;
+  cli_auth: typeof cli_auth;
   dev_auth: typeof dev_auth;
   http: typeof http;
   "lib/auth": typeof lib_auth;
@@ -38,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   project_stages: typeof project_stages;
   project_variables: typeof project_variables;
   projects: typeof projects;
+  typegen: typeof typegen;
   user_preferences: typeof user_preferences;
   users: typeof users;
 }>;

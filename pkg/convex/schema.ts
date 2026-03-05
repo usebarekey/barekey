@@ -102,4 +102,45 @@ export default defineSchema({
   })
     .index("by_org_id_and_request_key", ["orgId", "requestKey"])
     .index("by_org_id_and_created_at_ms", ["orgId", "createdAtMs"]),
+  cliDeviceCodes: defineTable({
+    deviceCodeHash: v.string(),
+    userCode: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("exchanged"),
+      v.literal("expired"),
+    ),
+    clientName: v.union(v.string(), v.null()),
+    approvedAtMs: v.union(v.number(), v.null()),
+    approvedByClerkUserId: v.union(v.string(), v.null()),
+    approvedOrgId: v.union(v.string(), v.null()),
+    approvedOrgSlug: v.union(v.string(), v.null()),
+    exchangedAtMs: v.union(v.number(), v.null()),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+    expiresAtMs: v.number(),
+    intervalSec: v.number(),
+  })
+    .index("by_device_code_hash", ["deviceCodeHash"])
+    .index("by_user_code_and_status", ["userCode", "status"])
+    .index("by_status_and_expires_at_ms", ["status", "expiresAtMs"]),
+  cliSessions: defineTable({
+    sessionId: v.string(),
+    clerkUserId: v.string(),
+    orgId: v.string(),
+    orgSlug: v.string(),
+    accessTokenHash: v.string(),
+    refreshTokenHash: v.string(),
+    accessTokenExpiresAtMs: v.number(),
+    refreshTokenExpiresAtMs: v.number(),
+    revokedAtMs: v.union(v.number(), v.null()),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+    lastUsedAtMs: v.number(),
+  })
+    .index("by_session_id", ["sessionId"])
+    .index("by_access_token_hash", ["accessTokenHash"])
+    .index("by_refresh_token_hash", ["refreshTokenHash"])
+    .index("by_clerk_user_id_and_org_id", ["clerkUserId", "orgId"]),
 });
