@@ -1,9 +1,4 @@
-import {
-  useAuth,
-  useClerk,
-  useSessionList,
-  useUser,
-} from "@clerk/react-router";
+import { useAuth, useClerk, useSessionList, useUser } from "@clerk/react-router";
 import {
   IconAlertTriangle,
   IconBrandGithubFilled,
@@ -19,13 +14,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 function formatDateTime(timestampMs: number | null): string {
@@ -34,6 +23,14 @@ function formatDateTime(timestampMs: number | null): string {
   }
 
   return new Date(timestampMs).toLocaleString();
+}
+
+function formatSessionIdForDisplay(sessionId: string): string {
+  if (sessionId.length <= 16) {
+    return sessionId;
+  }
+
+  return `${sessionId.slice(0, 8)}...${sessionId.slice(-4)}`;
 }
 
 function getProviderIcon(provider: string, sizeClass = "size-8") {
@@ -70,19 +67,13 @@ export function Page() {
   const { sessionId: activeSessionId } = useAuth();
   const { user, isLoaded: isUserLoaded } = useUser();
   const { sessions, isLoaded: isSessionsLoaded } = useSessionList();
-  const [unlinkingAccountId, setUnlinkingAccountId] = useState<string | null>(
-    null,
-  );
+  const [unlinkingAccountId, setUnlinkingAccountId] = useState<string | null>(null);
   const [unlinkError, setUnlinkError] = useState<string | null>(null);
   const [linkingProvider, setLinkingProvider] = useState<string | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
-  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(
-    null,
-  );
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
   const [isRevokingOtherSessions, setIsRevokingOtherSessions] = useState(false);
-  const [sessionActionError, setSessionActionError] = useState<string | null>(
-    null,
-  );
+  const [sessionActionError, setSessionActionError] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -90,16 +81,12 @@ export function Page() {
   const externalAccounts = user?.externalAccounts ?? [];
   const availableSessions = sessions ?? [];
   const passkeys = user?.passkeys ?? [];
-  const linkedProviderLabels = externalAccounts.map((account) =>
-    account.provider.toLowerCase(),
-  );
+  const linkedProviderLabels = externalAccounts.map((account) => account.provider.toLowerCase());
   const unlinkedProviders = [
     { strategy: "oauth_github", label: "GitHub", match: "github" },
     { strategy: "oauth_google", label: "Google", match: "google" },
   ].filter((provider) =>
-    linkedProviderLabels.every(
-      (linkedProvider) => !linkedProvider.includes(provider.match),
-    ),
+    linkedProviderLabels.every((linkedProvider) => !linkedProvider.includes(provider.match)),
   );
 
   async function handleUnlinkAccount(accountId: string) {
@@ -118,9 +105,7 @@ export function Page() {
       await account.destroy();
       await user.reload();
     } catch (error: unknown) {
-      setUnlinkError(
-        error instanceof Error ? error.message : "Failed to unlink account.",
-      );
+      setUnlinkError(error instanceof Error ? error.message : "Failed to unlink account.");
     } finally {
       setUnlinkingAccountId(null);
     }
@@ -139,11 +124,7 @@ export function Page() {
         redirectUrl: window.location.href,
       });
     } catch (error: unknown) {
-      setLinkError(
-        error instanceof Error
-          ? error.message
-          : "Failed to start provider linking.",
-      );
+      setLinkError(error instanceof Error ? error.message : "Failed to start provider linking.");
       setLinkingProvider(null);
     }
   }
@@ -154,9 +135,7 @@ export function Page() {
       return;
     }
 
-    const nextSession = availableSessions.find(
-      (session) => session.id === sessionId,
-    );
+    const nextSession = availableSessions.find((session) => session.id === sessionId);
     if (!nextSession) {
       return;
     }
@@ -166,18 +145,14 @@ export function Page() {
     try {
       await nextSession.remove();
     } catch (error: unknown) {
-      setSessionActionError(
-        error instanceof Error ? error.message : "Failed to revoke session.",
-      );
+      setSessionActionError(error instanceof Error ? error.message : "Failed to revoke session.");
     } finally {
       setRevokingSessionId(null);
     }
   }
 
   async function handleRevokeOtherSessions() {
-    const otherSessions = availableSessions.filter(
-      (session) => session.id !== activeSessionId,
-    );
+    const otherSessions = availableSessions.filter((session) => session.id !== activeSessionId);
     if (otherSessions.length === 0) {
       return;
     }
@@ -190,9 +165,7 @@ export function Page() {
       }
     } catch (error: unknown) {
       setSessionActionError(
-        error instanceof Error
-          ? error.message
-          : "Failed to revoke all other sessions.",
+        error instanceof Error ? error.message : "Failed to revoke all other sessions.",
       );
     } finally {
       setIsRevokingOtherSessions(false);
@@ -218,9 +191,7 @@ export function Page() {
       await user.delete();
       await clerk.signOut({ redirectUrl: "/auth/sso" });
     } catch (error: unknown) {
-      setDeleteError(
-        error instanceof Error ? error.message : "Failed to delete account.",
-      );
+      setDeleteError(error instanceof Error ? error.message : "Failed to delete account.");
     } finally {
       setIsDeletingAccount(false);
     }
@@ -242,9 +213,7 @@ export function Page() {
         <CardContent className="space-y-4">
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="rounded-lg border bg-background/70 p-3">
-              <p className="text-xs text-muted-foreground">
-                Connected accounts
-              </p>
+              <p className="text-xs text-muted-foreground">Connected accounts</p>
               <p className="mt-1 text-2xl font-semibold">
                 {isUserLoaded ? externalAccounts.length : "..."}
               </p>
@@ -256,9 +225,7 @@ export function Page() {
               </p>
             </div>
             <div className="rounded-lg border bg-background/70 p-3">
-              <p className="text-xs text-muted-foreground">
-                Active sessions on this device
-              </p>
+              <p className="text-xs text-muted-foreground">Active sessions on this device</p>
               <p className="mt-1 text-2xl font-semibold">
                 {isSessionsLoaded ? availableSessions.length : "..."}
               </p>
@@ -268,19 +235,13 @@ export function Page() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              disabled={
-                !isSessionsLoaded ||
-                isRevokingOtherSessions ||
-                otherSessionsCount === 0
-              }
+              disabled={!isSessionsLoaded || isRevokingOtherSessions || otherSessionsCount === 0}
               onClick={() => {
                 void handleRevokeOtherSessions();
               }}
             >
               <IconLogout2 className="size-4" />
-              {isRevokingOtherSessions
-                ? "Revoking..."
-                : "Revoke other sessions"}
+              {isRevokingOtherSessions ? "Revoking..." : "Revoke other sessions"}
             </Button>
           </div>
           {sessionActionError ? (
@@ -296,13 +257,9 @@ export function Page() {
           </CardHeader>
           <CardContent className="space-y-2">
             {!isUserLoaded ? (
-              <p className="text-sm text-muted-foreground">
-                Loading linked account details...
-              </p>
+              <p className="text-sm text-muted-foreground">Loading linked account details...</p>
             ) : externalAccounts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No linked third-party accounts.
-              </p>
+              <p className="text-sm text-muted-foreground">No linked third-party accounts.</p>
             ) : (
               externalAccounts.map((account) => (
                 <div
@@ -314,9 +271,7 @@ export function Page() {
                       {getProviderIcon(account.provider)}
                     </span>
                     <div>
-                      <p className="text-sm font-medium">
-                        {formatProviderName(account.provider)}
-                      </p>
+                      <p className="text-sm font-medium">{formatProviderName(account.provider)}</p>
                       <p className="text-xs text-muted-foreground">
                         {account.emailAddress ?? "No email shared"}
                       </p>
@@ -331,21 +286,15 @@ export function Page() {
                     }}
                   >
                     <IconUnlink className="size-3.5" />
-                    {unlinkingAccountId === account.id
-                      ? "Unlinking..."
-                      : "Unlink"}
+                    {unlinkingAccountId === account.id ? "Unlinking..." : "Unlink"}
                   </Button>
                 </div>
               ))
             )}
-            {unlinkError ? (
-              <p className="text-sm text-destructive">{unlinkError}</p>
-            ) : null}
+            {unlinkError ? <p className="text-sm text-destructive">{unlinkError}</p> : null}
             {unlinkedProviders.length > 0 ? (
               <div className="rounded-lg border bg-background/70 p-3">
-                <p className="text-xs text-muted-foreground">
-                  Available to link
-                </p>
+                <p className="text-xs text-muted-foreground">Available to link</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {unlinkedProviders.map((provider) => (
                     <Button
@@ -366,9 +315,7 @@ export function Page() {
                     </Button>
                   ))}
                 </div>
-                {linkError ? (
-                  <p className="mt-2 text-sm text-destructive">{linkError}</p>
-                ) : null}
+                {linkError ? <p className="mt-2 text-sm text-destructive">{linkError}</p> : null}
               </div>
             ) : null}
           </CardContent>
@@ -382,21 +329,16 @@ export function Page() {
           </CardHeader>
           <CardContent className="space-y-2">
             {!isSessionsLoaded ? (
-              <p className="text-sm text-muted-foreground">
-                Loading sessions...
-              </p>
+              <p className="text-sm text-muted-foreground">Loading sessions...</p>
             ) : availableSessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No device sessions available.
-              </p>
+              <p className="text-sm text-muted-foreground">No device sessions available.</p>
             ) : (
               availableSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="rounded-lg border bg-background/70 p-3 text-sm"
-                >
+                <div key={session.id} className="rounded-lg border bg-background/70 p-3 text-sm">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground">Session</p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      Session {formatSessionIdForDisplay(session.id)}
+                    </p>
                     <div className="flex items-center gap-2">
                       {session.id === activeSessionId ? (
                         <Badge variant="outline">Current</Badge>
@@ -409,8 +351,7 @@ export function Page() {
                         variant="outline"
                         size="sm"
                         disabled={
-                          session.id === activeSessionId ||
-                          revokingSessionId === session.id
+                          session.id === activeSessionId || revokingSessionId === session.id
                         }
                         onClick={() => {
                           void handleRevokeSession(session.id);
@@ -428,11 +369,7 @@ export function Page() {
                   <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                     <IconClock className="size-3.5" />
                     Last active:{" "}
-                    {formatDateTime(
-                      session.lastActiveAt
-                        ? session.lastActiveAt.getTime()
-                        : null,
-                    )}
+                    {formatDateTime(session.lastActiveAt ? session.lastActiveAt.getTime() : null)}
                   </p>
                 </div>
               ))
@@ -484,9 +421,7 @@ export function Page() {
                 Account deletion is currently disabled.
               </p>
             ) : null}
-            {deleteError ? (
-              <p className="text-sm text-destructive">{deleteError}</p>
-            ) : null}
+            {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
           </CardContent>
         </Card>
       </section>

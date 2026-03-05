@@ -1,9 +1,5 @@
 import { useAction, useQuery } from "convex/react";
-import {
-  IconDoorEnter,
-  IconTrash,
-  IconUsers,
-} from "@tabler/icons-react";
+import { IconDoorEnter, IconTrash, IconUsers } from "@tabler/icons-react";
 import { useOrganization } from "@clerk/react-router";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
@@ -93,8 +89,7 @@ export function Page() {
     effectiveOrgRole === "org:admin" || effectiveOrgRole === "org:owner";
   const isDeletePrerequisitesLoading = orgDeletionReadiness === undefined;
   const remainingProjectCount = orgDeletionReadiness?.projectCount ?? 0;
-  const areDeletePrerequisitesMet =
-    !isDeletePrerequisitesLoading && remainingProjectCount === 0;
+  const areDeletePrerequisitesMet = !isDeletePrerequisitesLoading && remainingProjectCount === 0;
   const isDeleteOrganizationBlocked =
     isDeletePrerequisitesLoading || !areDeletePrerequisitesMet || !canDeleteOrganizationByRole;
 
@@ -131,9 +126,7 @@ export function Page() {
 
       for (let attempt = 0; attempt < 8; attempt += 1) {
         const nextSlug =
-          attempt === 0
-            ? preferredSlug
-            : generateOrganizationSlugCandidateFromName(trimmedName);
+          attempt === 0 ? preferredSlug : generateOrganizationSlugCandidateFromName(trimmedName);
         try {
           updatedOrganization = await organization.update({
             name: trimmedName,
@@ -209,7 +202,9 @@ export function Page() {
       await membership.destroy();
       void navigate("/o/select");
     } catch (error: unknown) {
-      setLeaveError(error instanceof Error ? error.message : "Unable to leave workspace right now.");
+      setLeaveError(
+        error instanceof Error ? error.message : "Unable to leave workspace right now.",
+      );
     } finally {
       setIsLeaving(false);
     }
@@ -286,7 +281,9 @@ export function Page() {
             </div>
 
             {profileError ? <p className="text-sm text-destructive">{profileError}</p> : null}
-            {profileSuccess ? <p className="text-sm text-muted-foreground">{profileSuccess}</p> : null}
+            {profileSuccess ? (
+              <p className="text-sm text-muted-foreground">{profileSuccess}</p>
+            ) : null}
 
             <Button
               size="sm"
@@ -341,7 +338,9 @@ export function Page() {
               </div>
             </div>
             {logoError ? <p className="mt-2 text-sm text-destructive">{logoError}</p> : null}
-            {logoSuccess ? <p className="mt-2 text-sm text-muted-foreground">{logoSuccess}</p> : null}
+            {logoSuccess ? (
+              <p className="mt-2 text-sm text-muted-foreground">{logoSuccess}</p>
+            ) : null}
           </div>
         </OrgSectionCard>
       </section>
@@ -353,8 +352,13 @@ export function Page() {
         >
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-4">
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{memberships ? memberCount : "..."}</span>{" "}
-              members · <span className="font-medium text-foreground">{invitations ? inviteCount : "..."}</span>{" "}
+              <span className="font-medium text-foreground">
+                {memberships ? memberCount : "..."}
+              </span>{" "}
+              members ·{" "}
+              <span className="font-medium text-foreground">
+                {invitations ? inviteCount : "..."}
+              </span>{" "}
               pending invites
             </p>
             <Button
@@ -414,7 +418,7 @@ export function Page() {
                   ) : null}
                 </div>
               </div>
-                  {deleteOrganizationError ? (
+              {deleteOrganizationError ? (
                 <p className="px-3 pb-2 text-sm text-destructive">{deleteOrganizationError}</p>
               ) : null}
               {canDeleteOrganizationByRole ? (
@@ -433,7 +437,12 @@ export function Page() {
                     setDeleteOrganizationError(null);
                     setIsDeleteOrganizationDialogOpen(true);
                   }}
-                  disabled={!organization || isDeletingOrganization || isLeaving || isDeleteOrganizationBlocked}
+                  disabled={
+                    !organization ||
+                    isDeletingOrganization ||
+                    isLeaving ||
+                    isDeleteOrganizationBlocked
+                  }
                 >
                   <IconTrash className="size-4" />
                   Delete organization
@@ -461,14 +470,20 @@ export function Page() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              To delete this organization, please delete{" "}
-              <span className="font-bold text-foreground">
-                {isDeletePrerequisitesLoading ? "..." : remainingProjectCount}
-              </span>{" "}
-              projects in this organization first. Note that we can not recover or
-              undo this operation.
-            </p>
+            {areDeletePrerequisitesMet ? (
+              <p className="text-sm text-muted-foreground">
+                This action permanently deletes this organization and can not be undone.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                To delete this organization, please delete{" "}
+                <span className="font-bold text-foreground">
+                  {isDeletePrerequisitesLoading ? "..." : remainingProjectCount}
+                </span>{" "}
+                projects in this organization first. Note that we can not recover or undo this
+                operation.
+              </p>
+            )}
             {!canDeleteOrganizationByRole ? (
               <p className="text-sm text-muted-foreground">
                 Only organization admins can delete the organization.

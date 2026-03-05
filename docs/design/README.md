@@ -30,4 +30,5 @@ This directory contains design docs for Barekey's architecture and roadmap.
 
 ## Naming note
 
-- Generated org/user/project slugs use `slug-numbers` format (example: `myorg-5831`).
+- Generated org/user/project slugs use `slug-numbers` format:
+  `{slug-base}-{digits}` (example: `myorg-5831`, regex: `^[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]+$`).

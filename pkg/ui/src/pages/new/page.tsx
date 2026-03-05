@@ -1,12 +1,6 @@
 import { useAction } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  SignedIn,
-  SignedOut,
-  useAuth,
-  useOrganizationList,
-  useUser,
-} from "@clerk/react-router";
+import { SignedIn, SignedOut, useAuth, useOrganizationList, useUser } from "@clerk/react-router";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { api } from "@convex/_generated/api";
@@ -99,10 +93,7 @@ function getProjectErrorMessage(error: unknown): string {
       return error.message;
     }
 
-    if (
-      normalizedMessage.includes("planless") ||
-      normalizedMessage.includes("without a plan")
-    ) {
+    if (normalizedMessage.includes("planless") || normalizedMessage.includes("without a plan")) {
       return "This workspace is disabled until you select a billing plan.";
     }
 
@@ -129,7 +120,10 @@ function sleep(ms: number): Promise<void> {
 }
 
 function isActiveOrganizationMismatchError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("Active organization does not match the requested workspace.");
+  return (
+    error instanceof Error &&
+    error.message.includes("Active organization does not match the requested workspace.")
+  );
 }
 
 export function Page() {
@@ -174,8 +168,8 @@ export function Page() {
       typeof membership.organization.slug === "string" && membership.organization.slug.length > 0,
   );
   const selectedProjectOrgName =
-    selectableMemberships.find((membership) => membership.organization.slug === orgSlug)?.organization
-      .name ?? null;
+    selectableMemberships.find((membership) => membership.organization.slug === orgSlug)
+      ?.organization.name ?? null;
 
   const defaultCreateKind: CreateKind = orgSlug ? "project" : "organization";
   const createKind = useMemo(
@@ -276,9 +270,7 @@ export function Page() {
         organization: createdOrganization.id,
       });
 
-      const createdOrgPath = createdOrganization.slug
-        ? `/o/${createdOrganization.slug}`
-        : null;
+      const createdOrgPath = createdOrganization.slug ? `/o/${createdOrganization.slug}` : null;
       createdOrgPathForRecovery = createdOrgPath;
       if (organizationStartingPlan !== "without_plan") {
         if (createdOrganization.slug === null) {
@@ -308,9 +300,7 @@ export function Page() {
               expectedOrgSlug: createdOrganization.slug,
               tier: organizationStartingPlan,
               interval:
-                organizationStartingPlan === "free"
-                  ? "monthly"
-                  : organizationStartingInterval,
+                organizationStartingPlan === "free" ? "monthly" : organizationStartingInterval,
               overageMode:
                 organizationStartingPlan === "free"
                   ? "without_overages"
@@ -359,12 +349,7 @@ export function Page() {
               "An error occurred while creating the organization and setting up billing.",
               extractRequestId(error),
             );
-      setOrganizationErrorMessage(
-        getClerkErrorMessage(
-          error,
-          defaultFallback,
-        ),
-      );
+      setOrganizationErrorMessage(getClerkErrorMessage(error, defaultFallback));
     } finally {
       setIsOrganizationSubmitting(false);
     }
@@ -434,9 +419,7 @@ export function Page() {
   }
 
   const isCreateOrganizationDisabled =
-    !isOrgListLoaded ||
-    isOrganizationSubmitting ||
-    organizationName.trim().length === 0;
+    !isOrgListLoaded || isOrganizationSubmitting || organizationName.trim().length === 0;
   const isCreateProjectDisabled =
     !isAuthLoaded ||
     !isSignedIn ||
@@ -496,7 +479,9 @@ export function Page() {
                   </label>
                   <Input
                     id="organization-name"
-                    placeholder={user?.fullName ? `${user.fullName}'s Organization` : "My Organization"}
+                    placeholder={
+                      user?.fullName ? `${user.fullName}'s Organization` : "My Organization"
+                    }
                     value={organizationName}
                     disabled={isOrganizationSubmitting}
                     onChange={(event) => setOrganizationName(event.currentTarget.value)}
@@ -540,8 +525,7 @@ export function Page() {
                       </button>
                     ))}
                   </div>
-                  {(organizationStartingPlan === "pro" ||
-                    organizationStartingPlan === "max") ? (
+                  {organizationStartingPlan === "pro" || organizationStartingPlan === "max" ? (
                     <div className="space-y-2 rounded-lg border border-dashed p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-medium text-muted-foreground">
@@ -601,12 +585,13 @@ export function Page() {
                       </div>
                     </div>
                   ) : null}
-                  <p className="text-xs text-muted-foreground">
-                    Annual gives a <span className="font-semibold text-foreground">20% discount</span>.
-                    {organizationStartingPlan === "pro" || organizationStartingPlan === "max"
-                      ? " Paid plans may redirect to secure checkout to confirm payment."
-                      : ""}
-                  </p>
+                  {organizationStartingPlan === "pro" || organizationStartingPlan === "max" ? (
+                    <p className="text-xs text-muted-foreground">
+                      Annual gives a{" "}
+                      <span className="font-semibold text-foreground">20% discount</span>. Paid
+                      plans may redirect to secure checkout to confirm payment.
+                    </p>
+                  ) : null}
                 </div>
 
                 {organizationErrorMessage ? (
@@ -625,9 +610,7 @@ export function Page() {
             ) : (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Organization
-                  </label>
+                  <label className="text-sm font-medium">Organization</label>
                   <Select
                     value={orgSlug ?? undefined}
                     onValueChange={(value) => {
@@ -639,7 +622,11 @@ export function Page() {
                   >
                     <SelectTrigger
                       className="w-full"
-                      disabled={isSwitchingOrganization || !isOrgListLoaded || selectableMemberships.length === 0}
+                      disabled={
+                        isSwitchingOrganization ||
+                        !isOrgListLoaded ||
+                        selectableMemberships.length === 0
+                      }
                     >
                       <span className="truncate">
                         {selectedProjectOrgName ??
@@ -649,18 +636,18 @@ export function Page() {
                       </span>
                     </SelectTrigger>
                     <SelectContent>
-                    {selectableMemberships.map((membership) => {
-                      const membershipOrgSlug = membership.organization.slug;
-                      if (!membershipOrgSlug) {
-                        return null;
-                      }
+                      {selectableMemberships.map((membership) => {
+                        const membershipOrgSlug = membership.organization.slug;
+                        if (!membershipOrgSlug) {
+                          return null;
+                        }
 
-                      return (
-                        <SelectItem key={membership.organization.id} value={membershipOrgSlug}>
-                          {membership.organization.name}
-                        </SelectItem>
-                      );
-                    })}
+                        return (
+                          <SelectItem key={membership.organization.id} value={membershipOrgSlug}>
+                            {membership.organization.name}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -687,7 +674,9 @@ export function Page() {
                 {isSwitchingOrganization ? (
                   <p className="text-xs text-muted-foreground">Switching organization...</p>
                 ) : isWorkspacePlanStatusLoading ? (
-                  <p className="text-xs text-muted-foreground">Checking workspace billing status...</p>
+                  <p className="text-xs text-muted-foreground">
+                    Checking workspace billing status...
+                  </p>
                 ) : workspacePlanStatus?.isPlanless ? (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                     This workspace is without a plan and currently disabled for project creation.
@@ -736,9 +725,7 @@ export function Page() {
               variant="outline"
               render={
                 <Link
-                  to={
-                    createKind === "project" && orgSlug ? `/o/${orgSlug}/projects` : "/o/select"
-                  }
+                  to={createKind === "project" && orgSlug ? `/o/${orgSlug}/projects` : "/o/select"}
                 />
               }
             >
