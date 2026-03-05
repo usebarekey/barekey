@@ -8,9 +8,7 @@ import type { CliConfig, CliCredentials } from "./types";
 const SERVICE_NAME = "barekey-cli";
 const CONFIG_DIR = path.join(homedir(), ".config", "barekey");
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
-const FALLBACK_CREDENTIALS_PATH = path.join(CONFIG_DIR, "credentials.json");
-
-type StoredCredentialMap = Record<string, CliCredentials>;
+const CREDENTIALS_DIR = path.join(CONFIG_DIR, "credentials");
 
 type CommandResult = {
   stdout: string;
@@ -56,6 +54,14 @@ async function ensureConfigDir(): Promise<void> {
   });
 }
 
+async function ensureCredentialsDir(): Promise<void> {
+  await ensureConfigDir();
+  await mkdir(CREDENTIALS_DIR, {
+    recursive: true,
+    mode: 0o700,
+  });
+}
+
 async function readJsonFile<T>(filePath: string): Promise<T | null> {
   try {
     const value = await readFile(filePath, "utf8");
@@ -73,12 +79,8 @@ async function writeJsonFile(filePath: string, value: unknown): Promise<void> {
   });
 }
 
-async function readFallbackCredentials(): Promise<StoredCredentialMap> {
-  return (await readJsonFile<StoredCredentialMap>(FALLBACK_CREDENTIALS_PATH)) ?? {};
-}
-
-async function writeFallbackCredentials(value: StoredCredentialMap): Promise<void> {
-  await writeJsonFile(FALLBACK_CREDENTIALS_PATH, value);
+function credentialsPathForAccount(accountId: string): string {
+  return path.join(CREDENTIALS_DIR, `${encodeURIComponent(accountId)}.json`);
 }
 
 async function canUseLinuxSecretTool(): Promise<boolean> {
@@ -206,12 +208,17 @@ export async function saveCredentials(
   const serialized = JSON.stringify(credentials);
   const storedInKeychain = await setInKeychain(accountId, serialized);
   if (storedInKeychain) {
+    await rm(credentialsPathForAccount(accountId), {
+      force: true,
+    });
     return;
   }
 
-  const fallback = await readFallbackCredentials();
-  fallback[accountId] = credentials;
-  await writeFallbackCredentials(fallback);
+  await ensureCredentialsDir();
+  await writeFile(credentialsPathForAccount(accountId), serialized, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
 }
 
 export async function loadCredentials(accountId: string): Promise<CliCredentials | null> {
@@ -220,23 +227,17 @@ export async function loadCredentials(accountId: string): Promise<CliCredentials
     try {
       return JSON.parse(fromKeychain) as CliCredentials;
     } catch {
-      return null;
+      // Fall back to file credentials when keychain data is malformed.
     }
   }
 
-  const fallback = await readFallbackCredentials();
-  return fallback[accountId] ?? null;
+  const fromFile = await readJsonFile<CliCredentials>(credentialsPathForAccount(accountId));
+  return fromFile;
 }
 
 export async function deleteCredentials(accountId: string): Promise<void> {
-  const deletedFromKeychain = await deleteFromKeychain(accountId);
-  if (deletedFromKeychain) {
-    return;
-  }
-
-  const fallback = await readFallbackCredentials();
-  if (fallback[accountId]) {
-    delete fallback[accountId];
-    await writeFallbackCredentials(fallback);
-  }
+  await deleteFromKeychain(accountId);
+  await rm(credentialsPathForAccount(accountId), {
+    force: true,
+  });
 }

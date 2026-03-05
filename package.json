@@ -5,6 +5,7 @@
   ],
   "scripts": {
     "convex:dev": "bunx convex dev",
+    "auth:dev": "cd pkg/auth && bun run dev",
     "ui:dev": "cd pkg/ui && bun run dev",
     "lint": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore .",
     "lint:fix": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore --fix .",
@@ -20,5 +21,6 @@
   "devDependencies": {
     "oxfmt": "^0.34.0",
     "oxlint": "^1.49.0"
-  }
+  },
+  "license": "BSD-3-Clause"
 }

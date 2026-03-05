@@ -21,14 +21,58 @@ type EvaluateBatchRequest = {
   seed?: string;
 };
 
+type EnvListRequest = {
+  projectSlug: string;
+  stageSlug: string;
+};
+
+type EnvWriteMode = "create_only" | "upsert";
+
+type EnvWriteRequest = {
+  projectSlug: string;
+  stageSlug: string;
+  mode: EnvWriteMode;
+  entries: Array<
+    | {
+        name: string;
+        kind: "secret";
+        value: string;
+      }
+    | {
+        name: string;
+        kind: "ab_roll";
+        valueA: string;
+        valueB: string;
+        chance: number;
+      }
+  >;
+  deletes: Array<string>;
+};
+
 type ResolvedVariableRow = {
   id: Id<"projectVariables">;
   projectId: Id<"projects">;
   orgId: string;
   stageSlug: string;
   name: string;
-  kind: "secret";
+  kind: "secret" | "ab_roll";
 };
+
+type DecryptedVariable =
+  | {
+      id: Id<"projectVariables">;
+      name: string;
+      kind: "secret";
+      value: string;
+    }
+  | {
+      id: Id<"projectVariables">;
+      name: string;
+      kind: "ab_roll";
+      valueA: string;
+      valueB: string;
+      chance: number;
+    };
 
 type AuthContext = {
   clerkUserId: string;
@@ -44,11 +88,26 @@ type AuthResolutionCtx = {
   runMutation(functionReference: unknown, args: Record<string, unknown>): Promise<unknown>;
 };
 
+async function readIdentityOrNull(
+  auth: AuthResolutionCtx["auth"],
+): Promise<import("convex/server").UserIdentity | null> {
+  try {
+    return await auth.getUserIdentity();
+  } catch {
+    return null;
+  }
+}
+
 function buildJsonResponse(status: number, payload: unknown): Response {
   return new Response(JSON.stringify(payload), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-headers":
+        "authorization,content-type,x-request-id,x-barekey-request-key",
+      "access-control-max-age": "86400",
     },
   });
 }
@@ -75,6 +134,19 @@ function errorResponse(input: {
       code: input.code,
       message: input.message,
       requestId: input.requestId,
+    },
+  });
+}
+
+function buildCorsPreflightResponse(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-headers":
+        "authorization,content-type,x-request-id,x-barekey-request-key",
+      "access-control-max-age": "86400",
     },
   });
 }
@@ -152,11 +224,120 @@ function parseBatchRequest(payload: unknown): EvaluateBatchRequest | null {
   };
 }
 
+function parseListRequest(payload: unknown): EnvListRequest | null {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+
+  const input = payload as Record<string, unknown>;
+  const projectSlug = typeof input.projectSlug === "string" ? input.projectSlug.trim() : "";
+  const stageSlug = typeof input.stageSlug === "string" ? input.stageSlug.trim() : "";
+  if (projectSlug.length === 0 || stageSlug.length === 0) {
+    return null;
+  }
+
+  return {
+    projectSlug,
+    stageSlug,
+  };
+}
+
+function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+
+  const input = payload as Record<string, unknown>;
+  const projectSlug = typeof input.projectSlug === "string" ? input.projectSlug.trim() : "";
+  const stageSlug = typeof input.stageSlug === "string" ? input.stageSlug.trim() : "";
+  if (projectSlug.length === 0 || stageSlug.length === 0) {
+    return null;
+  }
+
+  const modeValue = typeof input.mode === "string" ? input.mode.trim() : "upsert";
+  const mode: EnvWriteMode = modeValue === "create_only" ? "create_only" : "upsert";
+
+  const rawEntries = Array.isArray(input.entries) ? input.entries : [];
+  const entries: EnvWriteRequest["entries"] = [];
+  for (const rawEntry of rawEntries) {
+    if (typeof rawEntry !== "object" || rawEntry === null) {
+      return null;
+    }
+    const entry = rawEntry as Record<string, unknown>;
+    const name = typeof entry.name === "string" ? entry.name.trim() : "";
+    const kind = typeof entry.kind === "string" ? entry.kind : "";
+    if (name.length === 0) {
+      return null;
+    }
+    if (kind === "secret") {
+      if (typeof entry.value !== "string") {
+        return null;
+      }
+      entries.push({
+        name,
+        kind: "secret",
+        value: entry.value,
+      });
+      continue;
+    }
+    if (kind === "ab_roll") {
+      if (
+        typeof entry.valueA !== "string" ||
+        typeof entry.valueB !== "string" ||
+        typeof entry.chance !== "number" ||
+        !Number.isFinite(entry.chance) ||
+        entry.chance < 0 ||
+        entry.chance > 1
+      ) {
+        return null;
+      }
+      entries.push({
+        name,
+        kind: "ab_roll",
+        valueA: entry.valueA,
+        valueB: entry.valueB,
+        chance: entry.chance,
+      });
+      continue;
+    }
+    return null;
+  }
+
+  const deletes = Array.isArray(input.deletes)
+    ? input.deletes
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    : [];
+
+  const seenNames = new Set<string>();
+  for (const entry of entries) {
+    if (seenNames.has(entry.name)) {
+      return null;
+    }
+    seenNames.add(entry.name);
+  }
+  for (const name of deletes) {
+    if (seenNames.has(name)) {
+      return null;
+    }
+    seenNames.add(name);
+  }
+
+  return {
+    projectSlug,
+    stageSlug,
+    mode,
+    entries,
+    deletes,
+  };
+}
+
 async function resolveAuthContext(
   ctx: AuthResolutionCtx,
   request: Request,
 ): Promise<AuthContext | null> {
-  const identity = await ctx.auth.getUserIdentity();
+  const identity = await readIdentityOrNull(ctx.auth);
   if (identity !== null) {
     const orgClaims = getOrgClaimsFromIdentity(identity);
     if (orgClaims.orgId === null || orgClaims.orgSlug === null) {
@@ -230,7 +411,12 @@ function getCliUiOrigin(request: Request): string {
   if (configured && configured.trim().length > 0) {
     return configured.trim().replace(/\/$/, "");
   }
-  return new URL(request.url).origin;
+  const requestUrl = new URL(request.url);
+  const derivedHost = requestUrl.host.replace(/^api\./, "");
+  if (derivedHost !== requestUrl.host) {
+    return `${requestUrl.protocol}//${derivedHost}`;
+  }
+  return requestUrl.origin;
 }
 
 async function sha256Base64Url(input: string): Promise<string> {
@@ -238,6 +424,63 @@ async function sha256Base64Url(input: string): Promise<string> {
   const bytes = new Uint8Array(digest);
   const base64 = btoa(String.fromCharCode(...bytes));
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function deterministicBucket(input: string): Promise<number> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  const bytes = new Uint8Array(digest);
+  const value =
+    ((bytes[0] ?? 0) << 24) |
+    ((bytes[1] ?? 0) << 16) |
+    ((bytes[2] ?? 0) << 8) |
+    (bytes[3] ?? 0);
+  return (value >>> 0) / 4294967296;
+}
+
+async function resolveVariableValue(input: {
+  variable: DecryptedVariable;
+  seed?: string;
+  key?: string;
+}): Promise<{
+  name: string;
+  kind: "secret" | "ab_roll";
+  value: string;
+  decision?: {
+    bucket: number;
+    chance: number;
+    seed?: string;
+    key?: string;
+    matchedRule: "ab_roll";
+  };
+}> {
+  if (input.variable.kind === "secret") {
+    return {
+      name: input.variable.name,
+      kind: "secret",
+      value: input.variable.value,
+    };
+  }
+
+  const seed = input.seed?.trim() ?? "";
+  const key = input.key?.trim() ?? "";
+  const chance = input.variable.chance;
+  const bucket =
+    seed.length > 0 || key.length > 0
+      ? await deterministicBucket(`ab_roll:${input.variable.name}:${seed}:${key}`)
+      : Math.random();
+
+  return {
+    name: input.variable.name,
+    kind: "ab_roll",
+    value: bucket < chance ? input.variable.valueA : input.variable.valueB,
+    decision: {
+      bucket,
+      chance,
+      seed: seed.length > 0 ? seed : undefined,
+      key: key.length > 0 ? key : undefined,
+      matchedRule: "ab_roll",
+    },
+  };
 }
 
 const evaluateOne = httpAction(async (ctx, request) => {
@@ -319,7 +562,7 @@ const evaluateOne = httpAction(async (ctx, request) => {
     if (!row) {
       throw new Error("Variable row missing.");
     }
-    const decrypted = await ctx.runMutation(
+    const decrypted = (await ctx.runMutation(
       internal.project_variables.decryptValueForOrgProjectStageInternal,
       {
         orgId: authContext.orgId,
@@ -327,7 +570,12 @@ const evaluateOne = httpAction(async (ctx, request) => {
         stageSlug: parsed.stageSlug,
         variableId: row.id,
       },
-    );
+    )) as DecryptedVariable;
+    const resolved = await resolveVariableValue({
+      variable: decrypted,
+      seed: parsed.seed,
+      key: parsed.key,
+    });
 
     const requestKeyHeader = request.headers.get("x-barekey-request-key");
     const requestKey =
@@ -352,9 +600,10 @@ const evaluateOne = httpAction(async (ctx, request) => {
     }
 
     return buildJsonResponse(200, {
-      name: decrypted.name,
-      kind: decrypted.kind,
-      value: decrypted.value,
+      name: resolved.name,
+      kind: resolved.kind,
+      value: resolved.value,
+      decision: resolved.decision,
     });
   } catch (error: unknown) {
     if (reservedUnits > 0) {
@@ -460,8 +709,15 @@ const evaluateBatch = httpAction(async (ctx, request) => {
     const byName = new Map(rows.map((row) => [row.name, row]));
     const values: Array<{
       name: string;
-      kind: "secret";
+      kind: "secret" | "ab_roll";
       value: string;
+      decision?: {
+        bucket: number;
+        chance: number;
+        seed?: string;
+        key?: string;
+        matchedRule: "ab_roll";
+      };
     }> = [];
 
     for (const name of parsed.names) {
@@ -469,7 +725,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       if (!row) {
         throw new Error("Batch resolution drift detected.");
       }
-      const decrypted = await ctx.runMutation(
+      const decrypted = (await ctx.runMutation(
         internal.project_variables.decryptValueForOrgProjectStageInternal,
         {
           orgId: authContext.orgId,
@@ -477,11 +733,17 @@ const evaluateBatch = httpAction(async (ctx, request) => {
           stageSlug: parsed.stageSlug,
           variableId: row.id,
         },
-      );
+      )) as DecryptedVariable;
+      const resolved = await resolveVariableValue({
+        variable: decrypted,
+        seed: parsed.seed,
+        key: parsed.key,
+      });
       values.push({
-        name: decrypted.name,
-        kind: decrypted.kind,
-        value: decrypted.value,
+        name: resolved.name,
+        kind: resolved.kind,
+        value: resolved.value,
+        decision: resolved.decision,
       });
     }
 
@@ -533,6 +795,215 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       requestId,
     });
   }
+});
+
+const envList = httpAction(async (ctx, request) => {
+  const requestId = readRequestId(request);
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_JSON",
+      message: "Request body must be valid JSON.",
+      requestId,
+    });
+  }
+
+  const parsed = parseListRequest(payload);
+  if (parsed === null) {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_REQUEST",
+      message: "projectSlug and stageSlug are required.",
+      requestId,
+    });
+  }
+
+  const authContext = await resolveAuthContext(ctx, request);
+  if (authContext === null) {
+    return errorResponse({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "A valid Clerk JWT or CLI access token is required.",
+      requestId,
+    });
+  }
+
+  const variables: Array<{
+    name: string;
+    kind: "secret" | "ab_roll";
+    createdAtMs: number;
+    updatedAtMs: number;
+    chance: number | null;
+  }> = await ctx.runQuery(
+    internal.project_variables.listVariableMetadataForOrgProjectStageInternal,
+    {
+      orgId: authContext.orgId,
+      projectSlug: parsed.projectSlug,
+      stageSlug: parsed.stageSlug,
+    },
+  );
+
+  return buildJsonResponse(200, {
+    variables: variables.map((row) => ({
+      name: row.name,
+      kind: row.kind,
+      createdAtMs: row.createdAtMs,
+      updatedAtMs: row.updatedAtMs,
+      chance: row.chance,
+    })),
+    requestId,
+  });
+});
+
+const envWrite = httpAction(async (ctx, request) => {
+  const requestId = readRequestId(request);
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_JSON",
+      message: "Request body must be valid JSON.",
+      requestId,
+    });
+  }
+
+  const parsed = parseWriteRequest(payload);
+  if (parsed === null) {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_REQUEST",
+      message: "Invalid write payload. Check projectSlug/stageSlug/mode/entries/deletes.",
+      requestId,
+    });
+  }
+
+  const authContext = await resolveAuthContext(ctx, request);
+  if (authContext === null) {
+    return errorResponse({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "A valid Clerk JWT or CLI access token is required.",
+      requestId,
+    });
+  }
+
+  try {
+    const result = await ctx.runAction(
+      internal.project_variables.writeVariablesForOrgProjectStageWithUsageInternal,
+      {
+        orgId: authContext.orgId,
+        clerkUserId: authContext.clerkUserId,
+        projectSlug: parsed.projectSlug,
+        stageSlug: parsed.stageSlug,
+        mode: parsed.mode,
+        entries: parsed.entries,
+        deletes: parsed.deletes,
+      },
+    );
+
+    return buildJsonResponse(200, {
+      createdCount: result.createdCount,
+      updatedCount: result.updatedCount,
+      deletedCount: result.deletedCount,
+      requestId,
+    });
+  } catch (error: unknown) {
+    return errorResponse({
+      status: 400,
+      code: "WRITE_FAILED",
+      message: error instanceof Error ? error.message : "Failed to write variables.",
+      requestId,
+    });
+  }
+});
+
+const envPull = httpAction(async (ctx, request) => {
+  const requestId = readRequestId(request);
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_JSON",
+      message: "Request body must be valid JSON.",
+      requestId,
+    });
+  }
+
+  const parsed = parseListRequest(payload);
+  if (parsed === null) {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_REQUEST",
+      message: "projectSlug and stageSlug are required.",
+      requestId,
+    });
+  }
+  const input = payload as Record<string, unknown>;
+  const seed = typeof input.seed === "string" ? input.seed : undefined;
+  const key = typeof input.key === "string" ? input.key : undefined;
+
+  const authContext = await resolveAuthContext(ctx, request);
+  if (authContext === null) {
+    return errorResponse({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "A valid Clerk JWT or CLI access token is required.",
+      requestId,
+    });
+  }
+
+  const rows = await ctx.runQuery(
+    internal.project_variables.listVariableMetadataForOrgProjectStageInternal,
+    {
+      orgId: authContext.orgId,
+      projectSlug: parsed.projectSlug,
+      stageSlug: parsed.stageSlug,
+    },
+  );
+
+  const values: Array<{
+    name: string;
+    kind: "secret" | "ab_roll";
+    value: string;
+    decision?: {
+      bucket: number;
+      chance: number;
+      seed?: string;
+      key?: string;
+      matchedRule: "ab_roll";
+    };
+  }> = [];
+  for (const row of rows) {
+    const decrypted = (await ctx.runMutation(
+      internal.project_variables.decryptValueForOrgProjectStageInternal,
+      {
+        orgId: authContext.orgId,
+        projectSlug: parsed.projectSlug,
+        stageSlug: parsed.stageSlug,
+        variableId: row.id,
+      },
+    )) as DecryptedVariable;
+    const resolved = await resolveVariableValue({
+      variable: decrypted,
+      seed,
+      key,
+    });
+    values.push(resolved);
+  }
+
+  const byName = Object.fromEntries(values.map((row) => [row.name, row.value]));
+  return buildJsonResponse(200, {
+    values,
+    byName,
+    requestId,
+  });
 });
 
 const cliDeviceStart = httpAction(async (ctx, request) => {
@@ -598,7 +1069,7 @@ const cliDeviceComplete = httpAction(async (ctx, request) => {
     });
   }
 
-  const identity = await ctx.auth.getUserIdentity();
+  const identity = await readIdentityOrNull(ctx.auth);
   if (identity === null) {
     return errorResponse({
       status: 401,
@@ -903,6 +1374,8 @@ const typegenManifest = httpAction(async (ctx, request) => {
   });
 });
 
+const corsPreflight = httpAction(async () => buildCorsPreflightResponse());
+
 const http = httpRouter();
 
 http.route({
@@ -910,11 +1383,54 @@ http.route({
   method: "POST",
   handler: evaluateOne,
 });
+http.route({
+  path: "/v1/env/evaluate",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
 
 http.route({
   path: "/v1/env/evaluate-batch",
   method: "POST",
   handler: evaluateBatch,
+});
+http.route({
+  path: "/v1/env/evaluate-batch",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
+
+http.route({
+  path: "/v1/env/list",
+  method: "POST",
+  handler: envList,
+});
+http.route({
+  path: "/v1/env/list",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
+
+http.route({
+  path: "/v1/env/write",
+  method: "POST",
+  handler: envWrite,
+});
+http.route({
+  path: "/v1/env/write",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
+
+http.route({
+  path: "/v1/env/pull",
+  method: "POST",
+  handler: envPull,
+});
+http.route({
+  path: "/v1/env/pull",
+  method: "OPTIONS",
+  handler: corsPreflight,
 });
 
 http.route({
@@ -922,11 +1438,21 @@ http.route({
   method: "POST",
   handler: cliDeviceStart,
 });
+http.route({
+  path: "/v1/cli/device/start",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
 
 http.route({
   path: "/v1/cli/device/complete",
   method: "POST",
   handler: cliDeviceComplete,
+});
+http.route({
+  path: "/v1/cli/device/complete",
+  method: "OPTIONS",
+  handler: corsPreflight,
 });
 
 http.route({
@@ -934,11 +1460,21 @@ http.route({
   method: "POST",
   handler: cliDevicePoll,
 });
+http.route({
+  path: "/v1/cli/device/poll",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
 
 http.route({
   path: "/v1/cli/token/refresh",
   method: "POST",
   handler: cliTokenRefresh,
+});
+http.route({
+  path: "/v1/cli/token/refresh",
+  method: "OPTIONS",
+  handler: corsPreflight,
 });
 
 http.route({
@@ -946,17 +1482,32 @@ http.route({
   method: "POST",
   handler: cliLogout,
 });
+http.route({
+  path: "/v1/cli/logout",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
 
 http.route({
   path: "/v1/cli/session",
   method: "GET",
   handler: cliSession,
 });
+http.route({
+  path: "/v1/cli/session",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
 
 http.route({
   path: "/v1/typegen/manifest",
   method: "GET",
   handler: typegenManifest,
+});
+http.route({
+  path: "/v1/typegen/manifest",
+  method: "OPTIONS",
+  handler: corsPreflight,
 });
 
 export default http;

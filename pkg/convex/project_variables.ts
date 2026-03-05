@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import {
   assertExpectedOrgSlug,
   getActiveOrgIdClaimsOrNull,
@@ -42,6 +42,20 @@ const variableSummaryValidator = v.object({
   updatedAtMs: v.number(),
 });
 
+const variableKindValidator = v.union(v.literal("secret"), v.literal("ab_roll"));
+
+const variableMetadataValidator = v.object({
+  id: v.id("projectVariables"),
+  projectId: v.id("projects"),
+  orgId: v.string(),
+  stageSlug: v.string(),
+  name: v.string(),
+  kind: variableKindValidator,
+  createdAtMs: v.number(),
+  updatedAtMs: v.number(),
+  chance: v.union(v.number(), v.null()),
+});
+
 const preparedCreateValidator = v.object({
   name: v.string(),
   kind: v.literal("secret"),
@@ -55,6 +69,19 @@ const preparedUpdateValidator = v.object({
 });
 
 type DraftWriteResult = {
+  createdCount: number;
+  updatedCount: number;
+  deletedCount: number;
+};
+
+type WriteMutationResult = {
+  createdCount: number;
+  updatedCount: number;
+  deletedCount: number;
+  storageDeltaBytes: number;
+};
+
+type WriteWithUsageResult = {
   createdCount: number;
   updatedCount: number;
   deletedCount: number;
@@ -78,6 +105,49 @@ type PreparedDraft = {
   updatedCount: number;
   deletedCount: number;
 };
+
+const writeModeValidator = v.union(v.literal("create_only"), v.literal("upsert"));
+
+const writeSecretEntryValidator = v.object({
+  name: v.string(),
+  kind: v.literal("secret"),
+  value: v.string(),
+});
+
+const writeAbRollEntryValidator = v.object({
+  name: v.string(),
+  kind: v.literal("ab_roll"),
+  valueA: v.string(),
+  valueB: v.string(),
+  chance: v.number(),
+});
+
+const writeEntryValidator = v.union(writeSecretEntryValidator, writeAbRollEntryValidator);
+
+function validateChance(value: number): number {
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error("ab_roll chance must be a finite number between 0 and 1.");
+  }
+  return value;
+}
+
+function encryptedPayloadByteLength(input: {
+  encryptedValue: string | null;
+  encryptedValueA: string | null;
+  encryptedValueB: string | null;
+}): number {
+  let total = 0;
+  if (input.encryptedValue !== null) {
+    total += utf8ByteLength(input.encryptedValue);
+  }
+  if (input.encryptedValueA !== null) {
+    total += utf8ByteLength(input.encryptedValueA);
+  }
+  if (input.encryptedValueB !== null) {
+    total += utf8ByteLength(input.encryptedValueB);
+  }
+  return total;
+}
 
 /**
  * Lists variables for a single project stage.
@@ -135,13 +205,14 @@ export const listForCurrentOrgProjectStage = query({
       .collect();
 
     return rows
+      .filter((row) => row.kind === "secret")
       .map((row) => ({
         id: row._id,
         projectId: row.projectId,
         orgId: row.orgId,
         stageSlug: row.stageSlug,
         name: row.name,
-        kind: row.kind,
+        kind: "secret" as const,
         createdAtMs: row.createdAtMs,
         updatedAtMs: row.updatedAtMs,
       }))
@@ -155,7 +226,7 @@ const variableResolverRowValidator = v.object({
   orgId: v.string(),
   stageSlug: v.string(),
   name: v.string(),
-  kind: v.literal("secret"),
+  kind: variableKindValidator,
 });
 
 /**
@@ -199,7 +270,7 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
         orgId: string;
         stageSlug: string;
         name: string;
-        kind: "secret";
+        kind: "secret" | "ab_roll";
       }
     >();
     for (const name of normalizedNames) {
@@ -230,7 +301,7 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
       orgId: string;
       stageSlug: string;
       name: string;
-      kind: "secret";
+      kind: "secret" | "ab_roll";
     }> = [];
     for (const name of normalizedNames) {
       const resolved = rowsByName.get(name);
@@ -239,6 +310,309 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
       }
     }
     return ordered;
+  },
+});
+
+/**
+ * Lists raw variable metadata for HTTP/CLI flows in a fixed stage order.
+ */
+export const listVariableMetadataForOrgProjectStageInternal = internalQuery({
+  args: {
+    orgId: v.string(),
+    projectSlug: v.string(),
+    stageSlug: v.string(),
+  },
+  returns: v.array(variableMetadataValidator),
+  handler: async (ctx, args) => {
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_org_id_and_slug", (q) =>
+        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
+      )
+      .unique();
+    if (project === null) {
+      return [];
+    }
+
+    const stage = await ctx.db
+      .query("projectStages")
+      .withIndex("by_project_id_and_slug", (q) =>
+        q.eq("projectId", project._id).eq("slug", args.stageSlug),
+      )
+      .unique();
+    if (stage === null) {
+      return [];
+    }
+
+    const rows = await ctx.db
+      .query("projectVariables")
+      .withIndex("by_project_id_and_stage_slug", (q) =>
+        q.eq("projectId", project._id).eq("stageSlug", stage.slug),
+      )
+      .collect();
+
+    return rows
+      .map((row) => ({
+        id: row._id,
+        projectId: row.projectId,
+        orgId: row.orgId,
+        stageSlug: row.stageSlug,
+        name: row.name,
+        kind: row.kind,
+        createdAtMs: row.createdAtMs,
+        updatedAtMs: row.updatedAtMs,
+        chance: row.chance ?? null,
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  },
+});
+
+/**
+ * Encrypts and persists create/update/delete operations by variable name.
+ *
+ * This is internal to HTTP auth wrappers. It computes encrypted-byte deltas
+ * in the same mutation that writes rows to keep storage accounting exact.
+ */
+export const writeVariablesForOrgProjectStageInternal = internalMutation({
+  args: {
+    orgId: v.string(),
+    clerkUserId: v.string(),
+    projectSlug: v.string(),
+    stageSlug: v.string(),
+    mode: writeModeValidator,
+    entries: v.array(writeEntryValidator),
+    deletes: v.array(v.string()),
+  },
+  returns: v.object({
+    createdCount: v.number(),
+    updatedCount: v.number(),
+    deletedCount: v.number(),
+    storageDeltaBytes: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_org_id_and_slug", (q) =>
+        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
+      )
+      .unique();
+    if (project === null) {
+      throw new Error("Project not found.");
+    }
+
+    const stage = await ctx.db
+      .query("projectStages")
+      .withIndex("by_project_id_and_slug", (q) =>
+        q.eq("projectId", project._id).eq("slug", args.stageSlug),
+      )
+      .unique();
+    if (stage === null) {
+      throw new Error("Stage not found.");
+    }
+
+    const rows = await ctx.db
+      .query("projectVariables")
+      .withIndex("by_project_id_and_stage_slug", (q) =>
+        q.eq("projectId", project._id).eq("stageSlug", stage.slug),
+      )
+      .collect();
+    const rowsByName = new Map(rows.map((row) => [row.name, row]));
+
+    const seenEntryNames = new Set<string>();
+    const normalizedDeletes = new Set<string>();
+    for (const name of args.deletes) {
+      const normalized = validateVariableName(name);
+      if (seenEntryNames.has(normalized)) {
+        throw new Error(`Duplicate write entry for variable ${normalized}.`);
+      }
+      normalizedDeletes.add(normalized);
+      seenEntryNames.add(normalized);
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    let deletedCount = 0;
+    let storageDeltaBytes = 0;
+    const now = Date.now();
+
+    for (const entry of args.entries) {
+      const name = validateVariableName(entry.name);
+      if (seenEntryNames.has(name)) {
+        throw new Error(`Duplicate write entry for variable ${name}.`);
+      }
+      seenEntryNames.add(name);
+      if (normalizedDeletes.has(name)) {
+        throw new Error(`Variable ${name} cannot be both written and deleted.`);
+      }
+
+      const existing = rowsByName.get(name) ?? null;
+      if (args.mode === "create_only" && existing !== null) {
+        throw new Error(`Variable ${name} already exists in this stage.`);
+      }
+
+      if (entry.kind === "secret") {
+        const encryptedValue = await encryptSecretValueForProject(ctx, {
+          projectId: project._id,
+          orgId: project.orgId,
+          plaintext: entry.value,
+        });
+        const nextBytes = encryptedPayloadByteLength({
+          encryptedValue,
+          encryptedValueA: null,
+          encryptedValueB: null,
+        });
+
+        if (existing === null) {
+          await ctx.db.insert("projectVariables", {
+            projectId: project._id,
+            orgId: project.orgId,
+            stageSlug: stage.slug,
+            name,
+            kind: "secret",
+            encryptedValue,
+            encryptedValueA: null,
+            encryptedValueB: null,
+            chance: null,
+            createdByClerkUserId: args.clerkUserId,
+            createdAtMs: now,
+            updatedAtMs: now,
+          });
+          createdCount += 1;
+          storageDeltaBytes += nextBytes;
+          continue;
+        }
+
+        const previousBytes = encryptedPayloadByteLength({
+          encryptedValue: existing.encryptedValue,
+          encryptedValueA: existing.encryptedValueA,
+          encryptedValueB: existing.encryptedValueB,
+        });
+        await ctx.db.patch(existing._id, {
+          kind: "secret",
+          encryptedValue,
+          encryptedValueA: null,
+          encryptedValueB: null,
+          chance: null,
+          updatedAtMs: now,
+        });
+        updatedCount += 1;
+        storageDeltaBytes += nextBytes - previousBytes;
+        continue;
+      }
+
+      const chance = validateChance(entry.chance);
+      const encryptedValueA = await encryptSecretValueForProject(ctx, {
+        projectId: project._id,
+        orgId: project.orgId,
+        plaintext: entry.valueA,
+      });
+      const encryptedValueB = await encryptSecretValueForProject(ctx, {
+        projectId: project._id,
+        orgId: project.orgId,
+        plaintext: entry.valueB,
+      });
+      const nextBytes = encryptedPayloadByteLength({
+        encryptedValue: null,
+        encryptedValueA,
+        encryptedValueB,
+      });
+
+      if (existing === null) {
+        await ctx.db.insert("projectVariables", {
+          projectId: project._id,
+          orgId: project.orgId,
+          stageSlug: stage.slug,
+          name,
+          kind: "ab_roll",
+          encryptedValue: null,
+          encryptedValueA,
+          encryptedValueB,
+          chance,
+          createdByClerkUserId: args.clerkUserId,
+          createdAtMs: now,
+          updatedAtMs: now,
+        });
+        createdCount += 1;
+        storageDeltaBytes += nextBytes;
+        continue;
+      }
+
+      const previousBytes = encryptedPayloadByteLength({
+        encryptedValue: existing.encryptedValue,
+        encryptedValueA: existing.encryptedValueA,
+        encryptedValueB: existing.encryptedValueB,
+      });
+      await ctx.db.patch(existing._id, {
+        kind: "ab_roll",
+        encryptedValue: null,
+        encryptedValueA,
+        encryptedValueB,
+        chance,
+        updatedAtMs: now,
+      });
+      updatedCount += 1;
+      storageDeltaBytes += nextBytes - previousBytes;
+    }
+
+    for (const name of normalizedDeletes) {
+      const existing = rowsByName.get(name) ?? null;
+      if (existing === null) {
+        continue;
+      }
+
+      storageDeltaBytes -= encryptedPayloadByteLength({
+        encryptedValue: existing.encryptedValue,
+        encryptedValueA: existing.encryptedValueA,
+        encryptedValueB: existing.encryptedValueB,
+      });
+      await ctx.db.delete(existing._id);
+      deletedCount += 1;
+    }
+
+    return {
+      createdCount,
+      updatedCount,
+      deletedCount,
+      storageDeltaBytes,
+    };
+  },
+});
+
+/**
+ * Applies an encrypted-byte delta to org storage usage after write mutation.
+ */
+export const writeVariablesForOrgProjectStageWithUsageInternal = internalAction({
+  args: {
+    orgId: v.string(),
+    clerkUserId: v.string(),
+    projectSlug: v.string(),
+    stageSlug: v.string(),
+    mode: writeModeValidator,
+    entries: v.array(writeEntryValidator),
+    deletes: v.array(v.string()),
+  },
+  returns: v.object({
+    createdCount: v.number(),
+    updatedCount: v.number(),
+    deletedCount: v.number(),
+  }),
+  handler: async (ctx, args): Promise<WriteWithUsageResult> => {
+    const result: WriteMutationResult = await ctx.runMutation(
+      internal.project_variables.writeVariablesForOrgProjectStageInternal,
+      args,
+    );
+    if (result.storageDeltaBytes !== 0) {
+      await ctx.runMutation(internal.payments.applyStorageDeltaForOrgInternal, {
+        orgId: args.orgId,
+        deltaBytes: result.storageDeltaBytes,
+      });
+    }
+
+    return {
+      createdCount: result.createdCount,
+      updatedCount: result.updatedCount,
+      deletedCount: result.deletedCount,
+    };
   },
 });
 
@@ -434,7 +808,11 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
         throw new Error("Variable delete target does not exist.");
       }
       stageVariableNames.delete(existing.name);
-      storageDeltaBytes -= utf8ByteLength(existing.encryptedValue);
+      storageDeltaBytes -= encryptedPayloadByteLength({
+        encryptedValue: existing.encryptedValue,
+        encryptedValueA: existing.encryptedValueA,
+        encryptedValueB: existing.encryptedValueB,
+      });
     }
 
     const preparedUpdates: Array<{
@@ -457,7 +835,13 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
         plaintext: update.value,
       });
 
-      storageDeltaBytes += utf8ByteLength(encryptedValue) - utf8ByteLength(existing.encryptedValue);
+      storageDeltaBytes +=
+        utf8ByteLength(encryptedValue) -
+        encryptedPayloadByteLength({
+          encryptedValue: existing.encryptedValue,
+          encryptedValueA: existing.encryptedValueA,
+          encryptedValueB: existing.encryptedValueB,
+        });
       preparedUpdates.push({
         id: update.id,
         kind: update.kind,
@@ -578,6 +962,9 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
       await ctx.db.patch(update.id, {
         kind: update.kind,
         encryptedValue: update.encryptedValue,
+        encryptedValueA: null,
+        encryptedValueB: null,
+        chance: null,
         updatedAtMs: now,
       });
     }
@@ -594,6 +981,9 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
         name: create.name,
         kind: create.kind,
         encryptedValue: create.encryptedValue,
+        encryptedValueA: null,
+        encryptedValueB: null,
+        chance: null,
         createdByClerkUserId: activeOrg.clerkUserId,
         createdAtMs: now,
         updatedAtMs: now,
@@ -623,21 +1013,41 @@ export const decryptValueForOrgProjectStageInternal = internalMutation({
     stageSlug: v.string(),
     variableId: v.id("projectVariables"),
   },
-  returns: v.object({
-    id: v.id("projectVariables"),
-    name: v.string(),
-    kind: v.literal("secret"),
-    value: v.string(),
-  }),
+  returns: v.union(
+    v.object({
+      id: v.id("projectVariables"),
+      name: v.string(),
+      kind: v.literal("secret"),
+      value: v.string(),
+    }),
+    v.object({
+      id: v.id("projectVariables"),
+      name: v.string(),
+      kind: v.literal("ab_roll"),
+      valueA: v.string(),
+      valueB: v.string(),
+      chance: v.number(),
+    }),
+  ),
   handler: async (
     ctx,
     args,
-  ): Promise<{
-    id: Id<"projectVariables">;
-    name: string;
-    kind: "secret";
-    value: string;
-  }> => {
+  ): Promise<
+    | {
+        id: Id<"projectVariables">;
+        name: string;
+        kind: "secret";
+        value: string;
+      }
+    | {
+        id: Id<"projectVariables">;
+        name: string;
+        kind: "ab_roll";
+        valueA: string;
+        valueB: string;
+        chance: number;
+      }
+  > => {
     const project = await ctx.db
       .query("projects")
       .withIndex("by_org_id_and_slug", (q) =>
@@ -668,17 +1078,46 @@ export const decryptValueForOrgProjectStageInternal = internalMutation({
       throw new Error("Variable not found in this stage.");
     }
 
-    const value = await decryptSecretValueForProject(ctx, {
+    if (variable.kind === "secret") {
+      if (variable.encryptedValue === null) {
+        throw new Error("Secret variable ciphertext is missing.");
+      }
+      const value = await decryptSecretValueForProject(ctx, {
+        projectId: project._id,
+        orgId: project.orgId,
+        encryptedValue: variable.encryptedValue,
+      });
+
+      return {
+        id: variable._id,
+        name: variable.name,
+        kind: "secret",
+        value,
+      };
+    }
+
+    if (variable.encryptedValueA === null || variable.encryptedValueB === null) {
+      throw new Error("ab_roll ciphertext is missing.");
+    }
+
+    const valueA = await decryptSecretValueForProject(ctx, {
       projectId: project._id,
       orgId: project.orgId,
-      encryptedValue: variable.encryptedValue,
+      encryptedValue: variable.encryptedValueA,
+    });
+    const valueB = await decryptSecretValueForProject(ctx, {
+      projectId: project._id,
+      orgId: project.orgId,
+      encryptedValue: variable.encryptedValueB,
     });
 
     return {
       id: variable._id,
       name: variable.name,
-      kind: variable.kind,
-      value,
+      kind: "ab_roll",
+      valueA,
+      valueB,
+      chance: validateChance(variable.chance ?? 0),
     };
   },
 });
@@ -702,7 +1141,15 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
     kind: v.literal("secret"),
     value: v.string(),
   }),
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    id: Id<"projectVariables">;
+    name: string;
+    kind: "secret";
+    value: string;
+  }> => {
     const identity = await requireIdentity(ctx);
     const activeOrg = requireActiveOrgIdClaims(identity);
     if (activeOrg.orgSlug !== null) {
@@ -739,6 +1186,10 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
       throw new Error("Variable not found in this stage.");
     }
 
+    if (variable.kind !== "secret" || variable.encryptedValue === null) {
+      throw new Error("Only secret variables can be decrypted in this UI flow.");
+    }
+
     const value = await decryptSecretValueForProject(ctx, {
       projectId: project._id,
       orgId: project.orgId,
@@ -748,7 +1199,7 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
     return {
       id: variable._id,
       name: variable.name,
-      kind: variable.kind,
+      kind: "secret",
       value,
     };
   },

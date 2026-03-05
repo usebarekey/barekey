@@ -61,3 +61,17 @@ Optional future hardening:
 - `agent-browser open http://localhost:5173` and `agent-browser open http://localhost:5174` both fail with `net::ERR_INTERNET_DISCONNECTED` in this environment.
 - This blocks reliable pre/post UI visual verification against a fresh baseline for this task.
 - Fallback used: code review + lint + UI build validation only.
+
+## 2026-03-05 [REVISIT] CLI env CRUD + ab_roll HTTP surface
+
+Implemented in-progress changes:
+- Added HTTP endpoints for `POST /v1/env/list`, `POST /v1/env/write`, and `POST /v1/env/pull`.
+- Added internal project variable write path for `secret` and `ab_roll` kinds with stage-scoped create-only/upsert semantics.
+- Extended project variable schema to support `ab_roll` encrypted payload storage (`encryptedValueA`, `encryptedValueB`, `chance`).
+- Added CLI commands: `env list/new/set/delete/pull` and auth group aliases.
+- CLI now reads `barekey.json` from current directory tree for project/stage/org defaults.
+- CLI credential storage is keychain-only (no file fallback).
+
+Follow-up to verify:
+- Run full typecheck and Convex codegen/deploy once environment secrets are available.
+- Confirm UI variable page behavior with mixed `secret` + `ab_roll` stage data (UI currently remains secret-focused).

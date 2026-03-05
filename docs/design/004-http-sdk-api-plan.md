@@ -26,6 +26,35 @@ Define the HTTP surface for non-browser clients (SDKs and CLI), including dynami
   - evaluate a batch of variables with one sdk `key` + `seed`
   - return resolved value and decision metadata
 
+## Implemented v1 HTTP endpoints
+
+- `POST /v1/env/evaluate`
+- `POST /v1/env/evaluate-batch`
+- `POST /v1/env/list`
+- `POST /v1/env/write`
+- `POST /v1/env/pull`
+- `POST /v1/cli/device/start`
+- `POST /v1/cli/device/complete`
+- `POST /v1/cli/device/poll`
+- `POST /v1/cli/token/refresh`
+- `POST /v1/cli/logout`
+- `GET /v1/cli/session`
+- `GET /v1/typegen/manifest`
+
+## CLI command surface (v1)
+
+- `barekey auth login`
+- `barekey auth logout`
+- `barekey auth whoami`
+- `barekey env get <name>`
+- `barekey env get-many --names a,b,c`
+- `barekey env list`
+- `barekey env new <name> <value> [--ab <valueB> --chance <0..1>]`
+- `barekey env set <name> <value> [--ab <valueB> --chance <0..1>]`
+- `barekey env delete <name> [--yes]`
+- `barekey env pull [--format dotenv|json] [--out <file>]`
+- `barekey typegen [--out <path>]`
+
 ## Request auth model
 
 - Client sends Clerk-issued JWT.

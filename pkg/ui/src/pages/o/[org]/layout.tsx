@@ -298,6 +298,7 @@ export function Layout() {
   const {
     isLoaded: isAuthLoaded,
     isSignedIn,
+    orgId: activeOrgId,
     orgSlug: activeOrgSlug,
   } = useAuth();
   const {
@@ -349,11 +350,18 @@ export function Layout() {
   const selectableMemberships = memberships.filter((membership) =>
     Boolean(membership.organization.slug),
   );
-  const matchingMembership =
-    memberships.find(
-      (membership) => membership.organization.slug === orgSlug,
-    ) ?? null;
   const routeMatchesActiveOrg = activeOrgSlug === orgSlug;
+  const matchingMembershipBySlug =
+    memberships.find((membership) => membership.organization.slug === orgSlug) ??
+    null;
+  const matchingMembershipByActiveOrgId =
+    activeOrgId === null
+      ? null
+      : memberships.find((membership) => membership.organization.id === activeOrgId) ??
+        null;
+  const matchingMembership =
+    matchingMembershipBySlug ??
+    (routeMatchesActiveOrg ? matchingMembershipByActiveOrgId : null);
 
   useEffect(() => {
     if (isSettingsRoute) {
@@ -366,13 +374,14 @@ export function Layout() {
       return;
     }
 
-    if (routeMatchesActiveOrg && matchingMembership === null) {
+    if (routeMatchesActiveOrg && memberships.length > 0 && matchingMembership === null) {
       void navigate("/o/select", { replace: true });
     }
   }, [
     isAuthLoaded,
     isOrgListLoaded,
     isSignedIn,
+    memberships.length,
     matchingMembership,
     navigate,
     routeMatchesActiveOrg,
@@ -614,7 +623,9 @@ export function Layout() {
                             activeSettingsSectionId === item.sectionId
                           }
                           render={
-                            <a href={`/o/${orgSlug}/settings#${item.sectionId}`} />
+                            <NavLink
+                              to={`/o/${orgSlug}/settings#${item.sectionId}`}
+                            />
                           }
                         >
                           <span>{item.label}</span>

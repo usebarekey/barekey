@@ -258,6 +258,30 @@ function formatPriceDeltaSentence(currentMonthlyPriceUsd: number, nextMonthlyPri
   return `with a ${direction} of ${formatUsd(monthlyAmount)}/month equivalent (about ${formatUsd(annualAmount)}/year).`;
 }
 
+function getPlanChangeErrorMessage(error: unknown): string {
+  if (!(error instanceof Error) || error.message.trim().length === 0) {
+    return formatSupportErrorMessage(
+      "An error occurred while updating the billing plan.",
+      extractRequestId(error),
+    );
+  }
+
+  const message = error.message.trim();
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("free workspace credit is already assigned to another workspace") ||
+    normalized.includes("free workspace credit is unavailable") ||
+    normalized.includes("already using another member")
+  ) {
+    return message;
+  }
+
+  return formatSupportErrorMessage(
+    "An error occurred while updating the billing plan.",
+    extractRequestId(error),
+  );
+}
+
 function formatScheduledPlanChangeNotice(input: {
   currentTier: PlanId;
   currentInterval: BillingInterval;
@@ -289,6 +313,7 @@ export function Page() {
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
     expectedOrgSlug: orgSlug,
   });
+  const currentUserFreePlanCredit = useQuery(api.users.getCurrentUserFreePlanCredit, {});
   const { organization } = useOrganization();
   const getBillingState = useAction(api.payments.getBillingStateForCurrentOrg);
   const changePlan = useAction(api.payments.changePlanForCurrentOrg);
@@ -362,6 +387,18 @@ export function Page() {
   const isWithoutPlan = billingState?.currentTier === null;
   const showBillingSkeleton = isBillingStateLoading;
   const isBillingUnavailable = !isBillingStateLoading && billingState === null;
+  const isFreeCreditLoading = currentUserFreePlanCredit === undefined;
+  const isFreeCreditAssignedToDifferentOrg =
+    currentUserFreePlanCredit !== undefined &&
+    billingState !== null &&
+    currentUserFreePlanCredit.assignedOrgId !== null &&
+    currentUserFreePlanCredit.assignedOrgId !== billingState.orgId;
+  const isFreeCreditExhaustedWithoutAssignment =
+    currentUserFreePlanCredit !== undefined &&
+    currentUserFreePlanCredit.assignedOrgId === null &&
+    currentUserFreePlanCredit.remainingCredits <= 0;
+  const isFreePlanActivationBlocked =
+    isFreeCreditLoading || isFreeCreditAssignedToDifferentOrg || isFreeCreditExhaustedWithoutAssignment;
   const currentPlanIndex =
     currentPlanId === null ? -1 : PLAN_METADATA.findIndex((tier) => tier.id === currentPlanId);
 
@@ -614,12 +651,7 @@ export function Page() {
       if (options.showUpgradeOverlay) {
         setUpgradeOverlay(null);
       }
-      toast.error(
-        formatSupportErrorMessage(
-          "An error occurred while updating the billing plan.",
-          extractRequestId(error),
-        ),
-      );
+      toast.error(getPlanChangeErrorMessage(error));
     } finally {
       if (!didTriggerNavigation && !options.showUpgradeOverlay) {
         setUpgradeOverlay(null);
@@ -1084,6 +1116,7 @@ export function Page() {
                     upgradeOverlay !== null ||
                     !billingState?.canManageBilling ||
                     !plan.isConfiguredInAutumn ||
+                    (plan.id === "free" && isFreePlanActivationBlocked) ||
                     (currentPlanId !== null &&
                       plan.id === currentPlanId &&
                       billingState.currentInterval ===
@@ -1111,6 +1144,10 @@ export function Page() {
                     )
                   ) : !plan.isConfiguredInAutumn ? (
                     "Configure in Autumn"
+                  ) : plan.id === "free" && isFreeCreditAssignedToDifferentOrg ? (
+                    "Free credit used elsewhere"
+                  ) : plan.id === "free" && isFreeCreditExhaustedWithoutAssignment ? (
+                    "Free credit unavailable"
                   ) : currentPlanId === null ? (
                     plan.id === "free" ? `Activate Free` : `Choose ${plan.name}`
                   ) : index > currentPlanIndex ? (

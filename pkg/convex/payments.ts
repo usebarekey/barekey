@@ -681,7 +681,15 @@ async function computeEncryptedBytesForOrg(
       )
       .collect();
     for (const row of rows) {
-      total += new TextEncoder().encode(row.encryptedValue).length;
+      if (row.encryptedValue !== null) {
+        total += new TextEncoder().encode(row.encryptedValue).length;
+      }
+      if (row.encryptedValueA !== null) {
+        total += new TextEncoder().encode(row.encryptedValueA).length;
+      }
+      if (row.encryptedValueB !== null) {
+        total += new TextEncoder().encode(row.encryptedValueB).length;
+      }
     }
   }
   return total;

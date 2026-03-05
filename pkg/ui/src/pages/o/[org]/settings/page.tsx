@@ -23,6 +23,10 @@ import { initials } from "@/lib/org-utils";
 import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
 
+function isPrivilegedOrgRole(role: string | null | undefined): boolean {
+  return role === "org:admin" || role === "org:owner";
+}
+
 function normalizeOrganizationSlugBase(value: string): string {
   const normalized = slugify(value, {
     lower: true,
@@ -84,14 +88,36 @@ export function Page() {
 
   const memberCount = memberships?.count ?? 0;
   const inviteCount = invitations?.count ?? 0;
+  const membershipRows = memberships?.data ?? [];
   const effectiveOrgRole = membership?.role ?? orgClaims?.orgRole ?? null;
   const canDeleteOrganizationByRole =
     effectiveOrgRole === "org:admin" || effectiveOrgRole === "org:owner";
+  const privilegedMemberCount = membershipRows.filter((row) => isPrivilegedOrgRole(row.role)).length;
+  const isCurrentMemberPrivileged = isPrivilegedOrgRole(membership?.role ?? null);
+  const isLeaveBlockedBySoleMember = memberships !== undefined && memberCount <= 1;
+  const isLeaveBlockedByNoAdmins = memberships !== undefined && privilegedMemberCount === 0;
+  const isLeaveBlockedByLastAdmin =
+    memberships !== undefined && isCurrentMemberPrivileged && privilegedMemberCount <= 1;
+  const isLeaveWorkspaceBlocked =
+    isLeaveBlockedBySoleMember || isLeaveBlockedByNoAdmins || isLeaveBlockedByLastAdmin;
+  const leaveBlockedReason = isLeaveBlockedBySoleMember
+    ? "You can not leave while you are the only member. Delete the organization instead."
+    : isLeaveBlockedByNoAdmins
+      ? "You can not leave because this organization currently has no admin. Assign an admin first."
+    : isLeaveBlockedByLastAdmin
+      ? "You can not leave because this would leave the organization without an admin."
+      : null;
   const isDeletePrerequisitesLoading = orgDeletionReadiness === undefined;
   const remainingProjectCount = orgDeletionReadiness?.projectCount ?? 0;
   const areDeletePrerequisitesMet = !isDeletePrerequisitesLoading && remainingProjectCount === 0;
+  const isDeleteBlockedByProjects = !isDeletePrerequisitesLoading && remainingProjectCount > 0;
   const isDeleteOrganizationBlocked =
     isDeletePrerequisitesLoading || !areDeletePrerequisitesMet || !canDeleteOrganizationByRole;
+  const deleteReadinessLead = isDeletePrerequisitesLoading
+    ? "Checking project prerequisites."
+    : isDeleteBlockedByProjects
+      ? `Delete is blocked until ${remainingProjectCount} project${remainingProjectCount === 1 ? "" : "s"} ${remainingProjectCount === 1 ? "is" : "are"} removed.`
+      : null;
 
   useEffect(() => {
     const orgLabel = organization?.name?.trim() || orgSlug;
@@ -185,6 +211,12 @@ export function Page() {
 
   async function handleLeaveWorkspace() {
     if (!membership || isLeaving) {
+      return;
+    }
+    if (isLeaveWorkspaceBlocked) {
+      setLeaveError(
+        leaveBlockedReason ?? "You can not leave this workspace right now.",
+      );
       return;
     }
 
@@ -388,15 +420,18 @@ export function Page() {
                 <p className="text-sm text-muted-foreground">
                   Leaving removes your direct access until invited again.
                 </p>
+                {leaveBlockedReason ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{leaveBlockedReason}</p>
+                ) : null}
               </div>
             </div>
             {leaveError ? <p className="px-3 pb-2 text-sm text-destructive">{leaveError}</p> : null}
-            <div className="border-t border-destructive/20 px-3 py-2">
+            <div className="px-3 pb-3">
               <Button
                 size="sm"
                 variant="destructive"
                 onClick={handleLeaveWorkspace}
-                disabled={!membership || isLeaving || isDeletingOrganization}
+                disabled={!membership || isLeaving || isDeletingOrganization || isLeaveWorkspaceBlocked}
               >
                 <IconTrash className="size-4" />
                 {isLeaving ? "Leaving..." : "Leave workspace"}
@@ -409,6 +444,11 @@ export function Page() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-destructive">Delete organization</p>
                   <p className="text-sm text-muted-foreground">
+                    {deleteReadinessLead ? (
+                      <span className="font-semibold text-muted-foreground">
+                        {deleteReadinessLead}{" "}
+                      </span>
+                    ) : null}
                     Permanently deletes this organization and all associated data.
                   </p>
                   {!canDeleteOrganizationByRole ? (
@@ -421,15 +461,7 @@ export function Page() {
               {deleteOrganizationError ? (
                 <p className="px-3 pb-2 text-sm text-destructive">{deleteOrganizationError}</p>
               ) : null}
-              {canDeleteOrganizationByRole ? (
-                <p className="px-3 pb-2 text-xs text-muted-foreground">
-                  Projects remaining before delete:{" "}
-                  <span className="font-semibold text-foreground">
-                    {isDeletePrerequisitesLoading ? "..." : remainingProjectCount}
-                  </span>
-                </p>
-              ) : null}
-              <div className="border-t border-destructive/20 px-3 py-2">
+              <div className="px-3 pb-3">
                 <Button
                   size="sm"
                   variant="destructive"

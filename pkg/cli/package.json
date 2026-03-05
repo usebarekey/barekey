@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@barekey/sdk": "workspace:*",
+    "@clack/prompts": "^0.11.0",
     "commander": "^14.0.1",
-    "open": "^10.2.0"
+    "open": "^10.2.0",
+    "picocolors": "^1.1.1"
   }
 }

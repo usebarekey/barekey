@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 
 import * as SSO from "@/pages/auth/sso/page";
 import * as SSOCallback from "@/pages/auth/sso/callback/page";
@@ -25,45 +26,86 @@ function UserSectionRedirect({ sectionId }: { sectionId: string }) {
   return <Navigate to={`/u/${userSlug}#${sectionId}`} replace />;
 }
 
+function HashScrollHandler() {
+  const { pathname, hash } = useLocation();
+
+  useEffect(() => {
+    if (hash.length <= 1) {
+      return;
+    }
+
+    const targetId = decodeURIComponent(hash.slice(1));
+    let rafId: number | null = null;
+    let attempts = 0;
+
+    const scrollToTarget = () => {
+      attempts += 1;
+      const element = document.getElementById(targetId);
+      if (element) {
+        element.scrollIntoView({
+          block: "start",
+        });
+        return;
+      }
+
+      if (attempts < 12) {
+        rafId = window.requestAnimationFrame(scrollToTarget);
+      }
+    };
+
+    rafId = window.requestAnimationFrame(scrollToTarget);
+    return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [pathname, hash]);
+
+  return null;
+}
+
 export function Router() {
   return (
-    <Routes>
-      <Route path="/" element={<Home.Page />} />
-      <Route path="pricing" element={<Pricing.Page />} />
-      <Route path="new" element={<CreateNew.Page />} />
-      <Route path="cli/device" element={<CliDeviceVerify.Page />} />
-      <Route path="auth" element={<Auth.Layout />}>
-        <Route path="sso" element={<SSO.Page />} />
-        <Route path="sso/callback" element={<SSOCallback.Page />} />
-      </Route>
-      <Route path="o">
-        <Route path="select" element={<OrgSelect.Page />} />
-        <Route path="new" element={<Navigate to="/new?type=organization" replace />} />
-        <Route path=":orgSlug" element={<OrgLayout.Layout />}>
-          <Route index element={<Navigate to="overview" replace />} />
-          <Route path="members" element={<OrgMembers.Page />} />
-          <Route path="projects" element={<OrgProjects.Page />} />
-          <Route path="billing" element={<OrgBilling.Page />} />
-          <Route path="project/:projectSlug" element={<OrgProjectLayout.Layout />}>
-            <Route index element={<Navigate to="variables" replace />} />
-            <Route path="variables" element={<OrgProjectVariables.Page />} />
-            <Route path="overview" element={<Navigate to="../variables" replace />} />
-            <Route path="settings" element={<OrgProjectSettings.Page />} />
+    <>
+      <HashScrollHandler />
+      <Routes>
+        <Route path="/" element={<Home.Page />} />
+        <Route path="pricing" element={<Pricing.Page />} />
+        <Route path="new" element={<CreateNew.Page />} />
+        <Route path="cli/device" element={<CliDeviceVerify.Page />} />
+        <Route path="auth" element={<Auth.Layout />}>
+          <Route path="sso" element={<SSO.Page />} />
+          <Route path="sso/callback" element={<SSOCallback.Page />} />
+        </Route>
+        <Route path="o">
+          <Route path="select" element={<OrgSelect.Page />} />
+          <Route path="new" element={<Navigate to="/new?type=organization" replace />} />
+          <Route path=":orgSlug" element={<OrgLayout.Layout />}>
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="members" element={<OrgMembers.Page />} />
+            <Route path="projects" element={<OrgProjects.Page />} />
+            <Route path="billing" element={<OrgBilling.Page />} />
+            <Route path="project/:projectSlug" element={<OrgProjectLayout.Layout />}>
+              <Route index element={<Navigate to="variables" replace />} />
+              <Route path="variables" element={<OrgProjectVariables.Page />} />
+              <Route path="overview" element={<Navigate to="../variables" replace />} />
+              <Route path="settings" element={<OrgProjectSettings.Page />} />
+            </Route>
+            <Route path="settings" element={<OrgSettings.Page />} />
+            <Route path="overview" element={<OrgOverview.Page />} />
           </Route>
-          <Route path="settings" element={<OrgSettings.Page />} />
-          <Route path="overview" element={<OrgOverview.Page />} />
         </Route>
-      </Route>
-      <Route path="u">
-        <Route path=":userSlug" element={<UserLayout.Layout />}>
-          <Route index element={<UserPage.Page />} />
-          <Route path="overview" element={<UserSectionRedirect sectionId="profile" />} />
-          <Route path="profile" element={<UserSectionRedirect sectionId="profile" />} />
-          <Route path="security" element={<UserSectionRedirect sectionId="linked-accounts" />} />
-          <Route path="workspaces" element={<UserSectionRedirect sectionId="profile" />} />
-          <Route path="activity" element={<UserSectionRedirect sectionId="profile" />} />
+        <Route path="u">
+          <Route path=":userSlug" element={<UserLayout.Layout />}>
+            <Route index element={<UserPage.Page />} />
+            <Route path="overview" element={<UserSectionRedirect sectionId="profile" />} />
+            <Route path="profile" element={<UserSectionRedirect sectionId="profile" />} />
+            <Route path="security" element={<UserSectionRedirect sectionId="linked-accounts" />} />
+            <Route path="workspaces" element={<UserSectionRedirect sectionId="profile" />} />
+            <Route path="activity" element={<UserSectionRedirect sectionId="profile" />} />
+          </Route>
         </Route>
-      </Route>
-    </Routes>
+      </Routes>
+    </>
   );
 }
