@@ -1,9 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import {
-  IconPlus,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -205,9 +202,7 @@ export function Page() {
     }
 
     if (!target.isDeleted && target.variableCount > 0) {
-      toast.error(
-        "This environment cannot be deleted until all variables are removed from it.",
-      );
+      toast.error("This environment cannot be deleted until all variables are removed from it.");
       return;
     }
 
@@ -256,17 +251,13 @@ export function Page() {
       return;
     }
 
-    const invalidRow = stageDraftRows.find(
-      (row) => !row.isDeleted && row.name.trim().length === 0,
-    );
+    const invalidRow = stageDraftRows.find((row) => !row.isDeleted && row.name.trim().length === 0);
     if (invalidRow) {
       toast.error("Environment name is required.");
       return;
     }
 
-    const tooLongRow = stageDraftRows.find(
-      (row) => !row.isDeleted && row.name.trim().length > 64,
-    );
+    const tooLongRow = stageDraftRows.find((row) => !row.isDeleted && row.name.trim().length > 64);
     if (tooLongRow) {
       toast.error("Stage name must be 64 characters or fewer.");
       return;
@@ -370,9 +361,7 @@ export function Page() {
                   <div
                     key={stage.id}
                     className={`rounded-xl border bg-background/70 p-3 ${
-                      stage.isDeleted || stage.isNew
-                        ? "border-dashed"
-                        : ""
+                      stage.isDeleted || stage.isNew ? "border-dashed" : ""
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -380,7 +369,9 @@ export function Page() {
                         {stage.isDeleted ? (
                           <p className="min-w-0 truncate text-sm text-muted-foreground opacity-70">
                             <span className="truncate">{stage.name}</span>{" "}
-                            <span className="font-mono text-xs text-muted-foreground">({stage.slug})</span>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              ({stage.slug})
+                            </span>
                           </p>
                         ) : (
                           <>
@@ -388,11 +379,16 @@ export function Page() {
                               value={stage.name}
                               disabled={isSaving}
                               onChange={(event) =>
-                                handleEnvironmentNameDraftChange(stage.id, event.currentTarget.value)
+                                handleEnvironmentNameDraftChange(
+                                  stage.id,
+                                  event.currentTarget.value,
+                                )
                               }
                               className={stage.isNew ? "h-8 max-w-sm opacity-70" : "h-8 max-w-sm"}
                             />
-                            <span className="font-mono text-xs text-muted-foreground">({stage.slug})</span>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              ({stage.slug})
+                            </span>
                           </>
                         )}
                       </div>
@@ -401,8 +397,7 @@ export function Page() {
                         variant="outline"
                         className={stage.isDeleted ? "" : "text-destructive"}
                         disabled={
-                          isSaving ||
-                          (!stage.isDeleted && !stage.isNew && stage.variableCount > 0)
+                          isSaving || (!stage.isDeleted && !stage.isNew && stage.variableCount > 0)
                         }
                         onClick={() => {
                           handleToggleEnvironmentDraftDelete(stage.id);
@@ -420,24 +415,29 @@ export function Page() {
                 </div>
               ) : null}
             </div>
-
           </div>
         </OrgSectionCard>
-
       </div>
 
       <div className="space-y-4">
-        <OrgSectionCard title="Project metadata" description="Read-only identifiers used by routing and APIs.">
+        <OrgSectionCard
+          title="Project metadata"
+          description="Read-only identifiers used by routing and APIs."
+        >
           <div className="overflow-hidden rounded-xl border bg-background/70">
             <table className="w-full border-collapse font-mono text-sm">
               <tbody>
                 <tr className="bg-background">
                   <td className="px-4 py-3 text-foreground">PROJECT NAME</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">{project.projectName}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">
+                    {project.projectName}
+                  </td>
                 </tr>
                 <tr className="bg-muted/25">
                   <td className="px-4 py-3 text-foreground">PROJECT SLUG</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">{project.projectSlug}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">
+                    {project.projectSlug}
+                  </td>
                 </tr>
                 <tr className="bg-background">
                   <td className="px-4 py-3 text-foreground">WORKSPACE SLUG</td>
@@ -489,17 +489,27 @@ export function Page() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              To delete this project, please delete{" "}
-              <span className="font-bold text-foreground">
-                {isDeletePrerequisitesLoading ? "..." : remainingEnvironmentCount}
-              </span>{" "}
-              environments and the{" "}
-              <span className="font-bold text-foreground">
-                {isDeletePrerequisitesLoading ? "..." : remainingVariableCount}
-              </span>{" "}
-              variables for this project. Note that we can not recover or undo this operation.
-            </p>
+            {areDeletePrerequisitesMet ? (
+              <p className="text-sm text-muted-foreground">
+                All environments and variables have been removed.{" "}
+                {deleteCountdown > 0
+                  ? `Delete unlocks in ${deleteCountdown} ${deleteCountdown === 1 ? "second" : "seconds"}.`
+                  : "Delete is unlocked now."}{" "}
+                Note that we can not recover or undo this operation.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                To delete this project, please delete{" "}
+                <span className="font-bold text-foreground">
+                  {isDeletePrerequisitesLoading ? "..." : remainingEnvironmentCount}
+                </span>{" "}
+                environments and the{" "}
+                <span className="font-bold text-foreground">
+                  {isDeletePrerequisitesLoading ? "..." : remainingVariableCount}
+                </span>{" "}
+                variables for this project. Note that we can not recover or undo this operation.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button

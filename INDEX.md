@@ -51,7 +51,7 @@ Why this matters:
 Do later:
 - Reserve org slugs like `new`, `select` (and other system paths) at creation/rename time.
 - Validate slug input in all org creation flows (Clerk UI/custom flow if applicable).
-- Keep generated default org slugs in safe patterns (hyphenated suffix, e.g. `johndoeorg-5831`).
+- Keep generated default org slugs in safe `slug-numbers` format (`{slug-base}-{digits}`, e.g. `johndoeorg-5831`).
 
 Optional future hardening:
 - Move system org pages to a namespaced path (example: `/o/_/new`) if you want to allow any slug.

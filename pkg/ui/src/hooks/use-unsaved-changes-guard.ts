@@ -11,6 +11,11 @@ export function useUnsavedChangesGuard({
   const location = useLocation();
   const currentPathRef = useRef("");
   const currentHistoryStateRef = useRef<unknown>(window.history.state);
+  const onBlockedAttemptRef = useRef(onBlockedAttempt);
+
+  useEffect(() => {
+    onBlockedAttemptRef.current = onBlockedAttempt;
+  }, [onBlockedAttempt]);
 
   useEffect(() => {
     currentPathRef.current = `${location.pathname}${location.search}${location.hash}`;
@@ -45,7 +50,7 @@ export function useUnsavedChangesGuard({
       url?: string | URL | null,
     ): void {
       if (isBlockedDestination(url)) {
-        onBlockedAttempt?.();
+        onBlockedAttemptRef.current?.();
         return;
       }
 
@@ -59,7 +64,7 @@ export function useUnsavedChangesGuard({
       url?: string | URL | null,
     ): void {
       if (isBlockedDestination(url)) {
-        onBlockedAttempt?.();
+        onBlockedAttemptRef.current?.();
         return;
       }
 
@@ -72,7 +77,7 @@ export function useUnsavedChangesGuard({
       const actualPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 
       if (actualPath !== expectedPath) {
-        onBlockedAttempt?.();
+        onBlockedAttemptRef.current?.();
         originalReplaceState(currentHistoryStateRef.current, "", expectedPath);
       }
     }
@@ -102,7 +107,7 @@ export function useUnsavedChangesGuard({
 
       if (isBlockedDestination(anchor.href)) {
         event.preventDefault();
-        onBlockedAttempt?.();
+        onBlockedAttemptRef.current?.();
       }
     }
 
@@ -115,7 +120,7 @@ export function useUnsavedChangesGuard({
       window.removeEventListener("popstate", handlePopState);
       document.removeEventListener("click", handleLinkClick, true);
     };
-  }, [hasUnsavedChanges, onBlockedAttempt]);
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) {
