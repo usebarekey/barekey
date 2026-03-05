@@ -21,11 +21,23 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
+import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 
 type CreateKind = "project" | "organization";
 type PlanId = "free" | "pro" | "max";
+type BillingInterval = "monthly" | "annually";
+type OverageMode = "without_overages" | "with_overages";
+type OrganizationStartingPlan = "without_plan" | PlanId;
+type ChangePlanResult = {
+  attachedProductId: string;
+  checkoutRequired: boolean;
+  checkoutUrl: string | null;
+  changeOutcome: "applied" | "scheduled" | "submitted";
+  effectiveProductId: string | null;
+};
 
 type WorkspacePlanStatus = {
   orgId: string;
@@ -38,6 +50,38 @@ type WorkspacePlanStatus = {
   isPlanless: boolean;
   billingUnavailable: boolean;
 };
+
+const ORGANIZATION_STARTING_PLAN_OPTIONS: Array<{
+  id: OrganizationStartingPlan;
+  label: string;
+  priceHint: string | null;
+  description: string;
+}> = [
+  {
+    id: "without_plan",
+    label: "Without a plan",
+    priceHint: null,
+    description: "Create the organization in disabled billing state.",
+  },
+  {
+    id: "free",
+    label: "Free",
+    priceHint: "$0/mo",
+    description: "Uses your free workspace credit if available.",
+  },
+  {
+    id: "pro",
+    label: "Pro",
+    priceHint: "$9.99/mo",
+    description: "Paid plan with higher limits and support.",
+  },
+  {
+    id: "max",
+    label: "Max",
+    priceHint: "$39.99/mo",
+    description: "Paid plan with maximum limits.",
+  },
+];
 
 function resolveCreateKind(value: string | null, fallback: CreateKind): CreateKind {
   if (value === "project" || value === "organization") {
@@ -55,7 +99,10 @@ function getProjectErrorMessage(error: unknown): string {
       return error.message;
     }
 
-    if (normalizedMessage.includes("planless")) {
+    if (
+      normalizedMessage.includes("planless") ||
+      normalizedMessage.includes("without a plan")
+    ) {
       return "This workspace is disabled until you select a billing plan.";
     }
 
@@ -75,6 +122,16 @@ function getProjectErrorMessage(error: unknown): string {
   return "Unable to create project right now. Please try again.";
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isActiveOrganizationMismatchError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("Active organization does not match the requested workspace.");
+}
+
 export function Page() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -90,8 +147,16 @@ export function Page() {
   });
   const createProject = useAction(api.projects.createForCurrentOrg);
   const getWorkspacePlanStatus = useAction(api.payments.getWorkspacePlanStatusForCurrentOrg);
+  const changePlanForCurrentOrg = useAction(api.payments.changePlanForCurrentOrg);
 
   const [organizationName, setOrganizationName] = useState("");
+  const [organizationStartingPlan, setOrganizationStartingPlan] =
+    useState<OrganizationStartingPlan>("without_plan");
+  const [organizationStartingInterval, setOrganizationStartingInterval] =
+    useState<BillingInterval>("monthly");
+  const [organizationStartingOverageMode, setOrganizationStartingOverageMode] =
+    useState<OverageMode>("without_overages");
+  const [organizationPlanSetupPath, setOrganizationPlanSetupPath] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("");
   const [isOrganizationSubmitting, setIsOrganizationSubmitting] = useState(false);
   const [isProjectSubmitting, setIsProjectSubmitting] = useState(false);
@@ -180,6 +245,8 @@ export function Page() {
 
     setIsOrganizationSubmitting(true);
     setOrganizationErrorMessage(null);
+    setOrganizationPlanSetupPath(null);
+    let createdOrgPathForRecovery: string | null = null;
 
     try {
       let createdOrganization: { id: string; slug: string | null } | null = null;
@@ -209,13 +276,95 @@ export function Page() {
         organization: createdOrganization.id,
       });
 
+      const createdOrgPath = createdOrganization.slug
+        ? `/o/${createdOrganization.slug}`
+        : null;
+      createdOrgPathForRecovery = createdOrgPath;
+      if (organizationStartingPlan !== "without_plan") {
+        if (createdOrganization.slug === null) {
+          throw new Error(
+            "Organization was created but its slug is unavailable. Open billing to finish plan setup.",
+          );
+        }
+
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          try {
+            await getWorkspacePlanStatus({
+              expectedOrgSlug: createdOrganization.slug,
+            });
+            break;
+          } catch (error: unknown) {
+            if (!isActiveOrganizationMismatchError(error) || attempt === 9) {
+              throw error;
+            }
+            await sleep(180);
+          }
+        }
+
+        let result: ChangePlanResult | null = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            result = await changePlanForCurrentOrg({
+              expectedOrgSlug: createdOrganization.slug,
+              tier: organizationStartingPlan,
+              interval:
+                organizationStartingPlan === "free"
+                  ? "monthly"
+                  : organizationStartingInterval,
+              overageMode:
+                organizationStartingPlan === "free"
+                  ? "without_overages"
+                  : organizationStartingOverageMode,
+              successUrl: `${window.location.origin}${createdOrgPath}/billing`,
+            });
+            break;
+          } catch (error: unknown) {
+            if (!isActiveOrganizationMismatchError(error) || attempt === 2) {
+              throw error;
+            }
+            await setActive({
+              organization: createdOrganization.id,
+            });
+            await sleep(220);
+          }
+        }
+
+        if (result === null) {
+          throw new Error("Unable to start billing setup for this organization.");
+        }
+
+        if (result.checkoutRequired && result.checkoutUrl) {
+          window.location.assign(result.checkoutUrl);
+          return;
+        }
+
+        setOrganizationName("");
+        void navigate(`${createdOrgPath}/billing`, { replace: true });
+        return;
+      }
+
       setOrganizationName("");
       void navigate(
         createdOrganization.slug ? `/o/${createdOrganization.slug}/overview` : "/o/select",
         { replace: true },
       );
     } catch (error: unknown) {
-      setOrganizationErrorMessage(getClerkErrorMessage(error, "Unable to create organization."));
+      if (createdOrgPathForRecovery) {
+        setOrganizationPlanSetupPath(`${createdOrgPathForRecovery}/billing`);
+      }
+      const defaultFallback =
+        organizationStartingPlan === "without_plan"
+          ? "Unable to create organization."
+          : formatSupportErrorMessage(
+              "An error occurred while creating the organization and setting up billing.",
+              extractRequestId(error),
+            );
+      setOrganizationErrorMessage(
+        getClerkErrorMessage(
+          error,
+          defaultFallback,
+        ),
+      );
     } finally {
       setIsOrganizationSubmitting(false);
     }
@@ -326,7 +475,7 @@ export function Page() {
             <CardDescription>
               {createKind === "project"
                 ? "Create a project in your active organization workspace."
-                : "Start a new organization workspace."}
+                : "Start a new organization and optionally select a billing plan now."}
             </CardDescription>
           </div>
         </CardHeader>
@@ -360,8 +509,117 @@ export function Page() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Starting plan</label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {ORGANIZATION_STARTING_PLAN_OPTIONS.map((planOption) => (
+                      <button
+                        key={planOption.id}
+                        type="button"
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          organizationStartingPlan === planOption.id
+                            ? "border-primary bg-primary/10"
+                            : "hover:bg-muted/30"
+                        }`}
+                        disabled={isOrganizationSubmitting}
+                        onClick={() => {
+                          setOrganizationStartingPlan(planOption.id);
+                        }}
+                      >
+                        <p className="text-sm font-medium">
+                          {planOption.label}{" "}
+                          {planOption.priceHint ? (
+                            <span className="text-muted-foreground text-xs font-mono">
+                              ({planOption.priceHint})
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {planOption.description}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                  {(organizationStartingPlan === "pro" ||
+                    organizationStartingPlan === "max") ? (
+                    <div className="space-y-2 rounded-lg border border-dashed p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Billing interval
+                        </span>
+                        <ToggleGroup
+                          multiple={false}
+                          value={[organizationStartingInterval]}
+                          onValueChange={(values) => {
+                            const next = values[0];
+                            if (next === "monthly" || next === "annually") {
+                              setOrganizationStartingInterval(next);
+                            }
+                          }}
+                          variant="outline"
+                          size="sm"
+                          spacing={0}
+                        >
+                          <ToggleGroupItem value="monthly" disabled={isOrganizationSubmitting}>
+                            Monthly
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="annually" disabled={isOrganizationSubmitting}>
+                            Annually
+                          </ToggleGroupItem>
+                        </ToggleGroup>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Overage mode
+                        </span>
+                        <ToggleGroup
+                          multiple={false}
+                          value={[organizationStartingOverageMode]}
+                          onValueChange={(values) => {
+                            const next = values[0];
+                            if (next === "without_overages" || next === "with_overages") {
+                              setOrganizationStartingOverageMode(next);
+                            }
+                          }}
+                          variant="outline"
+                          size="sm"
+                          spacing={0}
+                        >
+                          <ToggleGroupItem
+                            value="without_overages"
+                            disabled={isOrganizationSubmitting}
+                          >
+                            Without overages
+                          </ToggleGroupItem>
+                          <ToggleGroupItem
+                            value="with_overages"
+                            disabled={isOrganizationSubmitting}
+                          >
+                            With overages
+                          </ToggleGroupItem>
+                        </ToggleGroup>
+                      </div>
+                    </div>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    Annual gives a <span className="font-semibold text-foreground">20% discount</span>.
+                    {organizationStartingPlan === "pro" || organizationStartingPlan === "max"
+                      ? " Paid plans may redirect to secure checkout to confirm payment."
+                      : ""}
+                  </p>
+                </div>
+
                 {organizationErrorMessage ? (
                   <p className="text-sm text-destructive">{organizationErrorMessage}</p>
+                ) : null}
+                {organizationPlanSetupPath ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    render={<Link to={organizationPlanSetupPath} />}
+                  >
+                    Open billing setup
+                  </Button>
                 ) : null}
               </div>
             ) : (
@@ -432,7 +690,7 @@ export function Page() {
                   <p className="text-xs text-muted-foreground">Checking workspace billing status...</p>
                 ) : workspacePlanStatus?.isPlanless ? (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    This workspace is planless and currently disabled for project creation.
+                    This workspace is without a plan and currently disabled for project creation.
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button variant="outline" render={<Link to={`/o/${orgSlug}/billing`} />}>
                         Choose billing plan
@@ -498,7 +756,9 @@ export function Page() {
                   : "Create project"
                 : isOrganizationSubmitting
                   ? "Creating..."
-                  : "Create organization"}
+                  : organizationStartingPlan === "without_plan"
+                    ? "Create organization"
+                    : "Create organization and continue"}
             </Button>
           </CardFooter>
         </SignedIn>

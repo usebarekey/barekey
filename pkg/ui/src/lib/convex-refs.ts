@@ -14,6 +14,13 @@ export type CurrentUserAccount = {
   lastSeenAtMs: number;
 };
 
+export type CurrentUserFreePlanCredit = {
+  totalCredits: number;
+  remainingCredits: number;
+  assignedOrgId: string | null;
+  assignedOrgSlug: string | null;
+};
+
 type UpsertUserPreferencesArgs = {
   preferredTheme: UserPreferences["preferredTheme"];
   defaultOrgSlug: string | null;
@@ -31,6 +38,12 @@ export const getCurrentUserPreferencesRef = makeFunctionReference<
   Record<string, never>,
   UserPreferences | null
 >("user_preferences:getCurrentUserPreferences");
+
+export const getCurrentUserFreePlanCreditRef = makeFunctionReference<
+  "query",
+  Record<string, never>,
+  CurrentUserFreePlanCredit
+>("users:getCurrentUserFreePlanCredit");
 
 export const upsertCurrentUserPreferencesRef = makeFunctionReference<
   "mutation",

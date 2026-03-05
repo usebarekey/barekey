@@ -80,14 +80,14 @@ export function Page() {
             ) : (
               <OrgRoleBadge role={orgClaims.orgRole} />
             )}
-            {isWorkspacePlanless ? <Badge variant="outline">Planless workspace</Badge> : null}
+            {isWorkspacePlanless ? <Badge variant="outline">Workspace without a plan</Badge> : null}
           </>
         }
       />
 
       {isWorkspacePlanless ? (
         <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-          This workspace is planless and currently disabled for project creation.
+          This workspace is without a plan and currently disabled for project creation.
           <Button
             size="sm"
             variant="outline"

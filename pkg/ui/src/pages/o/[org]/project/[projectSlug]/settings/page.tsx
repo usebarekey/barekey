@@ -1,17 +1,15 @@
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  IconArrowRight,
-  IconLock,
   IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
-import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from "sonner";
 
 import { api } from "@convex/_generated/api";
+import { FloatingDraftToolbar } from "@/components/custom/floating-draft-toolbar";
 import { OrgSectionCard } from "@/components/custom/org-workspace";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { Input } from "@/components/ui/input";
 import type { ProjectRouteContext } from "../layout";
 
@@ -59,13 +58,13 @@ function stageSlugPreview(value: string): string {
 export function Page() {
   const project = useOutletContext<ProjectRouteContext>();
   const navigate = useNavigate();
-  const projectBasePath = `/o/${project.orgSlug}/project/${project.projectSlug}`;
   const [newEnvironmentName, setNewEnvironmentName] = useState("");
   const [stageDraftRows, setStageDraftRows] = useState<StageDraftRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteCountdown, setDeleteCountdown] = useState(5);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const draftToolbarRef = useRef<HTMLDivElement | null>(null);
 
   const stages = useQuery(api.project_stages.listForCurrentOrgProject, {
     expectedOrgSlug: project.orgSlug,
@@ -84,9 +83,29 @@ export function Page() {
     !isDeletePrerequisitesLoading &&
     remainingEnvironmentCount === 0 &&
     remainingVariableCount === 0;
-  const hasDeleteCleanupRemaining =
-    !isDeletePrerequisitesLoading &&
-    (remainingEnvironmentCount > 0 || remainingVariableCount > 0);
+
+  function shakeDraftToolbar() {
+    draftToolbarRef.current?.animate(
+      [
+        { transform: "translateX(0px)" },
+        { transform: "translateX(-10px)" },
+        { transform: "translateX(10px)" },
+        { transform: "translateX(-8px)" },
+        { transform: "translateX(8px)" },
+        { transform: "translateX(0px)" },
+      ],
+      {
+        duration: 260,
+        iterations: 2,
+        easing: "ease-in-out",
+      },
+    );
+  }
+
+  useUnsavedChangesGuard({
+    hasUnsavedChanges: hasEnvironmentDraftChanges,
+    onBlockedAttempt: shakeDraftToolbar,
+  });
 
   useEffect(() => {
     if (!stages) {
@@ -175,21 +194,6 @@ export function Page() {
     setNewEnvironmentName("");
   }
 
-  function handleUpdateEnvironmentDraftName(stageId: string, value: string) {
-    setStageDraftRows((previous) =>
-      previous.map((row) => {
-        if (row.id !== stageId) {
-          return row;
-        }
-
-        return {
-          ...row,
-          name: value,
-        };
-      }),
-    );
-  }
-
   function handleToggleEnvironmentDraftDelete(stageId: string) {
     if (isSaving) {
       return;
@@ -227,6 +231,24 @@ export function Page() {
 
       return next;
     });
+  }
+
+  function handleEnvironmentNameDraftChange(stageId: string, nextName: string) {
+    if (isSaving) {
+      return;
+    }
+
+    setStageDraftRows((previous) =>
+      previous.map((row) => {
+        if (row.id !== stageId) {
+          return row;
+        }
+        return {
+          ...row,
+          name: nextName,
+        };
+      }),
+    );
   }
 
   async function handleSaveEnvironmentDraft() {
@@ -338,69 +360,57 @@ export function Page() {
                 disabled={isSaving || newEnvironmentName.trim().length === 0}
               >
                 <IconPlus />
-                Add to draft
+                Add
               </Button>
             </div>
 
             <div className="space-y-2">
               {stageDraftRows.map((stage) => {
-                const trimmedName = stage.name.trim();
-                const isRenamed = !stage.isNew && !stage.isDeleted && trimmedName !== stage.originalName;
-
                 return (
                   <div
                     key={stage.id}
                     className={`rounded-xl border bg-background/70 p-3 ${
-                      stage.isDeleted ? "border-dashed opacity-70" : ""
+                      stage.isDeleted || stage.isNew
+                        ? "border-dashed"
+                        : ""
                     }`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Badge variant="outline">{stage.variableCount} vars</Badge>
-                        {stage.isDefault ? <Badge variant="outline">Default</Badge> : null}
-                        {stage.isNew ? <Badge variant="outline">New</Badge> : null}
-                        {isRenamed ? <Badge variant="outline">Edited</Badge> : null}
-                        {stage.isDeleted ? <Badge variant="outline">Pending delete</Badge> : null}
-                        <span className="font-mono text-xs text-muted-foreground">{stage.slug}</span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex items-center gap-2">
+                        {stage.isDeleted ? (
+                          <p className="min-w-0 truncate text-sm text-muted-foreground opacity-70">
+                            <span className="truncate">{stage.name}</span>{" "}
+                            <span className="font-mono text-xs text-muted-foreground">({stage.slug})</span>
+                          </p>
+                        ) : (
+                          <>
+                            <Input
+                              value={stage.name}
+                              disabled={isSaving}
+                              onChange={(event) =>
+                                handleEnvironmentNameDraftChange(stage.id, event.currentTarget.value)
+                              }
+                              className={stage.isNew ? "h-8 max-w-sm opacity-70" : "h-8 max-w-sm"}
+                            />
+                            <span className="font-mono text-xs text-muted-foreground">({stage.slug})</span>
+                          </>
+                        )}
                       </div>
                       <Button
                         size="sm"
                         variant="outline"
                         className={stage.isDeleted ? "" : "text-destructive"}
-                        disabled={isSaving || (!stage.isDeleted && stage.variableCount > 0)}
+                        disabled={
+                          isSaving ||
+                          (!stage.isDeleted && !stage.isNew && stage.variableCount > 0)
+                        }
                         onClick={() => {
                           handleToggleEnvironmentDraftDelete(stage.id);
                         }}
                       >
-                        {stage.isDeleted ? "Undo" : (
-                          <>
-                            <IconTrash />
-                            Delete
-                          </>
-                        )}
+                        {stage.isDeleted ? "Undo" : "Delete"}
                       </Button>
                     </div>
-                    <div className="mt-2">
-                      <Input
-                        value={stage.name}
-                        disabled={isSaving || stage.isDeleted}
-                        onChange={(event) => {
-                          handleUpdateEnvironmentDraftName(
-                            stage.id,
-                            event.currentTarget?.value ?? "",
-                          );
-                        }}
-                      />
-                    </div>
-                    {stage.isDeleted ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        This environment is marked for deletion and will be removed on save.
-                      </p>
-                    ) : stage.variableCount > 0 ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        This environment cannot be deleted until all variables are removed from it.
-                      </p>
-                    ) : null}
                   </div>
                 );
               })}
@@ -411,105 +421,30 @@ export function Page() {
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-3">
-              <p className="text-xs text-muted-foreground">
-                {hasEnvironmentDraftChanges
-                  ? "You have unsaved environment changes."
-                  : "No unsaved environment changes."}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleResetEnvironmentDraft}
-                  disabled={isSaving || !hasEnvironmentDraftChanges}
-                >
-                  Discard
-                </Button>
-                <Button onClick={() => void handleSaveEnvironmentDraft()} disabled={isSaving || !hasEnvironmentDraftChanges}>
-                  {isSaving ? "Saving..." : "Save changes"}
-                </Button>
-              </div>
-            </div>
           </div>
         </OrgSectionCard>
 
-        <OrgSectionCard title="Encryption controls" description="Project-level key lifecycle controls.">
-          <div className="rounded-xl border bg-background/70 p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-medium">
-              <IconLock className="size-4" />
-              Envelope encryption
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Variables are encrypted per project with a wrapped DEK. Rotation controls are coming next.
-            </p>
-            <Badge variant="outline" className="mt-3">
-              Soon
-            </Badge>
-          </div>
-        </OrgSectionCard>
       </div>
 
       <div className="space-y-4">
-        <OrgSectionCard title="Navigation" description="Jump to project pages.">
-          <div className="grid gap-2">
-            <Button
-              variant="outline"
-              className="justify-between"
-              nativeButton={false}
-              render={<Link to={`${projectBasePath}/variables`} />}
-            >
-              Variables
-              <IconArrowRight />
-            </Button>
-            <Button
-              variant="outline"
-              className="justify-between"
-              nativeButton={false}
-              render={<Link to={`${projectBasePath}/overview`} />}
-            >
-              Overview
-              <IconArrowRight />
-            </Button>
-            <Button
-              variant="outline"
-              className="justify-between"
-              nativeButton={false}
-              render={<Link to={`/o/${project.orgSlug}/projects`} />}
-            >
-              Back to projects
-              <IconArrowRight />
-            </Button>
-          </div>
-        </OrgSectionCard>
-
-        <OrgSectionCard title="Config file" description="Root-level runtime config for upcoming CLI support.">
-          <pre className="overflow-x-auto rounded-xl border bg-background/70 p-3 text-xs">
-{`{
-  "apiUrl": "https://api.barekey.dev",
-  "orgSlug": "${project.orgSlug}",
-  "projectSlug": "${project.projectSlug}",
-  "environmentSlug": "development"
-}`}
-          </pre>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Save as <span className="font-mono">barekey.json</span> at repository root.
-          </p>
-        </OrgSectionCard>
-
         <OrgSectionCard title="Project metadata" description="Read-only identifiers used by routing and APIs.">
-          <div className="space-y-3 rounded-xl border bg-background/70 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="org-kicker text-muted-foreground">Project name</span>
-              <span className="text-sm font-medium">{project.projectName}</span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="org-kicker text-muted-foreground">Project slug</span>
-              <span className="font-mono text-sm">{project.projectSlug}</span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="org-kicker text-muted-foreground">Workspace slug</span>
-              <span className="font-mono text-sm">{project.orgSlug}</span>
-            </div>
+          <div className="overflow-hidden rounded-xl border bg-background/70">
+            <table className="w-full border-collapse font-mono text-sm">
+              <tbody>
+                <tr className="bg-background">
+                  <td className="px-4 py-3 text-foreground">PROJECT NAME</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{project.projectName}</td>
+                </tr>
+                <tr className="bg-muted/25">
+                  <td className="px-4 py-3 text-foreground">PROJECT SLUG</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{project.projectSlug}</td>
+                </tr>
+                <tr className="bg-background">
+                  <td className="px-4 py-3 text-foreground">WORKSPACE SLUG</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{project.orgSlug}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </OrgSectionCard>
 
@@ -519,12 +454,9 @@ export function Page() {
           className="border-destructive/30"
         >
           <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
-            <p className="text-sm text-muted-foreground">
-              Delete is locked until this project has zero environments and zero variables.
-            </p>
             <Button
               variant="outline"
-              className="mt-3 border-destructive/50 text-destructive hover:text-destructive"
+              className="border-destructive/50 text-destructive hover:text-destructive"
               onClick={() => {
                 setDeleteCountdown(5);
                 setIsDeleteDialogOpen(true);
@@ -557,29 +489,17 @@ export function Page() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            {isDeletePrerequisitesLoading ? (
-              <p className="text-sm text-muted-foreground">
-                Checking project cleanup status...
-              </p>
-            ) : hasDeleteCleanupRemaining ? (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  Delete is enabled only after all project data is removed first.
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Remaining cleanup:{" "}
-                  <span className="font-bold text-foreground">{remainingEnvironmentCount}</span>{" "}
-                  environment{remainingEnvironmentCount === 1 ? "" : "s"},{" "}
-                  <span className="font-bold text-foreground">{remainingVariableCount}</span>{" "}
-                  variable{remainingVariableCount === 1 ? "" : "s"}.
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                The delete button will be available in{" "}
-                <span className="font-bold text-foreground">{deleteCountdown}</span> seconds.
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              To delete this project, please delete{" "}
+              <span className="font-bold text-foreground">
+                {isDeletePrerequisitesLoading ? "..." : remainingEnvironmentCount}
+              </span>{" "}
+              environments and the{" "}
+              <span className="font-bold text-foreground">
+                {isDeletePrerequisitesLoading ? "..." : remainingVariableCount}
+              </span>{" "}
+              variables for this project. Note that we can not recover or undo this operation.
+            </p>
           </div>
           <DialogFooter>
             <Button
@@ -606,6 +526,16 @@ export function Page() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <FloatingDraftToolbar
+        isVisible={hasEnvironmentDraftChanges}
+        message="You have unsaved environment changes."
+        isSaving={isSaving}
+        onDiscard={handleResetEnvironmentDraft}
+        onSave={() => {
+          void handleSaveEnvironmentDraft();
+        }}
+        toolbarRef={draftToolbarRef}
+      />
     </div>
   );
 }

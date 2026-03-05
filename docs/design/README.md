@@ -27,3 +27,7 @@ This directory contains design docs for Barekey's architecture and roadmap.
 
 - `Current`: already implemented in this repository.
 - `Target`: intended design for near-term implementation.
+
+## Naming note
+
+- Generated org/user/project slugs use `slug-numbers` format (example: `myorg-5831`).

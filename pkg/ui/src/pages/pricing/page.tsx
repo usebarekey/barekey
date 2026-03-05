@@ -419,10 +419,10 @@ export function Page() {
           </div>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            You can create unlimited organizations. New workspaces start planless and stay disabled
-            until a billing plan is selected.
+            You can create unlimited organizations. New organizations start without a plan until
+            you apply your free workspace credit or choose a paid plan.
             {overageMode === "with_overages"
-              ? " Overage usage is billed monthly regardless of billing interval."
+              ? " Overage charges are billed monthly, even on annual plans."
               : ""}
           </p>
         </div>

@@ -1,9 +1,22 @@
 import { useAuth } from "@clerk/react-router";
 import { useQuery } from "convex/react";
-import { IconActivityHeartbeat, IconClock, IconRoute2 } from "@tabler/icons-react";
+import {
+  IconActivityHeartbeat,
+  IconClock,
+  IconRoute2,
+} from "@tabler/icons-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUserAccountRef, getCurrentUserPreferencesRef } from "@/lib/convex-refs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  getCurrentUserAccountRef,
+  getCurrentUserPreferencesRef,
+} from "@/lib/convex-refs";
 
 type TimelineEntry = {
   id: string;
@@ -58,27 +71,37 @@ export function Page() {
       <Card>
         <CardHeader>
           <CardTitle>Activity</CardTitle>
-          <CardDescription>Recent account-level timeline and routing context.</CardDescription>
+          <CardDescription>
+            Recent account-level timeline and routing context.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-lg border bg-background/70 p-3 text-sm text-muted-foreground">
             <p className="flex items-center gap-2">
               <IconRoute2 className="size-4" />
               Active workspace context:{" "}
-              <span className="font-mono text-foreground">{activeOrgSlug ?? "none"}</span>
+              <span className="text-foreground">
+                {activeOrgSlug ? "Workspace selected" : "No workspace selected"}
+              </span>
             </p>
             <p className="mt-2 text-xs">
-              This timeline is derived from current account and preference records. Detailed event
-              history can be added in a dedicated audit phase.
+              This timeline is derived from current account and preference
+              records. Detailed event history can be added in a dedicated audit
+              phase.
             </p>
           </div>
 
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading activity timeline...</p>
+            <p className="text-sm text-muted-foreground">
+              Loading activity timeline...
+            </p>
           ) : (
             <div className="space-y-2">
               {timeline.map((entry) => (
-                <div key={entry.id} className="rounded-lg border bg-background/70 p-3 text-sm">
+                <div
+                  key={entry.id}
+                  className="rounded-lg border bg-background/70 p-3 text-sm"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="flex items-center gap-2 font-medium">
                       <IconActivityHeartbeat className="size-4 text-cyan-300" />
@@ -89,7 +112,9 @@ export function Page() {
                       {formatDateTime(entry.timestampMs)}
                     </p>
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">{entry.detail}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {entry.detail}
+                  </p>
                 </div>
               ))}
             </div>

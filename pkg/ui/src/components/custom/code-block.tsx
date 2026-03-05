@@ -4,11 +4,32 @@ import type { Highlighter } from "shiki";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const supportedLanguages = ["typescript"] as const;
+const supportedLanguages = ["typescript", "json"] as const;
 type SupportedCodeBlockLanguage = (typeof supportedLanguages)[number];
 
 let highlighter: Highlighter | null = null;
 let highlighterPromise: Promise<Highlighter> | null = null;
+
+function stripShikiBackgroundStyles(html: string): string {
+  return html.replace(/style=(["'])(.*?)\1/g, (_styleAttr, quote: string, styleValue: string) => {
+    const declarations = styleValue
+      .split(";")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+    const keptDeclarations = declarations.filter((declaration) => {
+      const normalized = declaration.toLowerCase();
+      return (
+        !normalized.startsWith("background-color:") &&
+        !normalized.startsWith("--shiki-dark-bg:") &&
+        !normalized.startsWith("--shiki-light-bg:")
+      );
+    });
+    if (keptDeclarations.length === 0) {
+      return "";
+    }
+    return `style=${quote}${keptDeclarations.join("; ")};${quote}`;
+  });
+}
 
 function getHighlighter() {
   if (highlighter) {
@@ -63,7 +84,7 @@ export function CodeBlock({
           lang,
           themes: { light: "github-light", dark: "github-dark" },
         });
-        setHtml(result);
+        setHtml(stripShikiBackgroundStyles(result));
       })
       .catch(() => {
         if (!cancelled) {

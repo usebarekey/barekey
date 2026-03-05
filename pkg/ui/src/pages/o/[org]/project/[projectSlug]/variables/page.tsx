@@ -7,7 +7,6 @@ import {
   IconPlus,
   IconRefresh,
   IconTrash,
-  IconUpload,
 } from "@tabler/icons-react";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "sonner";
@@ -15,6 +14,7 @@ import { toast } from "sonner";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { ProjectRouteContext } from "../layout";
+import { FloatingDraftToolbar } from "@/components/custom/floating-draft-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { parseEnvText, type ParsedEnvIssue } from "@/lib/parse-env-text";
 
 type NewVariableDraft = {
@@ -149,6 +149,7 @@ export function Page() {
     kind: "secret",
   });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const draftToolbarRef = useRef<HTMLDivElement | null>(null);
   const seededProjectsRef = useRef<Record<string, boolean>>({});
 
   const stages = useQuery(api.project_stages.listForCurrentOrgProject, {
@@ -553,6 +554,29 @@ export function Page() {
 
   const hasDraft = hasPersistedDraftChanges(currentDraft);
 
+  function shakeDraftToolbar() {
+    draftToolbarRef.current?.animate(
+      [
+        { transform: "translateX(0px)" },
+        { transform: "translateX(-10px)" },
+        { transform: "translateX(10px)" },
+        { transform: "translateX(-8px)" },
+        { transform: "translateX(8px)" },
+        { transform: "translateX(0px)" },
+      ],
+      {
+        duration: 260,
+        iterations: 2,
+        easing: "ease-in-out",
+      },
+    );
+  }
+
+  useUnsavedChangesGuard({
+    hasUnsavedChanges: hasDraft,
+    onBlockedAttempt: shakeDraftToolbar,
+  });
+
   return (
     <div className="space-y-4">
       <OrgSectionCard
@@ -571,12 +595,7 @@ export function Page() {
             >
               <SelectTrigger className="h-8 min-w-56 border-transparent bg-transparent shadow-none">
                 {selectedEnvironment ? (
-                  <div className="flex w-full items-center justify-between gap-2">
-                    <span className="truncate">{selectedEnvironment.name}</span>
-                    <Badge variant="outline" className="font-mono text-[10px]">
-                      {selectedEnvironment.slug}
-                    </Badge>
-                  </div>
+                  <span className="truncate">{selectedEnvironment.name}</span>
                 ) : (
                   <SelectValue placeholder="Select environment" />
                 )}
@@ -584,12 +603,7 @@ export function Page() {
               <SelectContent>
                 {(stages ?? []).map((stage) => (
                   <SelectItem key={stage.id} value={stage.slug}>
-                    <div className="flex w-full items-center justify-between gap-4">
-                      <span>{stage.name}</span>
-                      <Badge variant="outline" className="font-mono text-[10px]">
-                        {stage.slug}
-                      </Badge>
-                    </div>
+                    <span>{stage.name}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1019,44 +1033,25 @@ export function Page() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-3">
-            <p className="text-xs text-muted-foreground">
-              {hasDraft ? "You have unsaved draft changes." : "No unsaved changes."}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  clearCurrentStageDraft();
-                  setImportSummary(null);
-                  toast.info("Draft changes discarded.");
-                }}
-                disabled={!hasDraft || isSaving}
-              >
-                Discard all
-              </Button>
-              <Button onClick={() => void handleSaveAll()} disabled={!hasDraft || !selectedStageSlug || isSaving}>
-                <IconUpload />
-                {isSaving ? "Saving..." : "Save all"}
-              </Button>
-            </div>
-          </div>
         </div>
       </OrgSectionCard>
-
-      <OrgSectionCard title="Runtime config" description="Project runtime defaults for future CLI/SDK integration.">
-        <pre className="overflow-x-auto rounded-xl border bg-background/70 p-3 text-xs">
-{`{
-  "apiUrl": "https://api.barekey.dev",
-  "orgSlug": "${project.orgSlug}",
-  "projectSlug": "${project.projectSlug}",
-  "environmentSlug": "${selectedStageSlug ?? "development"}"
-}`}
-        </pre>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Store this as <span className="font-mono">barekey.json</span> in your repository root.
-        </p>
-      </OrgSectionCard>
+      <FloatingDraftToolbar
+        isVisible={hasDraft}
+        message="You have unsaved draft changes."
+        isSaving={isSaving}
+        discardLabel="Discard all"
+        saveLabel="Save all"
+        saveDisabled={!selectedStageSlug}
+        onDiscard={() => {
+          clearCurrentStageDraft();
+          setImportSummary(null);
+          toast.info("Draft changes discarded.");
+        }}
+        onSave={() => {
+          void handleSaveAll();
+        }}
+        toolbarRef={draftToolbarRef}
+      />
     </div>
   );
 }

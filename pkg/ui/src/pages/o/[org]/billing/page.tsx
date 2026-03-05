@@ -1,10 +1,12 @@
 import { useAction, useQuery } from "convex/react";
 import {
   IconBolt,
+  IconCreditCard,
   IconCheck,
   IconClock,
   IconCpu,
   IconDatabase,
+  IconLoader2,
   IconMail,
   IconUsers,
 } from "@tabler/icons-react";
@@ -22,7 +24,17 @@ import {
 } from "@/components/custom/org-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 
 type PlanId = "free" | "pro" | "max";
 type BillingInterval = "monthly" | "annually";
@@ -51,6 +63,14 @@ type BillingState = {
   currentTier: PlanId | null;
   currentInterval: BillingInterval | null;
   currentOverageMode: OverageMode | null;
+  hasScheduledPlanChange: boolean;
+  scheduledPlanChange: {
+    productId: string;
+    tier: PlanId;
+    interval: BillingInterval;
+    overageMode: OverageMode;
+    monthlyPriceUsd: number;
+  } | null;
   usage: {
     staticRequests: {
       usage: number | null;
@@ -85,6 +105,12 @@ type PlanDisplayMetadata = {
   fallbackStaticOveragePer1kUsd: number | null;
   fallbackDynamicOveragePer1kUsd: number | null;
   fallbackStorageOveragePerGbUsd: number | null;
+};
+
+type UpgradeOverlayState = {
+  title: string;
+  description: string;
+  isSuccess: boolean;
 };
 
 const PLAN_METADATA: Array<PlanDisplayMetadata> = [
@@ -203,6 +229,61 @@ function formatOverageHint(overageAllowed: boolean | null | undefined): string {
   return "Usage unavailable";
 }
 
+function formatTierName(tier: PlanId): string {
+  return PLAN_METADATA.find((plan) => plan.id === tier)?.name ?? tier;
+}
+
+function formatPlanSummary(
+  tier: PlanId,
+  interval: BillingInterval,
+  overageMode: OverageMode,
+  monthlyPriceUsd: number,
+): string {
+  const overageLabel = overageMode === "with_overages" ? "with overages" : "without overages";
+  if (interval === "annually") {
+    const annual = monthlyPriceUsd * 12;
+    return `${formatTierName(tier)} annually (${overageLabel}) at ${formatUsd(monthlyPriceUsd)}/month equivalent (about ${formatUsd(annual)}/year billed)`;
+  }
+  return `${formatTierName(tier)} monthly (${overageLabel}) at ${formatUsd(monthlyPriceUsd)}/month`;
+}
+
+function formatPriceDeltaSentence(currentMonthlyPriceUsd: number, nextMonthlyPriceUsd: number): string {
+  const monthlyDelta = nextMonthlyPriceUsd - currentMonthlyPriceUsd;
+  if (monthlyDelta === 0) {
+    return "with no monthly price change.";
+  }
+  const direction = monthlyDelta > 0 ? "increase" : "decrease";
+  const monthlyAmount = Math.abs(monthlyDelta);
+  const annualAmount = monthlyAmount * 12;
+  return `with a ${direction} of ${formatUsd(monthlyAmount)}/month equivalent (about ${formatUsd(annualAmount)}/year).`;
+}
+
+function formatScheduledPlanChangeNotice(input: {
+  currentTier: PlanId;
+  currentInterval: BillingInterval;
+  currentOverageMode: OverageMode;
+  currentMonthlyPriceUsd: number;
+  scheduledPlanChange: NonNullable<BillingState["scheduledPlanChange"]>;
+}): string {
+  const currentSummary = formatPlanSummary(
+    input.currentTier,
+    input.currentInterval,
+    input.currentOverageMode,
+    input.currentMonthlyPriceUsd,
+  );
+  const scheduledSummary = formatPlanSummary(
+    input.scheduledPlanChange.tier,
+    input.scheduledPlanChange.interval,
+    input.scheduledPlanChange.overageMode,
+    input.scheduledPlanChange.monthlyPriceUsd,
+  );
+  const delta = formatPriceDeltaSentence(
+    input.currentMonthlyPriceUsd,
+    input.scheduledPlanChange.monthlyPriceUsd,
+  );
+  return `A plan change is set to execute soon, your workspace is currently on ${currentSummary}, and it will move to ${scheduledSummary}, ${delta}`;
+}
+
 export function Page() {
   const { orgSlug = "org" } = useParams();
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
@@ -211,14 +292,21 @@ export function Page() {
   const { organization } = useOrganization();
   const getBillingState = useAction(api.payments.getBillingStateForCurrentOrg);
   const changePlan = useAction(api.payments.changePlanForCurrentOrg);
+  const revokeFreePlanCredit = useAction(api.payments.revokeFreePlanCreditForCurrentOrg);
   const openBillingPortal = useAction(api.payments.openBillingPortalForCurrentOrg);
 
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [overageMode, setOverageMode] = useState<OverageMode>("without_overages");
   const [billingState, setBillingState] = useState<BillingState | null>(null);
   const [isBillingStateLoading, setIsBillingStateLoading] = useState(true);
+  const [billingStateLoadError, setBillingStateLoadError] = useState<string | null>(null);
   const [isPlanSubmitting, setIsPlanSubmitting] = useState(false);
   const [isPortalSubmitting, setIsPortalSubmitting] = useState(false);
+  const [isRevokeSubmitting, setIsRevokeSubmitting] = useState(false);
+  const [pendingPlanId, setPendingPlanId] = useState<PlanId | null>(null);
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
+  const [upgradeDialogPlanId, setUpgradeDialogPlanId] = useState<PlanId | null>(null);
+  const [upgradeOverlay, setUpgradeOverlay] = useState<UpgradeOverlayState | null>(null);
 
   const isOrgClaimsLoading = orgClaims === undefined;
 
@@ -230,6 +318,7 @@ export function Page() {
   useEffect(() => {
     let cancelled = false;
     setIsBillingStateLoading(true);
+    setBillingStateLoadError(null);
 
     void getBillingState({
       expectedOrgSlug: orgSlug,
@@ -239,6 +328,7 @@ export function Page() {
           return;
         }
         setBillingState(result as BillingState);
+        setBillingStateLoadError(null);
         if (result.currentInterval) {
           setBillingInterval(result.currentInterval);
         }
@@ -248,8 +338,13 @@ export function Page() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "Failed to load billing details.");
           setBillingState(null);
+          setBillingStateLoadError(
+            formatSupportErrorMessage(
+              "Unable to load billing details right now.",
+              extractRequestId(error),
+            ),
+          );
         }
       })
       .finally(() => {
@@ -264,6 +359,9 @@ export function Page() {
   }, [getBillingState, orgSlug]);
 
   const currentPlanId: PlanId | null = billingState?.currentTier ?? null;
+  const isWithoutPlan = billingState?.currentTier === null;
+  const showBillingSkeleton = isBillingStateLoading;
+  const isBillingUnavailable = !isBillingStateLoading && billingState === null;
   const currentPlanIndex =
     currentPlanId === null ? -1 : PLAN_METADATA.findIndex((tier) => tier.id === currentPlanId);
 
@@ -280,6 +378,7 @@ export function Page() {
 
       return {
         ...plan,
+        isConfiguredInAutumn: selectedVariant?.isConfiguredInAutumn ?? false,
         monthlyPriceUsd: selectedVariant?.monthlyPriceUsd ?? plan.fallbackMonthlyPriceUsd,
         usage: {
           staticRequests: `${formatRequestCount(
@@ -304,52 +403,250 @@ export function Page() {
     });
   }, [billingInterval, billingState?.variants, overageMode]);
 
+  const currentPlanMonthlyPriceUsd = useMemo(() => {
+    if (!billingState || billingState.currentTier === null || billingState.currentInterval === null) {
+      return null;
+    }
+    const fromVariant =
+      billingState.variants.find(
+        (variant) =>
+          variant.tier === billingState.currentTier &&
+          variant.interval === billingState.currentInterval &&
+          variant.overageMode ===
+            (billingState.currentOverageMode ?? "without_overages"),
+      )?.monthlyPriceUsd ?? null;
+    if (fromVariant !== null) {
+      return fromVariant;
+    }
+    return (
+      PLAN_METADATA.find((plan) => plan.id === billingState.currentTier)?.fallbackMonthlyPriceUsd ??
+      null
+    );
+  }, [
+    billingState,
+    billingState?.currentInterval,
+    billingState?.currentOverageMode,
+    billingState?.currentTier,
+    billingState?.variants,
+  ]);
+
+  const upgradeDialogPlanMetadata = useMemo(() => {
+    if (upgradeDialogPlanId === null) {
+      return null;
+    }
+    return planTiers.find((plan) => plan.id === upgradeDialogPlanId) ?? null;
+  }, [planTiers, upgradeDialogPlanId]);
+
+  const nextBillingInterval = billingInterval;
+  const nextOverageMode = overageMode;
+
   async function refreshBillingState(): Promise<void> {
     const refreshed = await getBillingState({
       expectedOrgSlug: orgSlug,
     });
     setBillingState(refreshed as BillingState);
+    setBillingStateLoadError(null);
   }
 
-  async function handleChangePlan(nextPlanId: PlanId): Promise<void> {
+  async function handleRetryBillingStateLoad(): Promise<void> {
+    setIsBillingStateLoading(true);
+    setBillingStateLoadError(null);
+    try {
+      await refreshBillingState();
+    } catch (error: unknown) {
+      setBillingState(null);
+      setBillingStateLoadError(
+        formatSupportErrorMessage(
+          "Unable to load billing details right now.",
+          extractRequestId(error),
+        ),
+      );
+    } finally {
+      setIsBillingStateLoading(false);
+    }
+  }
+
+  function isNoopPlanSelection(nextPlanId: PlanId): boolean {
+    if (!billingState) {
+      return false;
+    }
+    const nextInterval = nextPlanId === "free" ? "monthly" : nextBillingInterval;
+    const nextOverages = nextPlanId === "free" ? "without_overages" : nextOverageMode;
+    return (
+      currentPlanId === nextPlanId &&
+      billingState.currentInterval === nextInterval &&
+      billingState.currentOverageMode === nextOverages
+    );
+  }
+
+  function isUpgradeLikeChange(nextPlanId: PlanId): boolean {
+    if (!billingState || nextPlanId === "free") {
+      return false;
+    }
+
+    if (currentPlanId === null || currentPlanId === "free") {
+      return true;
+    }
+
+    if (currentPlanId !== nextPlanId) {
+      const nextIndex = PLAN_METADATA.findIndex((tier) => tier.id === nextPlanId);
+      return nextIndex > currentPlanIndex;
+    }
+
+    const currentInterval = billingState.currentInterval ?? "monthly";
+    const currentOverage = billingState.currentOverageMode ?? "without_overages";
+    if (currentInterval !== nextBillingInterval && nextBillingInterval === "annually") {
+      return true;
+    }
+    if (currentOverage !== nextOverageMode && nextOverageMode === "with_overages") {
+      return true;
+    }
+    return false;
+  }
+
+  function requiresPaidPlanChangeConfirmation(nextPlanId: PlanId): boolean {
+    if (!billingState || isNoopPlanSelection(nextPlanId)) {
+      return false;
+    }
+    const isCurrentPaid = currentPlanId === "pro" || currentPlanId === "max";
+    const isNextPaid = nextPlanId === "pro" || nextPlanId === "max";
+    return isCurrentPaid || isNextPaid;
+  }
+
+  function handlePlanButtonClick(nextPlanId: PlanId): void {
+    if (isPlanSubmitting) {
+      return;
+    }
+    if (requiresPaidPlanChangeConfirmation(nextPlanId)) {
+      setUpgradeDialogPlanId(nextPlanId);
+      setIsUpgradeDialogOpen(true);
+      return;
+    }
+    void handleChangePlan(nextPlanId, {
+      showUpgradeOverlay: false,
+    });
+  }
+
+  async function handleChangePlan(
+    nextPlanId: PlanId,
+    options: { showUpgradeOverlay: boolean },
+  ): Promise<void> {
     if (!billingState || !billingState.canManageBilling || isPlanSubmitting) {
       return;
     }
 
     setIsPlanSubmitting(true);
+    setPendingPlanId(nextPlanId);
+    const isUpgrade = isUpgradeLikeChange(nextPlanId);
+    if (options.showUpgradeOverlay) {
+      setUpgradeOverlay({
+        title: isUpgrade ? "Applying upgrade..." : "Applying billing change...",
+        description: "Please wait while we update your billing plan.",
+        isSuccess: false,
+      });
+    }
+    let didTriggerNavigation = false;
+
     try {
       const result = await changePlan({
         expectedOrgSlug: orgSlug,
         tier: nextPlanId,
-        interval: nextPlanId === "free" ? "monthly" : billingInterval,
-        overageMode: nextPlanId === "free" ? "without_overages" : overageMode,
+        interval: nextPlanId === "free" ? "monthly" : nextBillingInterval,
+        overageMode: nextPlanId === "free" ? "without_overages" : nextOverageMode,
         successUrl: window.location.href,
       });
 
       if (result.checkoutRequired && result.checkoutUrl) {
+        if (options.showUpgradeOverlay) {
+          setUpgradeOverlay({
+            title: "Redirecting to secure checkout...",
+            description: "A checkout confirmation is required to complete this billing change.",
+            isSuccess: false,
+          });
+        }
+        didTriggerNavigation = true;
         window.location.assign(result.checkoutUrl);
         return;
       }
 
-      toast.success(`Updated plan to ${nextPlanId}.`);
+      const didApplyImmediately = result.changeOutcome === "applied";
+      const wasScheduled = result.changeOutcome === "scheduled";
+
       try {
         await refreshBillingState();
       } catch (refreshError: unknown) {
         toast.error(
-          refreshError instanceof Error
-            ? refreshError.message
-            : "Plan updated, but failed to refresh billing details.",
+          formatSupportErrorMessage(
+            "Plan updated, but billing details could not be refreshed.",
+            extractRequestId(refreshError),
+          ),
         );
       }
+
+      if (options.showUpgradeOverlay) {
+        if (didApplyImmediately) {
+          setUpgradeOverlay({
+            title: isUpgrade ? "Upgrade successful" : "Plan update successful",
+            description: "Your billing plan has been updated successfully.",
+            isSuccess: true,
+          });
+          return;
+        }
+
+        setUpgradeOverlay({
+          title: wasScheduled ? "Plan change scheduled" : "Plan change submitted",
+          description: wasScheduled
+            ? "This change is scheduled for the next billing cycle. Your current plan remains active until then."
+            : "Your billing provider accepted the change, but it has not applied yet. Refresh billing in a moment.",
+          isSuccess: true,
+        });
+        return;
+      }
+
+      if (didApplyImmediately) {
+        toast.success(`Updated plan to ${nextPlanId}.`);
+      } else if (wasScheduled) {
+        toast.info("Plan change scheduled for the next billing cycle.");
+      } else {
+        toast.info("Plan change submitted. Refresh billing in a moment to confirm.");
+      }
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Failed to update billing plan.");
+      if (options.showUpgradeOverlay) {
+        setUpgradeOverlay(null);
+      }
+      toast.error(
+        formatSupportErrorMessage(
+          "An error occurred while updating the billing plan.",
+          extractRequestId(error),
+        ),
+      );
     } finally {
+      if (!didTriggerNavigation && !options.showUpgradeOverlay) {
+        setUpgradeOverlay(null);
+      }
+      setPendingPlanId(null);
       setIsPlanSubmitting(false);
     }
   }
 
+  async function handleConfirmUpgradeChange(): Promise<void> {
+    if (upgradeDialogPlanId === null) {
+      return;
+    }
+    setIsUpgradeDialogOpen(false);
+    await handleChangePlan(upgradeDialogPlanId, {
+      showUpgradeOverlay: true,
+    });
+  }
+
   async function handleOpenBillingPortal(): Promise<void> {
-    if (!billingState || !billingState.canManageBilling || isPortalSubmitting) {
+    if (
+      !billingState ||
+      !billingState.canManageBilling ||
+      isPortalSubmitting ||
+      isPlanSubmitting ||
+      upgradeOverlay !== null
+    ) {
       return;
     }
 
@@ -361,9 +658,57 @@ export function Page() {
       });
       window.location.assign(result.portalUrl);
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Failed to open billing portal.");
+      toast.error(
+        formatSupportErrorMessage(
+          "An error occurred while opening the billing portal.",
+          extractRequestId(error),
+        ),
+      );
     } finally {
       setIsPortalSubmitting(false);
+    }
+  }
+
+  async function handleRevokeFreeCredit(): Promise<void> {
+    if (
+      !billingState ||
+      !billingState.canManageBilling ||
+      isRevokeSubmitting ||
+      isPlanSubmitting ||
+      upgradeOverlay !== null
+    ) {
+      return;
+    }
+
+    setIsRevokeSubmitting(true);
+    try {
+      const result = await revokeFreePlanCredit({
+        expectedOrgSlug: orgSlug,
+      });
+      if (!result.revoked) {
+        toast.info("This workspace is not currently using your free workspace credit.");
+        return;
+      }
+      toast.success("Free workspace credit revoked. This workspace is now without a plan.");
+      try {
+        await refreshBillingState();
+      } catch (refreshError: unknown) {
+        toast.error(
+          formatSupportErrorMessage(
+            "Free credit was revoked, but billing details could not be refreshed.",
+            extractRequestId(refreshError),
+          ),
+        );
+      }
+    } catch (error: unknown) {
+      toast.error(
+        formatSupportErrorMessage(
+          "An error occurred while revoking the free workspace credit.",
+          extractRequestId(error),
+        ),
+      );
+    } finally {
+      setIsRevokeSubmitting(false);
     }
   }
 
@@ -375,7 +720,7 @@ export function Page() {
         orgName={organization?.name}
         imageUrl={organization?.imageUrl}
         imageSeed={organization?.id}
-        subtitle={<>Organization plans, usage limits, and workspace billing settings.</>}
+        subtitle={<>Organization plans, usage limits, and billing settings.</>}
         tags={
           <>
             {isOrgClaimsLoading ? (
@@ -389,60 +734,123 @@ export function Page() {
               </Badge>
             ) : null}
             {billingState?.currentTier === null && !isBillingStateLoading ? (
-              <Badge variant="outline">Planless workspace</Badge>
+              <Badge variant="outline">Workspace without a plan</Badge>
             ) : null}
           </>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <OrgMetricCard
-          label="Static Requests"
-          value={
-            billingState
-              ? formatUsageProgress(
-                  billingState.usage.staticRequests.usage,
-                  billingState.usage.staticRequests.includedUsage,
-                  "requests",
-                )
-              : "..."
-          }
-          hint={formatOverageHint(billingState?.usage.staticRequests.overageAllowed)}
-          icon={<IconBolt className="size-4" />}
-        />
-        <OrgMetricCard
-          label="Dynamic Requests"
-          value={
-            billingState
-              ? formatUsageProgress(
-                  billingState.usage.dynamicRequests.usage,
-                  billingState.usage.dynamicRequests.includedUsage,
-                  "requests",
-                )
-              : "..."
-          }
-          hint={formatOverageHint(billingState?.usage.dynamicRequests.overageAllowed)}
-          icon={<IconCpu className="size-4" />}
-        />
-        <OrgMetricCard
-          label="Storage"
-          value={
-            billingState
-              ? formatUsageProgress(
-                  billingState.usage.storageBytes.usage ?? billingState.storageMirrorBytes,
-                  billingState.usage.storageBytes.includedUsage,
-                  "bytes",
-                )
-              : "..."
-          }
-          hint={formatOverageHint(billingState?.usage.storageBytes.overageAllowed)}
-          icon={<IconDatabase className="size-4" />}
-        />
-      </div>
+      {isBillingUnavailable ? (
+        <OrgSectionCard
+          title="Billing unavailable"
+          description="We could not load billing details for this organization."
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-4">
+            <p className="text-sm text-muted-foreground">
+              {billingStateLoadError ??
+                "An error occurred while loading billing details. Please retry."}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void handleRetryBillingStateLoad();
+              }}
+              disabled={isBillingStateLoading}
+            >
+              Retry
+            </Button>
+          </div>
+        </OrgSectionCard>
+      ) : (
+        <>
+      {showBillingSkeleton ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="rounded-xl border bg-background/70 p-4">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="mt-3 h-7 w-32" />
+              <Skeleton className="mt-2 h-3 w-24" />
+            </div>
+          ))}
+        </div>
+      ) : billingState ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <OrgMetricCard
+            label="Current Plan"
+            value={
+              isWithoutPlan
+                ? "Without a plan"
+                : formatTierName(billingState.currentTier ?? "free")
+            }
+            hint={
+              isWithoutPlan
+                ? "Select a plan to enable billing and usage."
+                : `${billingState.currentInterval === "annually" ? "Annual" : "Monthly"} · ${billingState.currentOverageMode === "with_overages" ? "Overages enabled" : "Overages disabled"}`
+            }
+            icon={<IconCreditCard className="size-4" />}
+          />
+          <OrgMetricCard
+            label="Static Requests"
+            value={
+              isWithoutPlan
+                ? "Without a plan"
+                : formatUsageProgress(
+                    billingState.usage.staticRequests.usage,
+                    billingState.usage.staticRequests.includedUsage,
+                    "requests",
+                  )
+            }
+            hint={
+              isWithoutPlan
+                ? "Usage disabled"
+                : formatOverageHint(billingState.usage.staticRequests.overageAllowed)
+            }
+            icon={<IconBolt className="size-4" />}
+          />
+          <OrgMetricCard
+            label="Dynamic Requests"
+            value={
+              isWithoutPlan
+                ? "Without a plan"
+                : formatUsageProgress(
+                    billingState.usage.dynamicRequests.usage,
+                    billingState.usage.dynamicRequests.includedUsage,
+                    "requests",
+                  )
+            }
+            hint={
+              isWithoutPlan
+                ? "Usage disabled"
+                : formatOverageHint(billingState.usage.dynamicRequests.overageAllowed)
+            }
+            icon={<IconCpu className="size-4" />}
+          />
+          <OrgMetricCard
+            label="Storage"
+            value={
+              isWithoutPlan
+                ? "Without a plan"
+                : formatUsageProgress(
+                    billingState.usage.storageBytes.usage ?? billingState.storageMirrorBytes,
+                    billingState.usage.storageBytes.includedUsage,
+                    "bytes",
+                  )
+            }
+            hint={
+              isWithoutPlan
+                ? "Usage disabled"
+                : formatOverageHint(billingState.usage.storageBytes.overageAllowed)
+            }
+            icon={<IconDatabase className="size-4" />}
+          />
+        </div>
+      ) : null}
 
+      {showBillingSkeleton || billingState ? (
       <OrgSectionCard
         title="Plans"
-        description="Choose a plan for this organization workspace."
+        description="Choose a plan for this organization."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <ToggleGroup
@@ -458,8 +866,18 @@ export function Page() {
               size="sm"
               spacing={0}
             >
-              <ToggleGroupItem value="without_overages">Without overages</ToggleGroupItem>
-              <ToggleGroupItem value="with_overages">With overages</ToggleGroupItem>
+              <ToggleGroupItem
+                value="without_overages"
+                disabled={isPlanSubmitting || upgradeOverlay !== null}
+              >
+                Without overages
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="with_overages"
+                disabled={isPlanSubmitting || upgradeOverlay !== null}
+              >
+                With overages
+              </ToggleGroupItem>
             </ToggleGroup>
             <ToggleGroup
               multiple={false}
@@ -474,8 +892,15 @@ export function Page() {
               size="sm"
               spacing={0}
             >
-              <ToggleGroupItem value="monthly">Monthly</ToggleGroupItem>
-              <ToggleGroupItem value="annually">Annually (-20%)</ToggleGroupItem>
+              <ToggleGroupItem value="monthly" disabled={isPlanSubmitting || upgradeOverlay !== null}>
+                Monthly
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="annually"
+                disabled={isPlanSubmitting || upgradeOverlay !== null}
+              >
+                Annually (-20%)
+              </ToggleGroupItem>
             </ToggleGroup>
             <Button
               size="sm"
@@ -484,19 +909,56 @@ export function Page() {
                 void handleOpenBillingPortal();
               }}
               disabled={
-                isBillingStateLoading ||
+                showBillingSkeleton ||
                 !billingState?.canManageBilling ||
-                isPortalSubmitting
+                isPortalSubmitting ||
+                isPlanSubmitting ||
+                upgradeOverlay !== null
               }
             >
               {isPortalSubmitting ? "Opening..." : "Manage billing"}
             </Button>
+            {billingState?.currentTier === "free" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void handleRevokeFreeCredit();
+                }}
+                disabled={
+                  showBillingSkeleton ||
+                  !billingState.canManageBilling ||
+                  isRevokeSubmitting ||
+                  isPlanSubmitting ||
+                  upgradeOverlay !== null
+                }
+              >
+                {isRevokeSubmitting ? "Revoking..." : "Revoke free credit"}
+              </Button>
+            ) : null}
           </div>
         }
       >
+        {showBillingSkeleton ? (
+          <div className="grid gap-3 pb-3 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="rounded-xl border bg-background/70 p-6">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="mt-3 h-4 w-4/5" />
+                <div className="mt-5 space-y-2">
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+                <Skeleton className="mt-6 h-9 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : billingState ? (
+          <>
         {billingState?.currentTier === null && !isBillingStateLoading ? (
           <div className="mb-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            This workspace is planless and currently disabled. Select a plan to enable project
+            This workspace is without a plan and currently disabled. Select a plan to enable project
             creation and usage tracking.
           </div>
         ) : null}
@@ -532,6 +994,11 @@ export function Page() {
                   )}
                 </p>
                 <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  {!plan.isConfiguredInAutumn ? (
+                    <p className="text-sm text-amber-600">
+                      Not configured in Autumn yet. Configure this product before activation.
+                    </p>
+                  ) : null}
                   {plan.includes ? (
                     <div className="font-medium text-foreground">
                       <span>{plan.includes}</span>
@@ -614,7 +1081,9 @@ export function Page() {
                   disabled={
                     isBillingStateLoading ||
                     isPlanSubmitting ||
+                    upgradeOverlay !== null ||
                     !billingState?.canManageBilling ||
+                    !plan.isConfiguredInAutumn ||
                     (currentPlanId !== null &&
                       plan.id === currentPlanId &&
                       billingState.currentInterval ===
@@ -623,36 +1092,156 @@ export function Page() {
                         (plan.id === "free" ? "without_overages" : overageMode))
                   }
                   onClick={() => {
-                    void handleChangePlan(plan.id);
+                    handlePlanButtonClick(plan.id);
                   }}
                 >
-                  {plan.id === currentPlanId
-                    ? billingState?.currentInterval ===
-                          (plan.id === "free" ? "monthly" : billingInterval) &&
-                        billingState.currentOverageMode ===
-                          (plan.id === "free" ? "without_overages" : overageMode)
-                      ? `On ${plan.name}`
-                      : `Update ${plan.name}`
-                    : currentPlanId === null
-                      ? plan.id === "free"
-                        ? "Activate Free"
-                        : `Choose ${plan.name}`
-                      : index > currentPlanIndex
-                        ? `Upgrade to ${plan.name}`
-                        : `Downgrade to ${plan.name}`}
+                  {isPlanSubmitting && pendingPlanId === plan.id ? (
+                    <span className="inline-flex items-center gap-2">
+                      <IconLoader2 className="size-4 animate-spin" />
+                      Updating...
+                    </span>
+                  ) : plan.id === currentPlanId ? (
+                    billingState?.currentInterval ===
+                      (plan.id === "free" ? "monthly" : billingInterval) &&
+                    billingState.currentOverageMode ===
+                      (plan.id === "free" ? "without_overages" : overageMode) ? (
+                      `On ${plan.name}`
+                    ) : (
+                      `Update ${plan.name}`
+                    )
+                  ) : !plan.isConfiguredInAutumn ? (
+                    "Configure in Autumn"
+                  ) : currentPlanId === null ? (
+                    plan.id === "free" ? `Activate Free` : `Choose ${plan.name}`
+                  ) : index > currentPlanIndex ? (
+                    `Upgrade to ${plan.name}`
+                  ) : (
+                    `Downgrade to ${plan.name}`
+                  )}
                 </Button>
               </div>
             </div>
           ))}
         </div>
+          </>
+        ) : null}
         <p className="pt-1 text-xs text-muted-foreground">
-          You can create unlimited organizations. New workspaces start planless and stay disabled
-          until a billing plan is selected.
+          {billingState?.hasScheduledPlanChange ? (
+            <span className="font-semibold text-foreground">
+              {billingState.scheduledPlanChange &&
+              billingState.currentTier !== null &&
+              billingState.currentInterval !== null &&
+              billingState.currentOverageMode !== null &&
+              currentPlanMonthlyPriceUsd !== null
+                ? `${formatScheduledPlanChangeNotice({
+                    currentTier: billingState.currentTier,
+                    currentInterval: billingState.currentInterval,
+                    currentOverageMode: billingState.currentOverageMode,
+                    currentMonthlyPriceUsd: currentPlanMonthlyPriceUsd,
+                    scheduledPlanChange: billingState.scheduledPlanChange,
+                  })} `
+                : "A plan change is set to apply soon. "}
+            </span>
+          ) : null}
+          You can create unlimited organizations. New organizations start without a plan until you
+          apply your free workspace credit or choose a paid plan.
           {overageMode === "with_overages"
-            ? " Overage usage is billed monthly regardless of billing interval."
+            ? " Overage charges are billed monthly, even on annual plans."
             : ""}
         </p>
       </OrgSectionCard>
+      ) : null}
+        </>
+      )}
+      <Dialog
+        open={isUpgradeDialogOpen}
+        onOpenChange={(open) => {
+          if (isPlanSubmitting) {
+            return;
+          }
+          setIsUpgradeDialogOpen(open);
+          if (!open) {
+            setUpgradeDialogPlanId(null);
+          }
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>
+              {upgradeDialogPlanId && isUpgradeLikeChange(upgradeDialogPlanId)
+                ? "Confirm upgrade"
+                : "Confirm billing change"}
+            </DialogTitle>
+            <DialogDescription>
+              This paid billing change may create an immediate charge for your workspace.
+            </DialogDescription>
+          </DialogHeader>
+          {upgradeDialogPlanMetadata ? (
+            <div className="rounded-xl border bg-muted/30 p-3 text-sm">
+              <p className="font-medium text-foreground">
+                {upgradeDialogPlanMetadata.name} ·{" "}
+                {nextBillingInterval === "annually" ? "Annually" : "Monthly"}
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                {formatUsd(upgradeDialogPlanMetadata.monthlyPriceUsd)} per month
+                {nextBillingInterval === "annually"
+                  ? ` (about ${formatUsd(upgradeDialogPlanMetadata.monthlyPriceUsd * 12)} billed yearly).`
+                  : "."}
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                {nextOverageMode === "with_overages" ? "With overages" : "Without overages"}.
+              </p>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsUpgradeDialogOpen(false);
+                setUpgradeDialogPlanId(null);
+              }}
+              disabled={isPlanSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                void handleConfirmUpgradeChange();
+              }}
+              disabled={isPlanSubmitting || upgradeDialogPlanId === null}
+            >
+              {upgradeDialogPlanId && isUpgradeLikeChange(upgradeDialogPlanId)
+                ? "Confirm upgrade"
+                : "Confirm change"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {upgradeOverlay ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-md">
+          <div className="mx-4 w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-xl">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10">
+              {upgradeOverlay.isSuccess ? (
+                <IconCheck className="size-5 text-primary" />
+              ) : (
+                <IconLoader2 className="size-5 animate-spin text-primary" />
+              )}
+            </div>
+            <h3 className="mt-4 text-lg font-semibold text-foreground">{upgradeOverlay.title}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">{upgradeOverlay.description}</p>
+            {upgradeOverlay.isSuccess ? (
+              <Button
+                className="mt-5"
+                onClick={() => {
+                  setUpgradeOverlay(null);
+                }}
+              >
+                Continue
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
