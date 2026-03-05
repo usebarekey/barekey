@@ -233,6 +233,24 @@ export function Page() {
     });
   }
 
+  function handleEnvironmentNameDraftChange(stageId: string, nextName: string) {
+    if (isSaving) {
+      return;
+    }
+
+    setStageDraftRows((previous) =>
+      previous.map((row) => {
+        if (row.id !== stageId) {
+          return row;
+        }
+        return {
+          ...row,
+          name: nextName,
+        };
+      }),
+    );
+  }
+
   async function handleSaveEnvironmentDraft() {
     if (isSaving || !hasEnvironmentDraftChanges) {
       return;
@@ -358,16 +376,26 @@ export function Page() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p
-                        className={`min-w-0 truncate text-sm ${
-                          stage.isDeleted || stage.isNew
-                            ? "text-muted-foreground opacity-70"
-                            : "font-medium"
-                        }`}
-                      >
-                        <span className="truncate">{stage.name}</span>{" "}
-                        <span className="font-mono text-xs text-muted-foreground">({stage.slug})</span>
-                      </p>
+                      <div className="min-w-0 flex items-center gap-2">
+                        {stage.isDeleted ? (
+                          <p className="min-w-0 truncate text-sm text-muted-foreground opacity-70">
+                            <span className="truncate">{stage.name}</span>{" "}
+                            <span className="font-mono text-xs text-muted-foreground">({stage.slug})</span>
+                          </p>
+                        ) : (
+                          <>
+                            <Input
+                              value={stage.name}
+                              disabled={isSaving}
+                              onChange={(event) =>
+                                handleEnvironmentNameDraftChange(stage.id, event.currentTarget.value)
+                              }
+                              className={stage.isNew ? "h-8 max-w-sm opacity-70" : "h-8 max-w-sm"}
+                            />
+                            <span className="font-mono text-xs text-muted-foreground">({stage.slug})</span>
+                          </>
+                        )}
+                      </div>
                       <Button
                         size="sm"
                         variant="outline"

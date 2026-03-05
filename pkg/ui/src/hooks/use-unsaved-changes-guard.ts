@@ -10,9 +10,11 @@ export function useUnsavedChangesGuard({
 }) {
   const location = useLocation();
   const currentPathRef = useRef("");
+  const currentHistoryStateRef = useRef<unknown>(window.history.state);
 
   useEffect(() => {
     currentPathRef.current = `${location.pathname}${location.search}${location.hash}`;
+    currentHistoryStateRef.current = window.history.state;
   }, [location.hash, location.pathname, location.search]);
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export function useUnsavedChangesGuard({
         return false;
       }
 
-      const resolvedUrl = new URL(String(url), window.location.origin);
+      const resolvedUrl = new URL(String(url), window.location.href);
       if (resolvedUrl.origin !== window.location.origin) {
         return false;
       }
@@ -48,6 +50,7 @@ export function useUnsavedChangesGuard({
       }
 
       originalPushState(data, unused, url);
+      currentHistoryStateRef.current = window.history.state;
     };
 
     window.history.replaceState = function guardedReplaceState(
@@ -61,6 +64,7 @@ export function useUnsavedChangesGuard({
       }
 
       originalReplaceState(data, unused, url);
+      currentHistoryStateRef.current = window.history.state;
     };
 
     function handlePopState(): void {
@@ -69,7 +73,7 @@ export function useUnsavedChangesGuard({
 
       if (actualPath !== expectedPath) {
         onBlockedAttempt?.();
-        originalPushState(window.history.state, "", expectedPath);
+        originalReplaceState(currentHistoryStateRef.current, "", expectedPath);
       }
     }
 

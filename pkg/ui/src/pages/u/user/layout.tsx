@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useEnsureCurrentUserRecord } from "@/hooks/use-ensure-current-user-record";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
+import { initials } from "@/lib/org-utils";
 import { api } from "@convex/_generated/api";
 import { useTheme } from "theme-watcher";
 
@@ -78,15 +79,6 @@ const securityCardLinks = [
   { label: "Sessions", sectionId: "sessions" },
   { label: "Danger Zone", sectionId: "danger-zone" },
 ] as const;
-
-function initials(value: string) {
-  return value
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.slice(0, 1).toUpperCase())
-    .join("");
-}
 
 function SidebarUserMenu({
   dashboardPath,

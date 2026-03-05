@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 
 type PlanId = "free" | "pro" | "max";
 type BillingInterval = "monthly" | "annually";
@@ -283,21 +284,6 @@ function formatScheduledPlanChangeNotice(input: {
   return `A plan change is set to execute soon, your workspace is currently on ${currentSummary}, and it will move to ${scheduledSummary}, ${delta}`;
 }
 
-function extractRequestId(error: unknown): string | null {
-  if (!(error instanceof Error)) {
-    return null;
-  }
-  const match = error.message.match(/Request ID:\s*([A-Za-z0-9-]+)/i);
-  return match?.[1] ?? null;
-}
-
-function formatSupportErrorMessage(context: string, requestId: string | null): string {
-  if (requestId) {
-    return `${context} If the issue persists, contact support and include Request ID: ${requestId}.`;
-  }
-  return `${context} If the issue persists, contact support.`;
-}
-
 export function Page() {
   const { orgSlug = "org" } = useParams();
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
@@ -313,6 +299,7 @@ export function Page() {
   const [overageMode, setOverageMode] = useState<OverageMode>("without_overages");
   const [billingState, setBillingState] = useState<BillingState | null>(null);
   const [isBillingStateLoading, setIsBillingStateLoading] = useState(true);
+  const [billingStateLoadError, setBillingStateLoadError] = useState<string | null>(null);
   const [isPlanSubmitting, setIsPlanSubmitting] = useState(false);
   const [isPortalSubmitting, setIsPortalSubmitting] = useState(false);
   const [isRevokeSubmitting, setIsRevokeSubmitting] = useState(false);
@@ -331,6 +318,7 @@ export function Page() {
   useEffect(() => {
     let cancelled = false;
     setIsBillingStateLoading(true);
+    setBillingStateLoadError(null);
 
     void getBillingState({
       expectedOrgSlug: orgSlug,
@@ -340,6 +328,7 @@ export function Page() {
           return;
         }
         setBillingState(result as BillingState);
+        setBillingStateLoadError(null);
         if (result.currentInterval) {
           setBillingInterval(result.currentInterval);
         }
@@ -347,9 +336,15 @@ export function Page() {
           setOverageMode(result.currentOverageMode);
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
           setBillingState(null);
+          setBillingStateLoadError(
+            formatSupportErrorMessage(
+              "Unable to load billing details right now.",
+              extractRequestId(error),
+            ),
+          );
         }
       })
       .finally(() => {
@@ -365,7 +360,8 @@ export function Page() {
 
   const currentPlanId: PlanId | null = billingState?.currentTier ?? null;
   const isWithoutPlan = billingState?.currentTier === null;
-  const showBillingSkeleton = isBillingStateLoading || billingState === null;
+  const showBillingSkeleton = isBillingStateLoading;
+  const isBillingUnavailable = !isBillingStateLoading && billingState === null;
   const currentPlanIndex =
     currentPlanId === null ? -1 : PLAN_METADATA.findIndex((tier) => tier.id === currentPlanId);
 
@@ -449,6 +445,25 @@ export function Page() {
       expectedOrgSlug: orgSlug,
     });
     setBillingState(refreshed as BillingState);
+    setBillingStateLoadError(null);
+  }
+
+  async function handleRetryBillingStateLoad(): Promise<void> {
+    setIsBillingStateLoading(true);
+    setBillingStateLoadError(null);
+    try {
+      await refreshBillingState();
+    } catch (error: unknown) {
+      setBillingState(null);
+      setBillingStateLoadError(
+        formatSupportErrorMessage(
+          "Unable to load billing details right now.",
+          extractRequestId(error),
+        ),
+      );
+    } finally {
+      setIsBillingStateLoading(false);
+    }
   }
 
   function isNoopPlanSelection(nextPlanId: PlanId): boolean {
@@ -725,6 +740,30 @@ export function Page() {
         }
       />
 
+      {isBillingUnavailable ? (
+        <OrgSectionCard
+          title="Billing unavailable"
+          description="We could not load billing details for this organization."
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-4">
+            <p className="text-sm text-muted-foreground">
+              {billingStateLoadError ??
+                "An error occurred while loading billing details. Please retry."}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void handleRetryBillingStateLoad();
+              }}
+              disabled={isBillingStateLoading}
+            >
+              Retry
+            </Button>
+          </div>
+        </OrgSectionCard>
+      ) : (
+        <>
       {showBillingSkeleton ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -735,7 +774,7 @@ export function Page() {
             </div>
           ))}
         </div>
-      ) : (
+      ) : billingState ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <OrgMetricCard
             label="Current Plan"
@@ -806,8 +845,9 @@ export function Page() {
             icon={<IconDatabase className="size-4" />}
           />
         </div>
-      )}
+      ) : null}
 
+      {showBillingSkeleton || billingState ? (
       <OrgSectionCard
         title="Plans"
         description="Choose a plan for this organization."
@@ -914,7 +954,7 @@ export function Page() {
               </div>
             ))}
           </div>
-        ) : (
+        ) : billingState ? (
           <>
         {billingState?.currentTier === null && !isBillingStateLoading ? (
           <div className="mb-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
@@ -1084,7 +1124,7 @@ export function Page() {
           ))}
         </div>
           </>
-        )}
+        ) : null}
         <p className="pt-1 text-xs text-muted-foreground">
           {billingState?.hasScheduledPlanChange ? (
             <span className="font-semibold text-foreground">
@@ -1110,6 +1150,9 @@ export function Page() {
             : ""}
         </p>
       </OrgSectionCard>
+      ) : null}
+        </>
+      )}
       <Dialog
         open={isUpgradeDialogOpen}
         onOpenChange={(open) => {

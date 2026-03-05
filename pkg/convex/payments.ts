@@ -321,6 +321,7 @@ type ConsumeFreePlanCreditResult = {
   reason:
     | "granted"
     | "already_assigned"
+    | "org_already_assigned"
     | "assigned_elsewhere"
     | "no_remaining_credits";
   credit: FreePlanCreditState;
@@ -754,7 +755,6 @@ export const ensureOrgStorageUsageForOrgInternal = internalMutation({
         initialized: false,
       };
     }
-
     const encryptedBytes = await computeEncryptedBytesForOrg(ctx, args.orgId);
     const now = Date.now();
     await ctx.db.insert("orgStorageUsage", {
@@ -927,6 +927,10 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
         updatedAtMs: now,
       };
     }
+    if (row === null) {
+      throw new Error("Unable to create a free organization credit.");
+    }
+    const currentRowId = row._id;
 
     if (
       args.consumeForOrgIfAvailable &&
@@ -934,6 +938,17 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
       row.assignedOrgId === null &&
       row.remainingCredits > 0
     ) {
+      const existingOrgAssignments = await ctx.db
+        .query("userFreePlanCredits")
+        .withIndex("by_assigned_org_id", (q) => q.eq("assignedOrgId", args.orgId))
+        .collect();
+      const assignmentExistsForAnotherCredit = existingOrgAssignments.some(
+        (entry) => entry._id !== currentRowId,
+      );
+      if (assignmentExistsForAnotherCredit) {
+        return toFreePlanCreditState(row);
+      }
+
       const nextRemainingCredits = Math.max(0, row.remainingCredits - 1);
       await ctx.db.patch(row._id, {
         remainingCredits: nextRemainingCredits,
@@ -985,6 +1000,7 @@ export const consumeFreePlanCreditForCurrentOrgInternal = internalMutation({
     reason: v.union(
       v.literal("granted"),
       v.literal("already_assigned"),
+      v.literal("org_already_assigned"),
       v.literal("assigned_elsewhere"),
       v.literal("no_remaining_credits"),
     ),
@@ -1041,6 +1057,21 @@ export const consumeFreePlanCreditForCurrentOrgInternal = internalMutation({
       return {
         granted: true,
         reason: "already_assigned",
+        credit: toFreePlanCreditState(row),
+      };
+    }
+
+    const existingOrgAssignments = await ctx.db
+      .query("userFreePlanCredits")
+      .withIndex("by_assigned_org_id", (q) => q.eq("assignedOrgId", args.orgId))
+      .collect();
+    const assignmentExistsForAnotherCredit = existingOrgAssignments.some(
+      (entry) => entry._id !== row._id,
+    );
+    if (assignmentExistsForAnotherCredit) {
+      return {
+        granted: false,
+        reason: "org_already_assigned",
         credit: toFreePlanCreditState(row),
       };
     }
@@ -1198,38 +1229,43 @@ export const revokeFreePlanCreditByOrgIdInternal = internalMutation({
   }),
   handler: async (ctx, args) => {
     const now = Date.now();
-    const row = await ctx.db
+    const rows = await ctx.db
       .query("userFreePlanCredits")
       .withIndex("by_assigned_org_id", (q) => q.eq("assignedOrgId", args.orgId))
-      .first();
-    if (row === null) {
+      .collect();
+    if (rows.length === 0) {
       return {
         revoked: false,
         credit: null,
       };
     }
 
-    const nextRemainingCredits = Math.min(row.totalCredits, row.remainingCredits + 1);
-    await ctx.db.patch(row._id, {
-      remainingCredits: nextRemainingCredits,
-      assignedOrgId: null,
-      assignedOrgSlug: null,
-      revokedAtMs: now,
-      revokedReason: args.reason ?? "manual_revoke",
-      updatedAtMs: now,
-    });
-    const patched = {
-      ...row,
-      remainingCredits: nextRemainingCredits,
-      assignedOrgId: null,
-      assignedOrgSlug: null,
-      revokedAtMs: now,
-      revokedReason: args.reason ?? "manual_revoke",
-      updatedAtMs: now,
-    };
+    const patchedRows: Array<FreePlanCreditState> = [];
+    for (const row of rows) {
+      const nextRemainingCredits = Math.min(row.totalCredits, row.remainingCredits + 1);
+      await ctx.db.patch(row._id, {
+        remainingCredits: nextRemainingCredits,
+        assignedOrgId: null,
+        assignedOrgSlug: null,
+        revokedAtMs: now,
+        revokedReason: args.reason ?? "manual_revoke",
+        updatedAtMs: now,
+      });
+      patchedRows.push(
+        toFreePlanCreditState({
+          ...row,
+          remainingCredits: nextRemainingCredits,
+          assignedOrgId: null,
+          assignedOrgSlug: null,
+          revokedAtMs: now,
+          revokedReason: args.reason ?? "manual_revoke",
+        }),
+      );
+    }
+
     return {
       revoked: true,
-      credit: toFreePlanCreditState(patched),
+      credit: patchedRows[0] ?? null,
     };
   },
 });
@@ -1687,6 +1723,11 @@ export const changePlanForCurrentOrg = action({
       );
       consumedFreeCreditReason = consumeResult.reason;
       if (!consumeResult.granted) {
+        if (consumeResult.reason === "org_already_assigned") {
+          throw new Error(
+            "This organization is already using another member's free organization credit.",
+          );
+        }
         if (consumeResult.reason === "assigned_elsewhere") {
           throw new Error(
             "Your free workspace credit is already assigned to another workspace. Revoke it there before activating free here.",

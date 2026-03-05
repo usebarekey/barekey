@@ -59,10 +59,10 @@ Clerk handles all authentication and organization management.
 
 ### Slug policy
 
-- Org, user, and project slugs must match `^[a-z0-9]+$`
-- Allowed characters: lowercase letters `a-z` and digits `0-9` only
-- Disallowed: hyphens, underscores, spaces, uppercase, and symbols
-- When appending numeric suffixes, append digits directly (no separator)
+- Org, user, and project slugs must follow `slug-numbers` format
+- Allowed characters: lowercase letters `a-z`, digits `0-9`, and hyphens `-`
+- Disallowed: underscores, spaces, uppercase, and symbols
+- When appending numeric suffixes, append as `-1234` with a single hyphen separator
 
 ### Encryption architecture (envelope encryption)
 

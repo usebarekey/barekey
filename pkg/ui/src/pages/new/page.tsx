@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
+import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 
 type CreateKind = "project" | "organization";
 type PlanId = "free" | "pro" | "max";
@@ -129,21 +130,6 @@ function sleep(ms: number): Promise<void> {
 
 function isActiveOrganizationMismatchError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("Active organization does not match the requested workspace.");
-}
-
-function extractRequestId(error: unknown): string | null {
-  if (!(error instanceof Error)) {
-    return null;
-  }
-  const match = error.message.match(/Request ID:\s*([A-Za-z0-9-]+)/i);
-  return match?.[1] ?? null;
-}
-
-function formatSupportErrorMessage(context: string, requestId: string | null): string {
-  if (requestId) {
-    return `${context} If the issue persists, contact support and include Request ID: ${requestId}.`;
-  }
-  return `${context} If the issue persists, contact support.`;
 }
 
 export function Page() {

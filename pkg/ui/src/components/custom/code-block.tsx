@@ -11,10 +11,24 @@ let highlighter: Highlighter | null = null;
 let highlighterPromise: Promise<Highlighter> | null = null;
 
 function stripShikiBackgroundStyles(html: string): string {
-  return html
-    .replace(/background-color:[^;"']+;?/g, "")
-    .replace(/--shiki-dark-bg:[^;"']+;?/g, "")
-    .replace(/--shiki-light-bg:[^;"']+;?/g, "");
+  return html.replace(/style=(["'])(.*?)\1/g, (_styleAttr, quote: string, styleValue: string) => {
+    const declarations = styleValue
+      .split(";")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+    const keptDeclarations = declarations.filter((declaration) => {
+      const normalized = declaration.toLowerCase();
+      return (
+        !normalized.startsWith("background-color:") &&
+        !normalized.startsWith("--shiki-dark-bg:") &&
+        !normalized.startsWith("--shiki-light-bg:")
+      );
+    });
+    if (keptDeclarations.length === 0) {
+      return "";
+    }
+    return `style=${quote}${keptDeclarations.join("; ")};${quote}`;
+  });
 }
 
 function getHighlighter() {

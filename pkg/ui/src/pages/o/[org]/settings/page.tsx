@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
 import { initials } from "@/lib/org-utils";
+import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
 
 function normalizeOrganizationSlugBase(value: string): string {
@@ -48,21 +49,6 @@ function buildAutoOrganizationSlug(name: string, currentSlug: string | null | un
     return `${base}-${suffixMatch[1]}`;
   }
   return generateOrganizationSlugCandidateFromName(name);
-}
-
-function extractRequestId(error: unknown): string | null {
-  if (!(error instanceof Error)) {
-    return null;
-  }
-  const match = error.message.match(/Request ID:\s*([A-Za-z0-9-]+)/i);
-  return match?.[1] ?? null;
-}
-
-function formatSupportErrorMessage(context: string, requestId: string | null): string {
-  if (requestId) {
-    return `${context} If the issue persists, contact support and include Request ID: ${requestId}.`;
-  }
-  return `${context} If the issue persists, contact support.`;
 }
 
 export function Page() {
