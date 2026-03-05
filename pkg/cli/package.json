@@ -1,0 +1,19 @@
+{
+  "name": "@barekey/cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "barekey": "./dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@barekey/sdk": "workspace:*",
+    "commander": "^14.0.1",
+    "open": "^10.2.0"
+  }
+}

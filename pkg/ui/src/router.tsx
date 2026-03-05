@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import * as SSO from "@/pages/auth/sso/page";
 import * as SSOCallback from "@/pages/auth/sso/callback/page";
 import * as Auth from "@/pages/auth/layout";
+import * as CliDeviceVerify from "@/pages/cli/device/page";
 import * as Home from "@/pages/home/page";
 import * as Pricing from "@/pages/pricing/page";
 import * as CreateNew from "@/pages/new/page";
@@ -30,25 +31,20 @@ export function Router() {
       <Route path="/" element={<Home.Page />} />
       <Route path="pricing" element={<Pricing.Page />} />
       <Route path="new" element={<CreateNew.Page />} />
+      <Route path="cli/device" element={<CliDeviceVerify.Page />} />
       <Route path="auth" element={<Auth.Layout />}>
         <Route path="sso" element={<SSO.Page />} />
         <Route path="sso/callback" element={<SSOCallback.Page />} />
       </Route>
       <Route path="o">
         <Route path="select" element={<OrgSelect.Page />} />
-        <Route
-          path="new"
-          element={<Navigate to="/new?type=organization" replace />}
-        />
+        <Route path="new" element={<Navigate to="/new?type=organization" replace />} />
         <Route path=":orgSlug" element={<OrgLayout.Layout />}>
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="members" element={<OrgMembers.Page />} />
           <Route path="projects" element={<OrgProjects.Page />} />
           <Route path="billing" element={<OrgBilling.Page />} />
-          <Route
-            path="project/:projectSlug"
-            element={<OrgProjectLayout.Layout />}
-          >
+          <Route path="project/:projectSlug" element={<OrgProjectLayout.Layout />}>
             <Route index element={<Navigate to="variables" replace />} />
             <Route path="variables" element={<OrgProjectVariables.Page />} />
             <Route path="overview" element={<Navigate to="../variables" replace />} />
@@ -61,26 +57,11 @@ export function Router() {
       <Route path="u">
         <Route path=":userSlug" element={<UserLayout.Layout />}>
           <Route index element={<UserPage.Page />} />
-          <Route
-            path="overview"
-            element={<UserSectionRedirect sectionId="profile" />}
-          />
-          <Route
-            path="profile"
-            element={<UserSectionRedirect sectionId="profile" />}
-          />
-          <Route
-            path="security"
-            element={<UserSectionRedirect sectionId="linked-accounts" />}
-          />
-          <Route
-            path="workspaces"
-            element={<UserSectionRedirect sectionId="profile" />}
-          />
-          <Route
-            path="activity"
-            element={<UserSectionRedirect sectionId="profile" />}
-          />
+          <Route path="overview" element={<UserSectionRedirect sectionId="profile" />} />
+          <Route path="profile" element={<UserSectionRedirect sectionId="profile" />} />
+          <Route path="security" element={<UserSectionRedirect sectionId="linked-accounts" />} />
+          <Route path="workspaces" element={<UserSectionRedirect sectionId="profile" />} />
+          <Route path="activity" element={<UserSectionRedirect sectionId="profile" />} />
         </Route>
       </Route>
     </Routes>
