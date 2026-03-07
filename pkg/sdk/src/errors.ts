@@ -1,5 +1,8 @@
 import type { BarekeyErrorCode, BarekeyTemporalInstant } from "./types";
 
+const INT64_MIN = BigInt("-9223372036854775808");
+const INT64_MAX = BigInt("9223372036854775807");
+
 export class BarekeyError extends Error {
   readonly code: BarekeyErrorCode;
   readonly requestId: string | null;
@@ -64,8 +67,21 @@ export function parseBigIntOrThrow(value: string): bigint {
       message: `Unable to coerce value to int64: ${value}`,
     });
   }
+  if (!/^-?(0|[1-9]\d*)$/.test(normalized)) {
+    throw new BarekeyError({
+      code: "COERCE_FAILED",
+      message: `Unable to coerce value to int64: ${value}`,
+    });
+  }
   try {
-    return BigInt(normalized);
+    const parsed = BigInt(normalized);
+    if (parsed < INT64_MIN || parsed > INT64_MAX) {
+      throw new BarekeyError({
+        code: "COERCE_FAILED",
+        message: `Unable to coerce value to int64: ${value}`,
+      });
+    }
+    return parsed;
   } catch {
     throw new BarekeyError({
       code: "COERCE_FAILED",
