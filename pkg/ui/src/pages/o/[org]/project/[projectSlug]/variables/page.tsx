@@ -1027,8 +1027,11 @@ export function Page() {
                                 onChange={(event) => {
                                   const chance = event.currentTarget.value;
                                   updateCurrentStageDraft((current) => {
+                                    const previousValue = current.updatedValues[row.id];
+                                    const currentValue =
+                                      previousValue?.kind === "ab_roll" ? previousValue : activeValue;
                                     current.updatedValues[row.id] = {
-                                      ...activeValue,
+                                      ...currentValue,
                                       chance,
                                     };
                                     return current;
