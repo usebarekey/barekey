@@ -4,8 +4,10 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { httpAction } from "./_generated/server";
 import { getOrgClaimsFromIdentity } from "./lib/auth";
+import { normalizeDeclaredType } from "./lib/declared_types";
 
 type EvaluateSingleRequest = {
+  orgSlug?: string;
   projectSlug: string;
   stageSlug: string;
   name: string;
@@ -14,6 +16,7 @@ type EvaluateSingleRequest = {
 };
 
 type EvaluateBatchRequest = {
+  orgSlug?: string;
   projectSlug: string;
   stageSlug: string;
   names: Array<string>;
@@ -22,6 +25,7 @@ type EvaluateBatchRequest = {
 };
 
 type EnvListRequest = {
+  orgSlug?: string;
   projectSlug: string;
   stageSlug: string;
 };
@@ -29,6 +33,7 @@ type EnvListRequest = {
 type EnvWriteMode = "create_only" | "upsert";
 
 type EnvWriteRequest = {
+  orgSlug?: string;
   projectSlug: string;
   stageSlug: string;
   mode: EnvWriteMode;
@@ -36,11 +41,13 @@ type EnvWriteRequest = {
     | {
         name: string;
         kind: "secret";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
         value: string;
       }
     | {
         name: string;
         kind: "ab_roll";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
         valueA: string;
         valueB: string;
         chance: number;
@@ -56,6 +63,7 @@ type ResolvedVariableRow = {
   stageSlug: string;
   name: string;
   kind: "secret" | "ab_roll";
+  declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
 };
 
 type DecryptedVariable =
@@ -63,12 +71,14 @@ type DecryptedVariable =
       id: Id<"projectVariables">;
       name: string;
       kind: "secret";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       value: string;
     }
   | {
       id: Id<"projectVariables">;
       name: string;
       kind: "ab_roll";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       valueA: string;
       valueB: string;
       chance: number;
@@ -81,10 +91,23 @@ type AuthContext = {
   source: "clerk" | "cli";
 };
 
+type AuthResolutionResult =
+  | {
+      ok: true;
+      context: AuthContext;
+    }
+  | {
+      ok: false;
+      status: number;
+      code: string;
+      message: string;
+    };
+
 type AuthResolutionCtx = {
   auth: {
     getUserIdentity(): Promise<import("convex/server").UserIdentity | null>;
   };
+  runAction(functionReference: unknown, args: Record<string, unknown>): Promise<unknown>;
   runMutation(functionReference: unknown, args: Record<string, unknown>): Promise<unknown>;
 };
 
@@ -182,6 +205,7 @@ function parseSingleRequest(payload: unknown): EvaluateSingleRequest | null {
   }
 
   return {
+    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
     projectSlug,
     stageSlug,
     name,
@@ -216,6 +240,7 @@ function parseBatchRequest(payload: unknown): EvaluateBatchRequest | null {
   }
 
   return {
+    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
     projectSlug,
     stageSlug,
     names,
@@ -237,6 +262,7 @@ function parseListRequest(payload: unknown): EnvListRequest | null {
   }
 
   return {
+    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
     projectSlug,
     stageSlug,
   };
@@ -266,7 +292,15 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     const entry = rawEntry as Record<string, unknown>;
     const name = typeof entry.name === "string" ? entry.name.trim() : "";
     const kind = typeof entry.kind === "string" ? entry.kind : "";
+    const declaredTypeRaw =
+      typeof entry.declaredType === "string" ? entry.declaredType : "string";
     if (name.length === 0) {
+      return null;
+    }
+    let declaredType: EnvWriteRequest["entries"][number]["declaredType"];
+    try {
+      declaredType = normalizeDeclaredType(declaredTypeRaw);
+    } catch {
       return null;
     }
     if (kind === "secret") {
@@ -276,6 +310,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
       entries.push({
         name,
         kind: "secret",
+        declaredType,
         value: entry.value,
       });
       continue;
@@ -294,6 +329,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
       entries.push({
         name,
         kind: "ab_roll",
+        declaredType,
         valueA: entry.valueA,
         valueB: entry.valueB,
         chance: entry.chance,
@@ -325,6 +361,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
   }
 
   return {
+    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
     projectSlug,
     stageSlug,
     mode,
@@ -336,24 +373,46 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
 async function resolveAuthContext(
   ctx: AuthResolutionCtx,
   request: Request,
-): Promise<AuthContext | null> {
+  requestedOrgSlug?: string,
+): Promise<AuthResolutionResult> {
   const identity = await readIdentityOrNull(ctx.auth);
   if (identity !== null) {
     const orgClaims = getOrgClaimsFromIdentity(identity);
     if (orgClaims.orgId === null || orgClaims.orgSlug === null) {
-      return null;
+      return {
+        ok: false,
+        status: 403,
+        code: "ORG_SCOPE_INVALID",
+        message: "No active organization selected for this token.",
+      };
+    }
+    if (requestedOrgSlug && requestedOrgSlug !== orgClaims.orgSlug) {
+      return {
+        ok: false,
+        status: 403,
+        code: "ORG_SCOPE_INVALID",
+        message: "Active organization does not match the requested workspace.",
+      };
     }
     return {
-      clerkUserId: orgClaims.clerkUserId,
-      orgId: orgClaims.orgId,
-      orgSlug: orgClaims.orgSlug,
-      source: "clerk",
+      ok: true,
+      context: {
+        clerkUserId: orgClaims.clerkUserId,
+        orgId: orgClaims.orgId,
+        orgSlug: orgClaims.orgSlug,
+        source: "clerk",
+      },
     };
   }
 
   const bearerToken = extractBearerToken(request);
   if (bearerToken === null) {
-    return null;
+    return {
+      ok: false,
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "A valid Clerk JWT or CLI access token is required.",
+    };
   }
 
   const session = (await ctx.runMutation(internal.cli_auth.authenticateAccessTokenInternal, {
@@ -365,14 +424,47 @@ async function resolveAuthContext(
   } | null;
 
   if (session === null) {
-    return null;
+    return {
+      ok: false,
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "A valid Clerk JWT or CLI access token is required.",
+    };
+  }
+
+  const effectiveOrgSlug = requestedOrgSlug?.trim() || session.orgSlug;
+  const resolvedOrg = effectiveOrgSlug === session.orgSlug
+    ? {
+        orgId: session.orgId,
+        orgSlug: session.orgSlug,
+      }
+    : ((await ctx.runAction(internal.clerk.resolveOrganizationAccessForCliUserInternal, {
+        clerkUserId: session.clerkUserId,
+        requestedOrgSlug: effectiveOrgSlug,
+        fallbackOrgId: session.orgId,
+        fallbackOrgSlug: session.orgSlug,
+      })) as {
+        orgId: string;
+        orgSlug: string;
+      } | null);
+
+  if (resolvedOrg === null) {
+    return {
+      ok: false,
+      status: 403,
+      code: "ORG_SCOPE_INVALID",
+      message: "This CLI session does not have access to the requested workspace.",
+    };
   }
 
   return {
-    clerkUserId: session.clerkUserId,
-    orgId: session.orgId,
-    orgSlug: session.orgSlug,
-    source: "cli",
+    ok: true,
+    context: {
+      clerkUserId: session.clerkUserId,
+      orgId: resolvedOrg.orgId,
+      orgSlug: resolvedOrg.orgSlug,
+      source: "cli",
+    },
   };
 }
 
@@ -447,6 +539,7 @@ async function resolveVariableValue(input: {
 }): Promise<{
   name: string;
   kind: "secret" | "ab_roll";
+  declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
   value: string;
   decision?: {
     bucket: number;
@@ -460,6 +553,7 @@ async function resolveVariableValue(input: {
     return {
       name: input.variable.name,
       kind: "secret",
+      declaredType: input.variable.declaredType,
       value: input.variable.value,
     };
   }
@@ -475,6 +569,7 @@ async function resolveVariableValue(input: {
   return {
     name: input.variable.name,
     kind: "ab_roll",
+    declaredType: input.variable.declaredType,
     value: bucket < chance ? input.variable.valueA : input.variable.valueB,
     decision: {
       bucket,
@@ -510,15 +605,16 @@ const evaluateOne = httpAction(async (ctx, request) => {
     });
   }
 
-  const authContext = await resolveAuthContext(ctx, request);
-  if (authContext === null) {
+  const authResult = await resolveAuthContext(ctx, request, parsed.orgSlug);
+  if (!authResult.ok) {
     return errorResponse({
-      status: 401,
-      code: "UNAUTHORIZED",
-      message: "A valid Clerk JWT or CLI access token is required.",
+      status: authResult.status,
+      code: authResult.code,
+      message: authResult.message,
       requestId,
     });
   }
+  const authContext = authResult.context;
 
   const rows: Array<ResolvedVariableRow> = await ctx.runQuery(
     internal.project_variables.resolveVariableRowsForOrgProjectStageInternal,
@@ -605,6 +701,7 @@ const evaluateOne = httpAction(async (ctx, request) => {
     return buildJsonResponse(200, {
       name: resolved.name,
       kind: resolved.kind,
+      declaredType: resolved.declaredType,
       value: resolved.value,
       decision: resolved.decision,
     });
@@ -657,15 +754,16 @@ const evaluateBatch = httpAction(async (ctx, request) => {
     });
   }
 
-  const authContext = await resolveAuthContext(ctx, request);
-  if (authContext === null) {
+  const authResult = await resolveAuthContext(ctx, request, parsed.orgSlug);
+  if (!authResult.ok) {
     return errorResponse({
-      status: 401,
-      code: "UNAUTHORIZED",
-      message: "A valid Clerk JWT or CLI access token is required.",
+      status: authResult.status,
+      code: authResult.code,
+      message: authResult.message,
       requestId,
     });
   }
+  const authContext = authResult.context;
 
   const rows: Array<ResolvedVariableRow> = await ctx.runQuery(
     internal.project_variables.resolveVariableRowsForOrgProjectStageInternal,
@@ -713,6 +811,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
     const values: Array<{
       name: string;
       kind: "secret" | "ab_roll";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       value: string;
       decision?: {
         bucket: number;
@@ -745,6 +844,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       values.push({
         name: resolved.name,
         kind: resolved.kind,
+        declaredType: resolved.declaredType,
         value: resolved.value,
         decision: resolved.decision,
       });
@@ -824,19 +924,21 @@ const envList = httpAction(async (ctx, request) => {
     });
   }
 
-  const authContext = await resolveAuthContext(ctx, request);
-  if (authContext === null) {
+  const authResult = await resolveAuthContext(ctx, request, parsed.orgSlug);
+  if (!authResult.ok) {
     return errorResponse({
-      status: 401,
-      code: "UNAUTHORIZED",
-      message: "A valid Clerk JWT or CLI access token is required.",
+      status: authResult.status,
+      code: authResult.code,
+      message: authResult.message,
       requestId,
     });
   }
+  const authContext = authResult.context;
 
   const variables: Array<{
     name: string;
     kind: "secret" | "ab_roll";
+    declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
     createdAtMs: number;
     updatedAtMs: number;
     chance: number | null;
@@ -853,6 +955,7 @@ const envList = httpAction(async (ctx, request) => {
     variables: variables.map((row) => ({
       name: row.name,
       kind: row.kind,
+      declaredType: row.declaredType,
       createdAtMs: row.createdAtMs,
       updatedAtMs: row.updatedAtMs,
       chance: row.chance,
@@ -885,15 +988,16 @@ const envWrite = httpAction(async (ctx, request) => {
     });
   }
 
-  const authContext = await resolveAuthContext(ctx, request);
-  if (authContext === null) {
+  const authResult = await resolveAuthContext(ctx, request, parsed.orgSlug);
+  if (!authResult.ok) {
     return errorResponse({
-      status: 401,
-      code: "UNAUTHORIZED",
-      message: "A valid Clerk JWT or CLI access token is required.",
+      status: authResult.status,
+      code: authResult.code,
+      message: authResult.message,
       requestId,
     });
   }
+  const authContext = authResult.context;
 
   try {
     const result = await ctx.runAction(
@@ -959,15 +1063,16 @@ const envPull = httpAction(async (ctx, request) => {
   const seed = typeof input.seed === "string" ? input.seed : undefined;
   const key = typeof input.key === "string" ? input.key : undefined;
 
-  const authContext = await resolveAuthContext(ctx, request);
-  if (authContext === null) {
+  const authResult = await resolveAuthContext(ctx, request, parsed.orgSlug);
+  if (!authResult.ok) {
     return errorResponse({
-      status: 401,
-      code: "UNAUTHORIZED",
-      message: "A valid Clerk JWT or CLI access token is required.",
+      status: authResult.status,
+      code: authResult.code,
+      message: authResult.message,
       requestId,
     });
   }
+  const authContext = authResult.context;
 
   const rows = await ctx.runQuery(
     internal.project_variables.listVariableMetadataForOrgProjectStageInternal,
@@ -981,6 +1086,7 @@ const envPull = httpAction(async (ctx, request) => {
   const values: Array<{
     name: string;
     kind: "secret" | "ab_roll";
+    declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
     value: string;
     decision?: {
       bucket: number;
@@ -1317,15 +1423,16 @@ const cliLogout = httpAction(async (ctx, request) => {
 
 const cliSession = httpAction(async (ctx, request) => {
   const requestId = readRequestId(request);
-  const authContext = await resolveAuthContext(ctx, request);
-  if (authContext === null) {
+  const authResult = await resolveAuthContext(ctx, request);
+  if (!authResult.ok) {
     return errorResponse({
-      status: 401,
-      code: "UNAUTHORIZED",
-      message: "A valid Clerk JWT or CLI access token is required.",
+      status: authResult.status,
+      code: authResult.code,
+      message: authResult.message,
       requestId,
     });
   }
+  const authContext = authResult.context;
 
   return buildJsonResponse(200, {
     clerkUserId: authContext.clerkUserId,
@@ -1338,17 +1445,8 @@ const cliSession = httpAction(async (ctx, request) => {
 
 const typegenManifest = httpAction(async (ctx, request) => {
   const requestId = readRequestId(request);
-  const authContext = await resolveAuthContext(ctx, request);
-  if (authContext === null) {
-    return errorResponse({
-      status: 401,
-      code: "UNAUTHORIZED",
-      message: "A valid Clerk JWT or CLI access token is required.",
-      requestId,
-    });
-  }
-
   const url = new URL(request.url);
+  const requestedOrgSlug = (url.searchParams.get("orgSlug") ?? "").trim() || undefined;
   const projectSlug = (url.searchParams.get("projectSlug") ?? "").trim();
   const stageSlug = (url.searchParams.get("stageSlug") ?? "").trim();
   if (projectSlug.length === 0 || stageSlug.length === 0) {
@@ -1360,7 +1458,18 @@ const typegenManifest = httpAction(async (ctx, request) => {
     });
   }
 
-  const manifest = await ctx.runQuery(internal.typegen.buildManifestForOrgProjectStageInternal, {
+  const authResult = await resolveAuthContext(ctx, request, requestedOrgSlug);
+  if (!authResult.ok) {
+    return errorResponse({
+      status: authResult.status,
+      code: authResult.code,
+      message: authResult.message,
+      requestId,
+    });
+  }
+  const authContext = authResult.context;
+
+  const manifest = await ctx.runMutation(internal.typegen.buildManifestForOrgProjectStageInternal, {
     orgId: authContext.orgId,
     projectSlug,
     stageSlug,
