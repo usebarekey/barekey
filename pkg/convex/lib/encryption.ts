@@ -104,6 +104,40 @@ async function decryptStringWithKey(key: CryptoKey, payload: string): Promise<st
   return new TextDecoder().decode(plaintextBuffer);
 }
 
+type ProjectKeyRow = {
+  _id: string;
+  encryptedDek: string;
+  createdAtMs: number;
+};
+
+function pickCanonicalProjectKeyRow(rows: Array<ProjectKeyRow>): ProjectKeyRow | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return [...rows].sort((left, right) => {
+    if (left.createdAtMs !== right.createdAtMs) {
+      return left.createdAtMs - right.createdAtMs;
+    }
+    return String(left._id).localeCompare(String(right._id));
+  })[0] ?? null;
+}
+
+async function listProjectKeyRows(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+): Promise<Array<ProjectKeyRow>> {
+  return await ctx.db
+    .query("projectKeys")
+    .withIndex("by_project_id", (q) => q.eq("projectId", projectId))
+    .collect();
+}
+
+async function unwrapProjectDek(masterKey: CryptoKey, encryptedDek: string): Promise<CryptoKey> {
+  const dekBytesBase64 = await decryptStringWithKey(masterKey, encryptedDek);
+  return importAesKey(base64ToBytes(dekBytesBase64));
+}
+
 /**
  * Ensures a project has a DEK wrapped by the master KEK and returns the
  * unwrapped DEK key for one request.
@@ -118,15 +152,12 @@ export async function ensureProjectDek(
     orgId: string;
   },
 ): Promise<CryptoKey> {
-  const existingKeyRow = await ctx.db
-    .query("projectKeys")
-    .withIndex("by_project_id", (q) => q.eq("projectId", args.projectId))
-    .unique();
+  const existingKeyRows = await listProjectKeyRows(ctx, args.projectId);
+  const existingKeyRow = pickCanonicalProjectKeyRow(existingKeyRows);
   const masterKey = await importAesKey(getMasterKeyBytes());
 
   if (existingKeyRow !== null) {
-    const dekBytesBase64 = await decryptStringWithKey(masterKey, existingKeyRow.encryptedDek);
-    return importAesKey(base64ToBytes(dekBytesBase64));
+    return unwrapProjectDek(masterKey, existingKeyRow.encryptedDek);
   }
 
   const now = Date.now();
@@ -182,10 +213,26 @@ export async function decryptSecretValueForProject(
     encryptedValue: string;
   },
 ): Promise<string> {
-  const dek = await ensureProjectDek(ctx, {
-    projectId: args.projectId,
-    orgId: args.orgId,
-  });
+  const masterKey = await importAesKey(getMasterKeyBytes());
+  const keyRows = await listProjectKeyRows(ctx, args.projectId);
+  if (keyRows.length === 0) {
+    throw new Error("Project DEK is missing.");
+  }
 
-  return decryptStringWithKey(dek, args.encryptedValue);
+  const canonical = pickCanonicalProjectKeyRow(keyRows);
+  const orderedRows = canonical === null
+    ? keyRows
+    : [canonical, ...keyRows.filter((row) => row._id !== canonical._id)];
+
+  let lastError: unknown = null;
+  for (const row of orderedRows) {
+    try {
+      const dek = await unwrapProjectDek(masterKey, row.encryptedDek);
+      return await decryptStringWithKey(dek, args.encryptedValue);
+    } catch (error: unknown) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Failed to decrypt project secret.");
 }

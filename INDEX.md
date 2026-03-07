@@ -75,3 +75,8 @@ Implemented in-progress changes:
 Follow-up to verify:
 - Run full typecheck and Convex codegen/deploy once environment secrets are available.
 - Confirm UI variable page behavior with mixed `secret` + `ab_roll` stage data (UI currently remains secret-focused).
+
+## 2026-03-07 [REVISIT] Security remediation branch `feat/security-audit-fixes`
+- Implemented fixes for the March 7 security audit findings across Convex, UI, SDK, and auth.
+- Do not merge autonomously: this change set touches project DEK selection/decryption fallback and secret write metering.
+- Convex deploy succeeded on 2026-03-07 via `npx convex deploy -y --typecheck-components`.

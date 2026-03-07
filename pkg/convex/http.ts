@@ -383,7 +383,10 @@ function classifyReserveError(error: unknown): {
 } {
   const message =
     error instanceof Error ? error.message : "Billing service is temporarily unavailable.";
-  if (message === "Usage limit exceeded for this workspace plan.") {
+  if (
+    message === "Usage limit exceeded for this workspace plan." ||
+    message === "This workspace is without a plan. Choose a billing plan to enable projects."
+  ) {
     return {
       status: 402,
       code: "USAGE_LIMIT_EXCEEDED",
@@ -897,6 +900,7 @@ const envWrite = httpAction(async (ctx, request) => {
       internal.project_variables.writeVariablesForOrgProjectStageWithUsageInternal,
       {
         orgId: authContext.orgId,
+        orgSlug: authContext.orgSlug,
         clerkUserId: authContext.clerkUserId,
         projectSlug: parsed.projectSlug,
         stageSlug: parsed.stageSlug,
@@ -913,10 +917,16 @@ const envWrite = httpAction(async (ctx, request) => {
       requestId,
     });
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to write variables.";
+    const isReserveRelated =
+      message === "Usage limit exceeded for this workspace plan." ||
+      message === "This workspace is without a plan. Choose a billing plan to enable projects." ||
+      message === "Billing service is temporarily unavailable.";
+    const classified = isReserveRelated ? classifyReserveError(error) : null;
     return errorResponse({
-      status: 400,
-      code: "WRITE_FAILED",
-      message: error instanceof Error ? error.message : "Failed to write variables.",
+      status: classified?.status ?? 400,
+      code: classified?.code ?? "WRITE_FAILED",
+      message: classified?.message ?? message,
       requestId,
     });
   }

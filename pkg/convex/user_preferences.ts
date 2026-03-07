@@ -33,7 +33,7 @@ const userPreferencesResponseValidator = v.object({
   updatedAtMs: v.union(v.number(), v.null()),
 });
 
-const ORG_SLUG_PATTERN = /^[a-z0-9]+$/;
+const ORG_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]+$/;
 
 function validateDefaultOrgSlug(defaultOrgSlug: string | null): void {
   if (defaultOrgSlug === null) {
@@ -41,7 +41,7 @@ function validateDefaultOrgSlug(defaultOrgSlug: string | null): void {
   }
 
   if (!ORG_SLUG_PATTERN.test(defaultOrgSlug)) {
-    throw new Error("defaultOrgSlug must use lowercase letters and digits only.");
+    throw new Error("defaultOrgSlug must use lowercase kebab-case and end with digits.");
   }
 }
 
