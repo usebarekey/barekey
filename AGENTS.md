@@ -140,14 +140,14 @@ agent-browser diff screenshot --baseline baseline.png
 
 If unintended pixel changes appear, investigate and fix.
 
-### Codex PR review — GitHub comments
+### Cubic PR review — GitHub comments
 
-Use Codex review directly in PR comments.
+Use Cubic review directly in PR comments.
 
 **When you want review:**
 
 ```bash
-gh pr comment --body "@codex review"
+gh pr comment --body "@cubic-dev-ai review this pull request"
 ```
 
 **How to work with it:**
@@ -160,7 +160,7 @@ gh pr comment --body "@codex review"
 gh pr view --comments
 ```
 
-- Fix valid Codex issues when they appear, then push follow-up commits.
+- Fix valid Cubic issues when they appear, then push follow-up commits.
 
 ---
 
@@ -171,7 +171,7 @@ gh pr view --comments
 - Push regularly so PR progress is visible
 - When a task is complete:
   1. Push and create a PR: `gh pr create --fill`
-  2. Request Codex review: `gh pr comment --body "@codex review"`
+  2. Request Cubic review: `gh pr comment --body "@cubic-dev-ai review this pull request"`
   3. Continue work without waiting per push/commit
   4. Check comments intermittently and fix valid issues
   5. Push fixes and merge when done
@@ -313,10 +313,10 @@ loud, leave breadcrumbs, and ensure nothing gets lost between sessions.
 ### Full cycle (run this every time)
 
 1. Push and open a PR: `gh pr create --fill`
-2. Request Codex review: `gh pr comment --body "@codex review"`
+2. Request Cubic review: `gh pr comment --body "@cubic-dev-ai review this pull request"`
 3. Keep implementing and pushing; do not wait for review on each push/commit
 4. Intermittently check comments: `gh pr view --comments`
-5. Fix valid Codex issues, then push again
+5. Fix valid Cubic issues, then push again
 6. Before merge, perform one final comment check and address critical issues
 7. Merge the PR:
 
@@ -325,7 +325,7 @@ gh pr merge --squash --delete-branch
 ```
 
 > **Per-push review waiting is not required.**
-> Continue shipping and check Codex feedback intermittently.
+> Continue shipping and check Cubic feedback intermittently.
 
 ### When NOT to merge autonomously
 
@@ -334,7 +334,7 @@ Hold and leave a note in `INDEX.md` if any of the following are true:
 - The feature depends on another feature that is not yet merged or built
 - The PR touches the encryption or DEK lifecycle and has not been reviewed
   by a human
-- Codex raises a concern you cannot resolve confidently
+- Cubic raises a concern you cannot resolve confidently
 - The task description explicitly says to wait for review
 
 ### Merge strategies
@@ -346,7 +346,7 @@ gh pr merge --auto --squash            # use when waiting for CI to pass
 ```
 
 - Never commit to `main` directly
-- Never merge your own PR with unresolved critical Codex issues
+- Never merge your own PR with unresolved critical Cubic issues
 - Never force-push to `main`
 
 ## GitHub CLI
@@ -375,14 +375,14 @@ gh pr merge --auto --squash            # use when waiting for CI to pass
   ```bash
   gh pr create --fill                  # open a PR from the current branch
   gh pr view --comments                # check for review comments
-  gh pr comment --body "@codex review" # request Codex PR review
+  gh pr comment --body "@cubic-dev-ai review this pull request" # request Cubic PR review
   gh pr merge --squash --delete-branch # merge when done and critical issues are addressed
   gh pr close                          # close without merging if work is abandoned
   gh pr comment --body "<comment>"     # respond to review comments
   ```
 
   - Link the relevant issue in the PR body when creating (e.g. `Closes #42`)
-  - Respond to Codex comments with `gh pr comment` when explaining a
+  - Respond to Cubic comments with `gh pr comment` when explaining a
     decision rather than making a change
 
 ***

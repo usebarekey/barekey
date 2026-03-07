@@ -951,11 +951,14 @@ export function Page() {
                                 onChange={(event) => {
                                   const valueA = event.currentTarget.value;
                                   updateCurrentStageDraft((current) => {
+                                    const previousValue = current.updatedValues[row.id];
+                                    const currentValue =
+                                      previousValue?.kind === "ab_roll" ? previousValue : activeValue;
                                     current.updatedValues[row.id] = {
                                       kind: "ab_roll",
                                       valueA,
-                                      valueB: activeValue.valueB,
-                                      chance: activeValue.chance,
+                                      valueB: currentValue.valueB,
+                                      chance: currentValue.chance,
                                     };
                                     return current;
                                   });
@@ -968,11 +971,14 @@ export function Page() {
                                 onChange={(event) => {
                                   const valueB = event.currentTarget.value;
                                   updateCurrentStageDraft((current) => {
+                                    const previousValue = current.updatedValues[row.id];
+                                    const currentValue =
+                                      previousValue?.kind === "ab_roll" ? previousValue : activeValue;
                                     current.updatedValues[row.id] = {
                                       kind: "ab_roll",
-                                      valueA: activeValue.valueA,
+                                      valueA: currentValue.valueA,
                                       valueB,
-                                      chance: activeValue.chance,
+                                      chance: currentValue.chance,
                                     };
                                     return current;
                                   });
