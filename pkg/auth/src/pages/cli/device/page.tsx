@@ -1,9 +1,12 @@
 import { SignedIn, SignedOut, SignInButton, useAuth, useUser } from "@clerk/react-router";
 import { IconCheck, IconDeviceLaptop, IconLock, IconUser } from "@tabler/icons-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { useTheme } from "theme-watcher";
 
+import barekeyDarkPng from "@/assets/barekey-dark.png";
+import barekeyLightPng from "@/assets/barekey-light.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -122,7 +125,9 @@ export function Page() {
   const [searchParams] = useSearchParams();
   const { isSignedIn, getToken } = useAuth();
   const { user } = useUser();
+  const { resolvedTheme } = useTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   const userCode = useMemo(() => {
     const value = searchParams.get("user_code") ?? searchParams.get("userCode") ?? "";
@@ -134,9 +139,20 @@ export function Page() {
   const isValidCode = userCode.length === USER_CODE_LENGTH;
   const signedInAs = user?.primaryEmailAddress?.emailAddress ?? user?.id ?? "";
   const deviceLabel = clientName ?? "This computer";
+  const logoSrc = resolvedTheme === "dark" ? barekeyLightPng : barekeyDarkPng;
+
+  useEffect(() => {
+    setIsReady(false);
+    const timeoutId = window.setTimeout(() => {
+      setIsReady(true);
+    }, 500);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   async function handleApprove(): Promise<void> {
-    if (!isSignedIn || !isValidCode || isSubmitting) {
+    if (!isSignedIn || !isValidCode || isSubmitting || !isReady) {
       return;
     }
 
@@ -186,12 +202,11 @@ export function Page() {
   return (
     <main className="min-h-screen bg-background px-6 py-8 text-foreground sm:px-8 sm:py-10">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col">
-        <div className="flex items-center justify-between border-b border-border/80 pb-5">
-          <div className="font-mono text-sm font-semibold tracking-tight">barekey.dev</div>
-          <div className="text-sm text-muted-foreground">CLI verification</div>
+        <div className="pb-6 sm:pb-8">
+          <img src={logoSrc} alt="Barekey" className="h-8 w-8 rounded-md" />
         </div>
 
-        <div className="flex flex-1 items-center py-8 sm:py-12">
+        <div className="flex flex-1 items-center py-2 sm:py-6">
           <Card className="w-full rounded-xl border border-border/90 bg-card shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
             <CardContent className="p-0">
               <div className="grid lg:grid-cols-[minmax(0,1.3fr)_22rem]">
@@ -221,7 +236,9 @@ export function Page() {
                     <div className="mt-8 flex flex-wrap gap-3">
                       <SignedOut>
                         <SignInButton mode="modal">
-                          <Button className="h-11 px-5 text-sm font-medium">Sign in to continue</Button>
+                          <Button className="h-11 px-5 text-sm font-medium" disabled={!isReady}>
+                            {isReady ? "Sign in to continue" : "Preparing..."}
+                          </Button>
                         </SignInButton>
                       </SignedOut>
 
@@ -231,9 +248,9 @@ export function Page() {
                           onClick={() => {
                             void handleApprove();
                           }}
-                          disabled={isSubmitting || !isValidCode}
+                          disabled={isSubmitting || !isValidCode || !isReady}
                         >
-                          {isSubmitting ? "Authorizing..." : "Approve sign-in"}
+                          {isSubmitting ? "Authorizing..." : isReady ? "Approve sign-in" : "Preparing..."}
                         </Button>
                       </SignedIn>
                     </div>
