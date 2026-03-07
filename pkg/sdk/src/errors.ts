@@ -35,7 +35,14 @@ export function normalizeErrorCode(code: string): BarekeyErrorCode {
 }
 
 export function parseFloatOrThrow(value: string): number {
-  const parsed = Number(value);
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    throw new BarekeyError({
+      code: "COERCE_FAILED",
+      message: `Unable to coerce value to float: ${value}`,
+    });
+  }
+  const parsed = Number(normalized);
   if (!Number.isFinite(parsed)) {
     throw new BarekeyError({
       code: "COERCE_FAILED",
@@ -50,8 +57,15 @@ export function parseNumberOrThrow(value: string): number {
 }
 
 export function parseBigIntOrThrow(value: string): bigint {
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    throw new BarekeyError({
+      code: "COERCE_FAILED",
+      message: `Unable to coerce value to int64: ${value}`,
+    });
+  }
   try {
-    return BigInt(value.trim());
+    return BigInt(normalized);
   } catch {
     throw new BarekeyError({
       code: "COERCE_FAILED",

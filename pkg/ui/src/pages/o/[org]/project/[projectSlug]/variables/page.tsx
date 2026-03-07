@@ -194,6 +194,13 @@ function usesMultilineEditor(declaredType: DeclaredVariableType): boolean {
   return declaredType === "json";
 }
 
+function canEditExistingAbRollValue(input: {
+  isRevealed: boolean;
+  pendingValue: VariableDraftValue | undefined;
+}): boolean {
+  return input.isRevealed || input.pendingValue?.kind === "ab_roll";
+}
+
 function createEmptyDraftState(): StageDraftState {
   return {
     newRows: [],
@@ -1194,6 +1201,10 @@ export function Page() {
                         ? toDraftValueFromRevealed(revealedValue)
                         : toDraftValueFromExistingRow(row));
                     const isDecrypting = Boolean(currentDraft.decryptingIds[row.id]);
+                    const canEditHiddenAbRoll = canEditExistingAbRollValue({
+                      isRevealed,
+                      pendingValue,
+                    });
 
                     return (
                       <TableRow key={row.key}>
@@ -1243,6 +1254,7 @@ export function Page() {
                                   <Textarea
                                     value={activeValue.valueA}
                                     placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                    disabled={!canEditHiddenAbRoll}
                                     onChange={(event) => {
                                       const valueA = event.currentTarget.value;
                                       updateCurrentStageDraft((current) => {
@@ -1263,6 +1275,7 @@ export function Page() {
                                   <Textarea
                                     value={activeValue.valueB}
                                     placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                    disabled={!canEditHiddenAbRoll}
                                     onChange={(event) => {
                                       const valueB = event.currentTarget.value;
                                       updateCurrentStageDraft((current) => {
@@ -1287,6 +1300,7 @@ export function Page() {
                                     type={isRevealed ? "text" : "password"}
                                     value={activeValue.valueA}
                                     placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                    disabled={!canEditHiddenAbRoll}
                                     onChange={(event) => {
                                       const valueA = event.currentTarget.value;
                                       updateCurrentStageDraft((current) => {
@@ -1308,6 +1322,7 @@ export function Page() {
                                     type={isRevealed ? "text" : "password"}
                                     value={activeValue.valueB}
                                     placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                    disabled={!canEditHiddenAbRoll}
                                     onChange={(event) => {
                                       const valueB = event.currentTarget.value;
                                       updateCurrentStageDraft((current) => {
@@ -1386,6 +1401,14 @@ export function Page() {
                               value={activeValue.declaredType}
                               onValueChange={(next) => {
                                 const declaredType = next as DeclaredVariableType;
+                                if (
+                                  declaredType === "json" &&
+                                  !isRevealed &&
+                                  pendingValue === undefined
+                                ) {
+                                  toast.error("Reveal this value before changing its type to JSON.");
+                                  return;
+                                }
                                 void (async () => {
                                   try {
                                     const editableValue = await loadExistingDraftValue(row);
