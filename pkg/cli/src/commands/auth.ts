@@ -1,3 +1,4 @@
+import os from "node:os";
 import { setTimeout as wait } from "node:timers/promises";
 
 import { intro, outro, spinner } from "@clack/prompts";
@@ -14,6 +15,18 @@ import {
 } from "../credentials-store";
 import { getJson, postJson } from "../http";
 import { requireLocalSession, resolveBaseUrl, toJsonOutput } from "../command-utils";
+
+function resolveClientName(): string | undefined {
+  const configured =
+    process.env.BAREKEY_CLIENT_NAME?.trim() ||
+    process.env.COMPUTERNAME?.trim() ||
+    process.env.HOSTNAME?.trim() ||
+    os.hostname().trim();
+  if (configured.length === 0) {
+    return undefined;
+  }
+  return configured.slice(0, 120);
+}
 
 async function runLogin(options: { baseUrl?: string }): Promise<void> {
   const baseUrl = await resolveBaseUrl(options.baseUrl);
@@ -35,7 +48,7 @@ async function runLogin(options: { baseUrl?: string }): Promise<void> {
       baseUrl,
       path: "/v1/cli/device/start",
       payload: {
-        clientName: "barekey-cli",
+        clientName: resolveClientName(),
       },
     });
 
