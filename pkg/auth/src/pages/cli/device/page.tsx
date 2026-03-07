@@ -1,5 +1,5 @@
 import { SignedIn, SignedOut, SignInButton, useAuth, useUser } from "@clerk/react-router";
-import { IconCheck, IconDeviceLaptop, IconLock, IconUser } from "@tabler/icons-react";
+import { IconDeviceLaptop, IconLock, IconUser } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -202,16 +202,13 @@ export function Page() {
   return (
     <main className="min-h-screen bg-background px-6 py-8 text-foreground sm:px-8 sm:py-10">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col">
-        <div className="pb-6 sm:pb-8">
-          <img src={logoSrc} alt="Barekey" className="h-8 w-8 rounded-md" />
-        </div>
-
         <div className="flex flex-1 items-center py-2 sm:py-6">
           <Card className="w-full rounded-xl border border-border/90 bg-card shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
             <CardContent className="p-0">
               <div className="grid lg:grid-cols-[minmax(0,1.3fr)_22rem]">
                 <section className="border-b border-border/80 p-6 sm:p-8 lg:border-r lg:border-b-0">
                   <div className="max-w-2xl">
+                    <img src={logoSrc} alt="Barekey" className="mb-8 w-10 rounded-md" />
                     <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground sm:text-[2.5rem]">
                       Approve CLI sign-in
                     </h1>
@@ -259,10 +256,7 @@ export function Page() {
 
                 <aside className="p-6 sm:p-8">
                   <div className="rounded-xl border border-border/80 bg-background p-5">
-                    <div className="mb-5 flex items-center gap-2 text-sm font-medium text-foreground">
-                      <IconCheck className="size-4 text-muted-foreground" strokeWidth={1.8} />
-                      Request details
-                    </div>
+                    <div className="mb-5 text-sm font-medium text-foreground">Request details</div>
 
                     <DetailRow icon={IconDeviceLaptop} label="Computer" value={deviceLabel} />
 
