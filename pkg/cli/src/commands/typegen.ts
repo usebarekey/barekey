@@ -16,13 +16,14 @@ async function runTypegen(options: EnvTargetOptions & { out: string }): Promise<
     stageSlug: string;
     generatedAtMs: number;
     manifestVersion: string;
-    variables: Array<{
-      name: string;
-      kind: "secret" | "ab_roll" | "rollout";
-      declaredType: "string" | "number" | "boolean" | "json";
-      required: boolean;
-      updatedAtMs: number;
-    }>;
+      variables: Array<{
+        name: string;
+        kind: "secret" | "ab_roll" | "rollout";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+        required: boolean;
+        updatedAtMs: number;
+        typeScriptType: string;
+      }>;
   }>({
     baseUrl: local.baseUrl,
     path: `/v1/typegen/manifest?projectSlug=${encodeURIComponent(target.projectSlug)}&stageSlug=${encodeURIComponent(target.stageSlug)}`,

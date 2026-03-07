@@ -1,4 +1,4 @@
-import type { BarekeyErrorCode } from "./types";
+import type { BarekeyErrorCode, BarekeyTemporalInstant } from "./types";
 
 export class BarekeyError extends Error {
   readonly code: BarekeyErrorCode;
@@ -34,15 +34,30 @@ export function normalizeErrorCode(code: string): BarekeyErrorCode {
   return "UNKNOWN_ERROR";
 }
 
-export function parseNumberOrThrow(value: string): number {
+export function parseFloatOrThrow(value: string): number {
   const parsed = Number(value);
-  if (Number.isNaN(parsed)) {
+  if (!Number.isFinite(parsed)) {
     throw new BarekeyError({
       code: "COERCE_FAILED",
-      message: `Unable to coerce value to number: ${value}`,
+      message: `Unable to coerce value to float: ${value}`,
     });
   }
   return parsed;
+}
+
+export function parseNumberOrThrow(value: string): number {
+  return parseFloatOrThrow(value);
+}
+
+export function parseBigIntOrThrow(value: string): bigint {
+  try {
+    return BigInt(value.trim());
+  } catch {
+    throw new BarekeyError({
+      code: "COERCE_FAILED",
+      message: `Unable to coerce value to int64: ${value}`,
+    });
+  }
 }
 
 export function parseBooleanOrThrow(value: string): boolean {
@@ -57,4 +72,52 @@ export function parseBooleanOrThrow(value: string): boolean {
     code: "COERCE_FAILED",
     message: `Unable to coerce value to boolean: ${value}`,
   });
+}
+
+export function parseJsonOrThrow<TJson = unknown>(value: string): TJson {
+  try {
+    return JSON.parse(value) as TJson;
+  } catch {
+    throw new BarekeyError({
+      code: "COERCE_FAILED",
+      message: `Unable to coerce value to json: ${value}`,
+    });
+  }
+}
+
+export function parseDateOrThrow(value: string): Date {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new BarekeyError({
+      code: "COERCE_FAILED",
+      message: `Unable to coerce value to date: ${value}`,
+    });
+  }
+  return parsed;
+}
+
+export function parseTemporalInstantOrThrow(value: string): BarekeyTemporalInstant {
+  const temporalNamespace = (globalThis as typeof globalThis & {
+    Temporal?: {
+      Instant?: {
+        from(value: string): BarekeyTemporalInstant;
+      };
+    };
+  }).Temporal;
+  const instantFactory = temporalNamespace?.Instant;
+  if (!instantFactory) {
+    throw new BarekeyError({
+      code: "COERCE_FAILED",
+      message:
+        "Unable to coerce value to Temporal.Instant because this runtime does not provide Temporal. Use toDate() instead.",
+    });
+  }
+  try {
+    return instantFactory.from(value);
+  } catch {
+    throw new BarekeyError({
+      code: "COERCE_FAILED",
+      message: `Unable to coerce value to Temporal.Instant: ${value}`,
+    });
+  }
 }

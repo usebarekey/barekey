@@ -103,6 +103,7 @@ async function runEnvList(options: EnvTargetOptions & { json?: boolean }): Promi
     variables: Array<{
       name: string;
       kind: "secret" | "ab_roll";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       createdAtMs: number;
       updatedAtMs: number;
       chance: number | null;
@@ -129,7 +130,7 @@ async function runEnvList(options: EnvTargetOptions & { json?: boolean }): Promi
 
   for (const row of response.variables) {
     const chanceSuffix = row.kind === "ab_roll" ? ` chance=${row.chance ?? 0}` : "";
-    console.log(`${row.name}  ${pc.dim(row.kind)}${chanceSuffix}`);
+    console.log(`${row.name}  ${pc.dim(row.kind)}  ${pc.dim(row.declaredType)}${chanceSuffix}`);
   }
 }
 
@@ -140,6 +141,7 @@ async function runEnvWrite(
   options: EnvTargetOptions & {
     ab?: string;
     chance?: string;
+    type?: "string" | "boolean" | "int64" | "float" | "date" | "json";
     json?: boolean;
   },
 ): Promise<void> {
@@ -153,6 +155,7 @@ async function runEnvWrite(
       ? {
           name,
           kind: "ab_roll" as const,
+          declaredType: options.type ?? "string",
           valueA: value,
           valueB: options.ab,
           chance: parseChance(options.chance),
@@ -160,6 +163,7 @@ async function runEnvWrite(
       : {
           name,
           kind: "secret" as const,
+          declaredType: options.type ?? "string",
           value,
         };
 
@@ -283,6 +287,7 @@ async function runEnvPull(
     values: Array<{
       name: string;
       kind: "secret" | "ab_roll";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       value: string;
     }>;
     byName: Record<string, string>;
@@ -377,12 +382,18 @@ export function registerEnvCommands(program: Command): void {
       .argument("<value>", "Variable value")
       .option("--ab <value-b>", "Second value for ab_roll")
       .option("--chance <number>", "A-branch probability between 0 and 1")
+      .option("--type <type>", "Declared value type", "string")
       .option("--json", "Machine-readable output", false),
   ).action(
     async (
       name: string,
       value: string,
-      options: EnvTargetOptions & { ab?: string; chance?: string; json?: boolean },
+      options: EnvTargetOptions & {
+        ab?: string;
+        chance?: string;
+        type?: "string" | "boolean" | "int64" | "float" | "date" | "json";
+        json?: boolean;
+      },
     ) => {
       await runEnvWrite("create_only", name, value, options);
     },
@@ -396,12 +407,18 @@ export function registerEnvCommands(program: Command): void {
       .argument("<value>", "Variable value")
       .option("--ab <value-b>", "Second value for ab_roll")
       .option("--chance <number>", "A-branch probability between 0 and 1")
+      .option("--type <type>", "Declared value type", "string")
       .option("--json", "Machine-readable output", false),
   ).action(
     async (
       name: string,
       value: string,
-      options: EnvTargetOptions & { ab?: string; chance?: string; json?: boolean },
+      options: EnvTargetOptions & {
+        ab?: string;
+        chance?: string;
+        type?: "string" | "boolean" | "int64" | "float" | "date" | "json";
+        json?: boolean;
+      },
     ) => {
       await runEnvWrite("upsert", name, value, options);
     },

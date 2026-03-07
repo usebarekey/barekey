@@ -41,6 +41,9 @@ import {
 } from "@/components/ui/table";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { parseEnvText, type ParsedEnvIssue } from "@/lib/parse-env-text";
+import { Textarea } from "@/components/ui/textarea";
+
+type DeclaredVariableType = "string" | "boolean" | "int64" | "float" | "date" | "json";
 
 type NewVariableDraft = {
   localId: string;
@@ -59,11 +62,13 @@ type StageDraftState = {
 
 type SecretDraftValue = {
   kind: "secret";
+  declaredType: DeclaredVariableType;
   value: string;
 };
 
 type AbRollDraftValue = {
   kind: "ab_roll";
+  declaredType: DeclaredVariableType;
   valueA: string;
   valueB: string;
   chance: string;
@@ -74,10 +79,12 @@ type VariableDraftValue = SecretDraftValue | AbRollDraftValue;
 type RevealedVariableValue =
   | {
       kind: "secret";
+      declaredType: DeclaredVariableType;
       value: string;
     }
   | {
       kind: "ab_roll";
+      declaredType: DeclaredVariableType;
       valueA: string;
       valueB: string;
       chance: number;
@@ -97,6 +104,95 @@ type ImportSummary = {
   overwrittenCount: number;
   issues: Array<ImportIssue>;
 };
+
+const VARIABLE_TYPE_OPTIONS: Array<{
+  value: DeclaredVariableType;
+  label: string;
+}> = [
+  { value: "string", label: "String" },
+  { value: "boolean", label: "Boolean" },
+  { value: "int64", label: "Integer (int64)" },
+  { value: "float", label: "Float" },
+  { value: "date", label: "Date" },
+  { value: "json", label: "JSON" },
+];
+
+const RFC3339_WITH_TIMEZONE_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+function normalizeDraftValue(
+  declaredType: DeclaredVariableType,
+  raw: string,
+): string {
+  if (declaredType === "string") {
+    return raw;
+  }
+  if (declaredType === "boolean") {
+    const normalized = raw.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1" || normalized === "yes") {
+      return "true";
+    }
+    if (normalized === "false" || normalized === "0" || normalized === "no") {
+      return "false";
+    }
+    throw new Error("Boolean variables must be true or false.");
+  }
+  if (declaredType === "int64") {
+    const trimmed = raw.trim();
+    if (!/^-?(0|[1-9]\d*)$/.test(trimmed)) {
+      throw new Error("Integer variables must be valid signed 64-bit integers.");
+    }
+    const parsed = BigInt(trimmed);
+    const min = BigInt("-9223372036854775808");
+    const max = BigInt("9223372036854775807");
+    if (parsed < min || parsed > max) {
+      throw new Error("Integer variables must be valid signed 64-bit integers.");
+    }
+    return parsed.toString();
+  }
+  if (declaredType === "float") {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0 || !Number.isFinite(Number(trimmed))) {
+      throw new Error("Float variables must be finite numbers.");
+    }
+    return trimmed;
+  }
+  if (declaredType === "date") {
+    const trimmed = raw.trim();
+    if (!RFC3339_WITH_TIMEZONE_PATTERN.test(trimmed)) {
+      throw new Error("Date variables must be ISO 8601 instants with timezone.");
+    }
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error("Date variables must be ISO 8601 instants with timezone.");
+    }
+    return parsed.toISOString();
+  }
+  try {
+    return JSON.stringify(JSON.parse(raw) as unknown);
+  } catch {
+    throw new Error("JSON variables must contain valid JSON.");
+  }
+}
+
+function normalizeDraftPayload(draft: VariableDraftValue): VariableDraftValue {
+  if (draft.kind === "secret") {
+    return {
+      ...draft,
+      value: normalizeDraftValue(draft.declaredType, draft.value),
+    };
+  }
+
+  return {
+    ...draft,
+    valueA: normalizeDraftValue(draft.declaredType, draft.valueA),
+    valueB: normalizeDraftValue(draft.declaredType, draft.valueB),
+  };
+}
+
+function usesMultilineEditor(declaredType: DeclaredVariableType): boolean {
+  return declaredType === "json";
+}
 
 function createEmptyDraftState(): StageDraftState {
   return {
@@ -147,6 +243,7 @@ type VariableDisplayRow =
       id: Id<"projectVariables">;
       name: string;
       kind: "secret" | "ab_roll";
+      declaredType: DeclaredVariableType;
       chance: number | null;
       createdAtMs: number;
       updatedAtMs: number;
@@ -158,9 +255,13 @@ type VariableDisplayRow =
       name: string;
     } & VariableDraftValue;
 
-function createSecretDraftValue(value = ""): SecretDraftValue {
+function createSecretDraftValue(
+  value = "",
+  declaredType: DeclaredVariableType = "string",
+): SecretDraftValue {
   return {
     kind: "secret",
+    declaredType,
     value,
   };
 }
@@ -169,23 +270,33 @@ function createAbRollDraftValue(
   valueA = "",
   valueB = "",
   chance = "0.5",
+  declaredType: DeclaredVariableType = "string",
 ): AbRollDraftValue {
   return {
     kind: "ab_roll",
+    declaredType,
     valueA,
     valueB,
     chance,
   };
 }
 
-function createDraftValueByKind(kind: "secret" | "ab_roll"): VariableDraftValue {
-  return kind === "secret" ? createSecretDraftValue() : createAbRollDraftValue();
+function createDraftValueByKind(
+  kind: "secret" | "ab_roll",
+  declaredType: DeclaredVariableType = "string",
+): VariableDraftValue {
+  return kind === "secret"
+    ? createSecretDraftValue("", declaredType)
+    : createAbRollDraftValue("", "", "0.5", declaredType);
 }
 
-function toComposerRow(kind: "secret" | "ab_roll" = "secret"): ComposerRowState {
+function toComposerRow(
+  kind: "secret" | "ab_roll" = "secret",
+  declaredType: DeclaredVariableType = "string",
+): ComposerRowState {
   return {
     name: "",
-    ...createDraftValueByKind(kind),
+    ...createDraftValueByKind(kind, declaredType),
   };
 }
 
@@ -203,16 +314,21 @@ function formatChanceValue(value: number | null): string {
 
 function toDraftValueFromRevealed(value: RevealedVariableValue): VariableDraftValue {
   return value.kind === "secret"
-    ? createSecretDraftValue(value.value)
-    : createAbRollDraftValue(value.valueA, value.valueB, formatChanceValue(value.chance));
+    ? createSecretDraftValue(value.value, value.declaredType)
+    : createAbRollDraftValue(
+        value.valueA,
+        value.valueB,
+        formatChanceValue(value.chance),
+        value.declaredType,
+      );
 }
 
 function toDraftValueFromExistingRow(
   row: Extract<VariableDisplayRow, { type: "existing" }>,
 ): VariableDraftValue {
   return row.kind === "secret"
-    ? createSecretDraftValue()
-    : createAbRollDraftValue("", "", formatChanceValue(row.chance));
+    ? createSecretDraftValue("", row.declaredType)
+    : createAbRollDraftValue("", "", formatChanceValue(row.chance), row.declaredType);
 }
 
 export function Page() {
@@ -324,6 +440,7 @@ export function Page() {
         id: row.id,
         name: row.name,
         kind: row.kind,
+        declaredType: row.declaredType,
         chance: row.chance,
         createdAtMs: row.createdAtMs,
         updatedAtMs: row.updatedAtMs,
@@ -336,6 +453,7 @@ export function Page() {
             localId: row.localId,
             name: row.name,
             kind: "secret" as const,
+            declaredType: row.declaredType,
             value: row.value,
           }
         : {
@@ -344,6 +462,7 @@ export function Page() {
             localId: row.localId,
             name: row.name,
             kind: "ab_roll" as const,
+            declaredType: row.declaredType,
             valueA: row.valueA,
             valueB: row.valueB,
             chance: row.chance,
@@ -437,16 +556,18 @@ export function Page() {
       composerRow.kind === "secret"
         ? {
             kind: "secret",
+            declaredType: composerRow.declaredType,
             value: composerRow.value,
           }
         : {
             kind: "ab_roll",
+            declaredType: composerRow.declaredType,
             valueA: composerRow.valueA,
             valueB: composerRow.valueB,
             chance: composerRow.chance,
           },
     );
-    setComposerRow(toComposerRow(composerRow.kind));
+    setComposerRow(toComposerRow(composerRow.kind, composerRow.declaredType));
   }
 
   function applyImportedEntries(
@@ -469,7 +590,10 @@ export function Page() {
           if (current.updatedValues[existingVariable.id] !== undefined) {
             overwrittenCount += 1;
           }
-          current.updatedValues[existingVariable.id] = createSecretDraftValue(entry.value);
+          current.updatedValues[existingVariable.id] = createSecretDraftValue(
+            entry.value,
+            existingVariable.declaredType,
+          );
           continue;
         }
 
@@ -477,7 +601,7 @@ export function Page() {
         if (newRowIndex >= 0) {
           current.newRows[newRowIndex] = {
             ...current.newRows[newRowIndex],
-            ...createSecretDraftValue(entry.value),
+            ...createSecretDraftValue(entry.value, current.newRows[newRowIndex]?.declaredType ?? "string"),
           };
           overwrittenCount += 1;
           continue;
@@ -487,7 +611,7 @@ export function Page() {
           localId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           name: entry.name,
           isRevealed: false,
-          ...createSecretDraftValue(entry.value),
+          ...createSecretDraftValue(entry.value, "string"),
         });
         createdCount += 1;
       }
@@ -556,45 +680,88 @@ export function Page() {
       return;
     }
 
-    const creates = currentDraft.newRows.map((row) =>
-      row.kind === "secret"
-        ? {
-            name: row.name.trim(),
-            kind: "secret" as const,
-            value: row.value,
-          }
-        : {
-            name: row.name.trim(),
-            kind: "ab_roll" as const,
-            valueA: row.valueA,
-            valueB: row.valueB,
-            chance: parseChanceValue(row.chance),
-          },
-    );
-    const updates = persistedRows
-      .filter((row) => !currentDraft.deletedIds[row.id] && currentDraft.updatedValues[row.id] !== undefined)
-      .map((row) => {
-        const draftValue = currentDraft.updatedValues[row.id];
-        if (!draftValue) {
-          throw new Error("Missing updated value for variable.");
+    let creates: Array<
+      | {
+          name: string;
+          kind: "secret";
+          declaredType: DeclaredVariableType;
+          value: string;
         }
+      | {
+          name: string;
+          kind: "ab_roll";
+          declaredType: DeclaredVariableType;
+          valueA: string;
+          valueB: string;
+          chance: number;
+        }
+    > = [];
+    let updates: Array<
+      | {
+          id: Id<"projectVariables">;
+          kind: "secret";
+          declaredType: DeclaredVariableType;
+          value: string;
+        }
+      | {
+          id: Id<"projectVariables">;
+          kind: "ab_roll";
+          declaredType: DeclaredVariableType;
+          valueA: string;
+          valueB: string;
+          chance: number;
+        }
+    > = [];
+    try {
+      creates = currentDraft.newRows.map((row) => {
+        const normalized = normalizeDraftPayload(row);
+        return normalized.kind === "secret"
+          ? {
+              name: row.name.trim(),
+              kind: "secret" as const,
+              declaredType: normalized.declaredType,
+              value: normalized.value,
+            }
+          : {
+              name: row.name.trim(),
+              kind: "ab_roll" as const,
+              declaredType: normalized.declaredType,
+              valueA: normalized.valueA,
+              valueB: normalized.valueB,
+              chance: parseChanceValue(normalized.chance),
+            };
+      });
+      updates = persistedRows
+        .filter((row) => !currentDraft.deletedIds[row.id] && currentDraft.updatedValues[row.id] !== undefined)
+        .map((row) => {
+          const draftValue = currentDraft.updatedValues[row.id];
+          if (!draftValue) {
+            throw new Error("Missing updated value for variable.");
+          }
 
-        if (draftValue.kind === "secret") {
+          const normalized = normalizeDraftPayload(draftValue);
+          if (normalized.kind === "secret") {
+            return {
+              id: row.id,
+              kind: "secret" as const,
+              declaredType: normalized.declaredType,
+              value: normalized.value,
+            };
+          }
+
           return {
             id: row.id,
-            kind: "secret" as const,
-            value: draftValue.value,
+            kind: "ab_roll" as const,
+            declaredType: normalized.declaredType,
+            valueA: normalized.valueA,
+            valueB: normalized.valueB,
+            chance: parseChanceValue(normalized.chance),
           };
-        }
-
-        return {
-          id: row.id,
-          kind: "ab_roll" as const,
-          valueA: draftValue.valueA,
-          valueB: draftValue.valueB,
-          chance: parseChanceValue(draftValue.chance),
-        };
-      });
+        });
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Invalid variable values.");
+      return;
+    }
     const deletes = persistedRows.filter((row) => currentDraft.deletedIds[row.id]).map((row) => row.id);
 
     if (creates.length === 0 && updates.length === 0 && deletes.length === 0) {
@@ -660,10 +827,12 @@ export function Page() {
             decrypted.kind === "secret"
               ? {
                   kind: "secret",
+                  declaredType: decrypted.declaredType,
                   value: decrypted.value,
                 }
               : {
                   kind: "ab_roll",
+                  declaredType: decrypted.declaredType,
                   valueA: decrypted.valueA,
                   valueB: decrypted.valueB,
                   chance: decrypted.chance,
@@ -685,6 +854,40 @@ export function Page() {
       current.revealedIds[variableId] = true;
       return current;
     });
+  }
+
+  async function loadExistingDraftValue(
+    row: Extract<VariableDisplayRow, { type: "existing" }>,
+  ): Promise<VariableDraftValue> {
+    const pendingValue = currentDraft.updatedValues[row.id];
+    if (pendingValue) {
+      return pendingValue;
+    }
+
+    const revealedValue = currentDraft.revealedValues[row.id];
+    if (revealedValue) {
+      return toDraftValueFromRevealed(revealedValue);
+    }
+
+    if (!selectedStageSlug) {
+      throw new Error("Stage is not selected.");
+    }
+
+    const decrypted = await decryptVariable({
+      expectedOrgSlug: project.orgSlug,
+      projectSlug: project.projectSlug,
+      stageSlug: selectedStageSlug,
+      variableId: row.id,
+    });
+
+    return decrypted.kind === "secret"
+      ? createSecretDraftValue(decrypted.value, decrypted.declaredType)
+      : createAbRollDraftValue(
+          decrypted.valueA,
+          decrypted.valueB,
+          formatChanceValue(decrypted.chance),
+          decrypted.declaredType,
+        );
   }
 
   const hasDraft = hasPersistedDraftChanges(currentDraft);
@@ -799,58 +1002,109 @@ export function Page() {
                   </TableCell>
                   <TableCell>
                     {composerRow.kind === "secret" ? (
-                      <Input
-                        type="password"
-                        value={composerRow.value}
-                        onChange={(event) => {
-                          const value = event.currentTarget.value;
-                          setComposerRow((previous) => ({
-                            ...previous,
-                            value,
-                          }));
-                        }}
-                        placeholder="Add variable value"
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            handleAppendComposerRow();
-                          }
-                        }}
-                      />
+                      usesMultilineEditor(composerRow.declaredType) ? (
+                        <Textarea
+                          value={composerRow.value}
+                          onChange={(event) => {
+                            const value = event.currentTarget.value;
+                            setComposerRow((previous) => ({
+                              ...previous,
+                              value,
+                            }));
+                          }}
+                          placeholder="Add variable value"
+                        />
+                      ) : (
+                        <Input
+                          type="password"
+                          value={composerRow.value}
+                          onChange={(event) => {
+                            const value = event.currentTarget.value;
+                            setComposerRow((previous) => ({
+                              ...previous,
+                              value,
+                            }));
+                          }}
+                          placeholder="Add variable value"
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleAppendComposerRow();
+                            }
+                          }}
+                        />
+                      )
                     ) : (
                       <div className="space-y-2">
-                        <Input
-                          type="password"
-                          value={composerRow.valueA}
-                          onChange={(event) => {
-                            const valueA = event.currentTarget.value;
-                            setComposerRow((previous) =>
-                              previous.kind === "ab_roll"
-                                ? {
-                                    ...previous,
-                                    valueA,
-                                  }
-                                : previous,
-                            );
-                          }}
-                          placeholder="Value A"
-                        />
-                        <Input
-                          type="password"
-                          value={composerRow.valueB}
-                          onChange={(event) => {
-                            const valueB = event.currentTarget.value;
-                            setComposerRow((previous) =>
-                              previous.kind === "ab_roll"
-                                ? {
-                                    ...previous,
-                                    valueB,
-                                  }
-                                : previous,
-                            );
-                          }}
-                          placeholder="Value B"
-                        />
+                        {usesMultilineEditor(composerRow.declaredType) ? (
+                          <>
+                            <Textarea
+                              value={composerRow.valueA}
+                              onChange={(event) => {
+                                const valueA = event.currentTarget.value;
+                                setComposerRow((previous) =>
+                                  previous.kind === "ab_roll"
+                                    ? {
+                                        ...previous,
+                                        valueA,
+                                      }
+                                    : previous,
+                                );
+                              }}
+                              placeholder="Value A"
+                            />
+                            <Textarea
+                              value={composerRow.valueB}
+                              onChange={(event) => {
+                                const valueB = event.currentTarget.value;
+                                setComposerRow((previous) =>
+                                  previous.kind === "ab_roll"
+                                    ? {
+                                        ...previous,
+                                        valueB,
+                                      }
+                                    : previous,
+                                );
+                              }}
+                              placeholder="Value B"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <Input
+                              type="password"
+                              value={composerRow.valueA}
+                              onChange={(event) => {
+                                const valueA = event.currentTarget.value;
+                                setComposerRow((previous) =>
+                                  previous.kind === "ab_roll"
+                                    ? {
+                                        ...previous,
+                                        valueA,
+                                      }
+                                    : previous,
+                                );
+                              }}
+                              placeholder="Value A"
+                            />
+                            <Input
+                              type="password"
+                              value={composerRow.valueB}
+                              onChange={(event) => {
+                                const valueB = event.currentTarget.value;
+                                setComposerRow((previous) =>
+                                  previous.kind === "ab_roll"
+                                    ? {
+                                        ...previous,
+                                        valueB,
+                                      }
+                                    : previous,
+                                );
+                              }}
+                              placeholder="Value B"
+                            />
+                          </>
+                        )}
                       </div>
                     )}
                   </TableCell>
@@ -865,7 +1119,7 @@ export function Page() {
 
                           setComposerRow((previous) => ({
                             name: previous.name,
-                            ...createDraftValueByKind(next),
+                            ...createDraftValueByKind(next, previous.declaredType),
                           }));
                         }}
                       >
@@ -875,6 +1129,27 @@ export function Page() {
                         <SelectContent>
                           <SelectItem value="secret">Secret</SelectItem>
                           <SelectItem value="ab_roll">A/B roll</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={composerRow.declaredType}
+                        onValueChange={(next) => {
+                          const declaredType = next as DeclaredVariableType;
+                          setComposerRow((previous) => ({
+                            ...previous,
+                            declaredType,
+                          }));
+                        }}
+                      >
+                        <SelectTrigger className="w-full bg-secondary/40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VARIABLE_TYPE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       {composerRow.kind === "ab_roll" ? (
@@ -927,63 +1202,131 @@ export function Page() {
                         </TableCell>
                         <TableCell>
                           {activeValue.kind === "secret" ? (
-                            <Input
-                              type={isRevealed ? "text" : "password"}
-                              value={activeValue.value}
-                              placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
-                              onChange={(event) => {
-                                const value = event.currentTarget.value;
-                                updateCurrentStageDraft((current) => {
-                                  current.updatedValues[row.id] = {
-                                    kind: "secret",
-                                    value,
-                                  };
-                                  return current;
-                                });
-                              }}
-                            />
+                            usesMultilineEditor(activeValue.declaredType) ? (
+                              <Textarea
+                                value={activeValue.value}
+                                placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                onChange={(event) => {
+                                  const value = event.currentTarget.value;
+                                  updateCurrentStageDraft((current) => {
+                                    current.updatedValues[row.id] = {
+                                      kind: "secret",
+                                      declaredType: activeValue.declaredType,
+                                      value,
+                                    };
+                                    return current;
+                                  });
+                                }}
+                              />
+                            ) : (
+                              <Input
+                                type={isRevealed ? "text" : "password"}
+                                value={activeValue.value}
+                                placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                onChange={(event) => {
+                                  const value = event.currentTarget.value;
+                                  updateCurrentStageDraft((current) => {
+                                    current.updatedValues[row.id] = {
+                                      kind: "secret",
+                                      declaredType: activeValue.declaredType,
+                                      value,
+                                    };
+                                    return current;
+                                  });
+                                }}
+                              />
+                            )
                           ) : (
                             <div className="space-y-2">
-                              <Input
-                                type={isRevealed ? "text" : "password"}
-                                value={activeValue.valueA}
-                                placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
-                                onChange={(event) => {
-                                  const valueA = event.currentTarget.value;
-                                  updateCurrentStageDraft((current) => {
-                                    const previousValue = current.updatedValues[row.id];
-                                    const currentValue =
-                                      previousValue?.kind === "ab_roll" ? previousValue : activeValue;
-                                    current.updatedValues[row.id] = {
-                                      kind: "ab_roll",
-                                      valueA,
-                                      valueB: currentValue.valueB,
-                                      chance: currentValue.chance,
-                                    };
-                                    return current;
-                                  });
-                                }}
-                              />
-                              <Input
-                                type={isRevealed ? "text" : "password"}
-                                value={activeValue.valueB}
-                                placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
-                                onChange={(event) => {
-                                  const valueB = event.currentTarget.value;
-                                  updateCurrentStageDraft((current) => {
-                                    const previousValue = current.updatedValues[row.id];
-                                    const currentValue =
-                                      previousValue?.kind === "ab_roll" ? previousValue : activeValue;
-                                    current.updatedValues[row.id] = {
-                                      kind: "ab_roll",
-                                      valueA: currentValue.valueA,
-                                      valueB,
-                                      chance: currentValue.chance,
-                                    };
-                                    return current;
-                                  });
-                                }}
-                              />
+                              {usesMultilineEditor(activeValue.declaredType) ? (
+                                <>
+                                  <Textarea
+                                    value={activeValue.valueA}
+                                    placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                    onChange={(event) => {
+                                      const valueA = event.currentTarget.value;
+                                      updateCurrentStageDraft((current) => {
+                                        const previousValue = current.updatedValues[row.id];
+                                        const currentValue =
+                                          previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                        current.updatedValues[row.id] = {
+                                          kind: "ab_roll",
+                                          declaredType: activeValue.declaredType,
+                                          valueA,
+                                          valueB: currentValue.valueB,
+                                          chance: currentValue.chance,
+                                        };
+                                        return current;
+                                      });
+                                    }}
+                                  />
+                                  <Textarea
+                                    value={activeValue.valueB}
+                                    placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                    onChange={(event) => {
+                                      const valueB = event.currentTarget.value;
+                                      updateCurrentStageDraft((current) => {
+                                        const previousValue = current.updatedValues[row.id];
+                                        const currentValue =
+                                          previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                        current.updatedValues[row.id] = {
+                                          kind: "ab_roll",
+                                          declaredType: activeValue.declaredType,
+                                          valueA: currentValue.valueA,
+                                          valueB,
+                                          chance: currentValue.chance,
+                                        };
+                                        return current;
+                                      });
+                                    }}
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <Input
+                                    type={isRevealed ? "text" : "password"}
+                                    value={activeValue.valueA}
+                                    placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                    onChange={(event) => {
+                                      const valueA = event.currentTarget.value;
+                                      updateCurrentStageDraft((current) => {
+                                        const previousValue = current.updatedValues[row.id];
+                                        const currentValue =
+                                          previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                        current.updatedValues[row.id] = {
+                                          kind: "ab_roll",
+                                          declaredType: activeValue.declaredType,
+                                          valueA,
+                                          valueB: currentValue.valueB,
+                                          chance: currentValue.chance,
+                                        };
+                                        return current;
+                                      });
+                                    }}
+                                  />
+                                  <Input
+                                    type={isRevealed ? "text" : "password"}
+                                    value={activeValue.valueB}
+                                    placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
+                                    onChange={(event) => {
+                                      const valueB = event.currentTarget.value;
+                                      updateCurrentStageDraft((current) => {
+                                        const previousValue = current.updatedValues[row.id];
+                                        const currentValue =
+                                          previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                        current.updatedValues[row.id] = {
+                                          kind: "ab_roll",
+                                          declaredType: activeValue.declaredType,
+                                          valueA: currentValue.valueA,
+                                          valueB,
+                                          chance: currentValue.chance,
+                                        };
+                                        return current;
+                                      });
+                                    }}
+                                  />
+                                </>
+                              )}
                             </div>
                           )}
                         </TableCell>
@@ -995,22 +1338,40 @@ export function Page() {
                                 if (next !== "secret" && next !== "ab_roll") {
                                   return;
                                 }
-
-                                updateCurrentStageDraft((current) => {
-                                  current.updatedValues[row.id] =
-                                    next === "secret"
-                                      ? createSecretDraftValue(
-                                          activeValue.kind === "secret" ? activeValue.value : "",
-                                        )
-                                      : createAbRollDraftValue(
-                                          activeValue.kind === "ab_roll" ? activeValue.valueA : "",
-                                          activeValue.kind === "ab_roll" ? activeValue.valueB : "",
-                                          activeValue.kind === "ab_roll"
-                                            ? activeValue.chance
-                                            : formatChanceValue(row.chance),
-                                        );
-                                  return current;
-                                });
+                                void (async () => {
+                                  try {
+                                    const editableValue = await loadExistingDraftValue(row);
+                                    updateCurrentStageDraft((current) => {
+                                      current.updatedValues[row.id] =
+                                        next === "secret"
+                                          ? createSecretDraftValue(
+                                              editableValue.kind === "secret"
+                                                ? editableValue.value
+                                                : editableValue.valueA,
+                                              editableValue.declaredType,
+                                            )
+                                          : createAbRollDraftValue(
+                                              editableValue.kind === "ab_roll"
+                                                ? editableValue.valueA
+                                                : editableValue.value,
+                                              editableValue.kind === "ab_roll"
+                                                ? editableValue.valueB
+                                                : "",
+                                              editableValue.kind === "ab_roll"
+                                                ? editableValue.chance
+                                                : formatChanceValue(row.chance),
+                                              editableValue.declaredType,
+                                            );
+                                      return current;
+                                    });
+                                  } catch (error: unknown) {
+                                    toast.error(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "Failed to load the current variable value.",
+                                    );
+                                  }
+                                })();
                               }}
                             >
                               <SelectTrigger className="w-full">
@@ -1019,6 +1380,47 @@ export function Page() {
                               <SelectContent>
                                 <SelectItem value="secret">Secret</SelectItem>
                                 <SelectItem value="ab_roll">A/B roll</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={activeValue.declaredType}
+                              onValueChange={(next) => {
+                                const declaredType = next as DeclaredVariableType;
+                                void (async () => {
+                                  try {
+                                    const editableValue = await loadExistingDraftValue(row);
+                                    updateCurrentStageDraft((current) => {
+                                      current.updatedValues[row.id] =
+                                        editableValue.kind === "secret"
+                                          ? {
+                                              ...editableValue,
+                                              declaredType,
+                                            }
+                                          : {
+                                              ...editableValue,
+                                              declaredType,
+                                            };
+                                      return current;
+                                    });
+                                  } catch (error: unknown) {
+                                    toast.error(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "Failed to load the current variable value.",
+                                    );
+                                  }
+                                })();
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {VARIABLE_TYPE_OPTIONS.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             {activeValue.kind === "ab_roll" ? (
@@ -1032,6 +1434,7 @@ export function Page() {
                                       previousValue?.kind === "ab_roll" ? previousValue : activeValue;
                                     current.updatedValues[row.id] = {
                                       ...currentValue,
+                                      declaredType: activeValue.declaredType,
                                       chance,
                                     };
                                     return current;
@@ -1137,68 +1540,135 @@ export function Page() {
                       </TableCell>
                       <TableCell>
                         {newRow.kind === "secret" ? (
-                          <Input
-                            type={newRow.isRevealed ? "text" : "password"}
-                            value={newRow.value}
-                            onChange={(event) => {
-                              const value = event.currentTarget.value;
-                              updateCurrentStageDraft((current) => {
-                                const index = current.newRows.findIndex(
-                                  (candidate) => candidate.localId === row.localId,
-                                );
-                                if (index >= 0 && current.newRows[index]?.kind === "secret") {
-                                  current.newRows[index] = {
-                                    ...current.newRows[index],
-                                    value,
-                                  };
-                                }
-                                return current;
-                              });
-                            }}
-                            placeholder="Value"
-                          />
+                          usesMultilineEditor(newRow.declaredType) ? (
+                            <Textarea
+                              value={newRow.value}
+                              onChange={(event) => {
+                                const value = event.currentTarget.value;
+                                updateCurrentStageDraft((current) => {
+                                  const index = current.newRows.findIndex(
+                                    (candidate) => candidate.localId === row.localId,
+                                  );
+                                  if (index >= 0 && current.newRows[index]?.kind === "secret") {
+                                    current.newRows[index] = {
+                                      ...current.newRows[index],
+                                      value,
+                                    };
+                                  }
+                                  return current;
+                                });
+                              }}
+                              placeholder="Value"
+                            />
+                          ) : (
+                            <Input
+                              type={newRow.isRevealed ? "text" : "password"}
+                              value={newRow.value}
+                              onChange={(event) => {
+                                const value = event.currentTarget.value;
+                                updateCurrentStageDraft((current) => {
+                                  const index = current.newRows.findIndex(
+                                    (candidate) => candidate.localId === row.localId,
+                                  );
+                                  if (index >= 0 && current.newRows[index]?.kind === "secret") {
+                                    current.newRows[index] = {
+                                      ...current.newRows[index],
+                                      value,
+                                    };
+                                  }
+                                  return current;
+                                });
+                              }}
+                              placeholder="Value"
+                            />
+                          )
                         ) : (
                           <div className="space-y-2">
-                            <Input
-                              type={newRow.isRevealed ? "text" : "password"}
-                              value={newRow.valueA}
-                              onChange={(event) => {
-                                const valueA = event.currentTarget.value;
-                                updateCurrentStageDraft((current) => {
-                                  const index = current.newRows.findIndex(
-                                    (candidate) => candidate.localId === row.localId,
-                                  );
-                                  if (index >= 0 && current.newRows[index]?.kind === "ab_roll") {
-                                    current.newRows[index] = {
-                                      ...current.newRows[index],
-                                      valueA,
-                                    };
-                                  }
-                                  return current;
-                                });
-                              }}
-                              placeholder="Value A"
-                            />
-                            <Input
-                              type={newRow.isRevealed ? "text" : "password"}
-                              value={newRow.valueB}
-                              onChange={(event) => {
-                                const valueB = event.currentTarget.value;
-                                updateCurrentStageDraft((current) => {
-                                  const index = current.newRows.findIndex(
-                                    (candidate) => candidate.localId === row.localId,
-                                  );
-                                  if (index >= 0 && current.newRows[index]?.kind === "ab_roll") {
-                                    current.newRows[index] = {
-                                      ...current.newRows[index],
-                                      valueB,
-                                    };
-                                  }
-                                  return current;
-                                });
-                              }}
-                              placeholder="Value B"
-                            />
+                            {usesMultilineEditor(newRow.declaredType) ? (
+                              <>
+                                <Textarea
+                                  value={newRow.valueA}
+                                  onChange={(event) => {
+                                    const valueA = event.currentTarget.value;
+                                    updateCurrentStageDraft((current) => {
+                                      const index = current.newRows.findIndex(
+                                        (candidate) => candidate.localId === row.localId,
+                                      );
+                                      if (index >= 0 && current.newRows[index]?.kind === "ab_roll") {
+                                        current.newRows[index] = {
+                                          ...current.newRows[index],
+                                          valueA,
+                                        };
+                                      }
+                                      return current;
+                                    });
+                                  }}
+                                  placeholder="Value A"
+                                />
+                                <Textarea
+                                  value={newRow.valueB}
+                                  onChange={(event) => {
+                                    const valueB = event.currentTarget.value;
+                                    updateCurrentStageDraft((current) => {
+                                      const index = current.newRows.findIndex(
+                                        (candidate) => candidate.localId === row.localId,
+                                      );
+                                      if (index >= 0 && current.newRows[index]?.kind === "ab_roll") {
+                                        current.newRows[index] = {
+                                          ...current.newRows[index],
+                                          valueB,
+                                        };
+                                      }
+                                      return current;
+                                    });
+                                  }}
+                                  placeholder="Value B"
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <Input
+                                  type={newRow.isRevealed ? "text" : "password"}
+                                  value={newRow.valueA}
+                                  onChange={(event) => {
+                                    const valueA = event.currentTarget.value;
+                                    updateCurrentStageDraft((current) => {
+                                      const index = current.newRows.findIndex(
+                                        (candidate) => candidate.localId === row.localId,
+                                      );
+                                      if (index >= 0 && current.newRows[index]?.kind === "ab_roll") {
+                                        current.newRows[index] = {
+                                          ...current.newRows[index],
+                                          valueA,
+                                        };
+                                      }
+                                      return current;
+                                    });
+                                  }}
+                                  placeholder="Value A"
+                                />
+                                <Input
+                                  type={newRow.isRevealed ? "text" : "password"}
+                                  value={newRow.valueB}
+                                  onChange={(event) => {
+                                    const valueB = event.currentTarget.value;
+                                    updateCurrentStageDraft((current) => {
+                                      const index = current.newRows.findIndex(
+                                        (candidate) => candidate.localId === row.localId,
+                                      );
+                                      if (index >= 0 && current.newRows[index]?.kind === "ab_roll") {
+                                        current.newRows[index] = {
+                                          ...current.newRows[index],
+                                          valueB,
+                                        };
+                                      }
+                                      return current;
+                                    });
+                                  }}
+                                  placeholder="Value B"
+                                />
+                              </>
+                            )}
                           </div>
                         )}
                       </TableCell>
@@ -1220,7 +1690,7 @@ export function Page() {
                                     localId: current.newRows[index].localId,
                                     name: current.newRows[index].name,
                                     isRevealed: current.newRows[index].isRevealed,
-                                    ...createDraftValueByKind(next),
+                                    ...createDraftValueByKind(next, current.newRows[index].declaredType),
                                   };
                                 }
                                 return current;
@@ -1233,6 +1703,35 @@ export function Page() {
                             <SelectContent>
                               <SelectItem value="secret">Secret</SelectItem>
                               <SelectItem value="ab_roll">A/B roll</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={newRow.declaredType}
+                            onValueChange={(next) => {
+                              const declaredType = next as DeclaredVariableType;
+                              updateCurrentStageDraft((current) => {
+                                const index = current.newRows.findIndex(
+                                  (candidate) => candidate.localId === row.localId,
+                                );
+                                if (index >= 0) {
+                                  current.newRows[index] = {
+                                    ...current.newRows[index],
+                                    declaredType,
+                                  };
+                                }
+                                return current;
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {VARIABLE_TYPE_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           {newRow.kind === "ab_roll" ? (

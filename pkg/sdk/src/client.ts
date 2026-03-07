@@ -9,6 +9,7 @@ import type {
   BarekeyClientOptions,
   BarekeyEvaluateBatchResponse,
   BarekeyEvaluateSingleResponse,
+  BarekeyGeneratedValueForKey,
   BarekeyGetOptions,
   BarekeyResolvedValue,
 } from "./types";
@@ -66,6 +67,7 @@ export class BarekeyClient {
     const resolved: BarekeyResolvedValue = {
       name: parsed.name,
       kind: parsed.kind,
+      declaredType: parsed.declaredType,
       value: parsed.value,
       decision: parsed.decision,
     };
@@ -124,6 +126,7 @@ export class BarekeyClient {
         const resolved: BarekeyResolvedValue = {
           name: row.name,
           kind: row.kind,
+          declaredType: row.declaredType,
           value: row.value,
           decision: row.decision,
         };
@@ -149,8 +152,13 @@ export class BarekeyClient {
     return ordered;
   }
 
-  get(name: string, inputOptions?: BarekeyGetOptions): BarekeyValueBuilder<string> {
-    return new BarekeyValueBuilder<string>(() => this.evaluate(name, inputOptions));
+  get<TKey extends string>(
+    name: TKey,
+    inputOptions?: BarekeyGetOptions,
+  ): BarekeyValueBuilder<BarekeyGeneratedValueForKey<TKey>> {
+    return new BarekeyValueBuilder<BarekeyGeneratedValueForKey<TKey>>(() =>
+      this.evaluate(name, inputOptions),
+    );
   }
 
   async getMany(

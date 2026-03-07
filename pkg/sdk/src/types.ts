@@ -1,10 +1,22 @@
 import type { BarekeyError } from "./errors";
 
 export type BarekeyResolvedKind = "secret" | "ab_roll" | "rollout";
+export type BarekeyDeclaredType = "string" | "boolean" | "int64" | "float" | "date" | "json";
+export type BarekeyTemporalInstant = {
+  readonly epochMilliseconds: number;
+  toJSON(): string;
+  toString(): string;
+};
+
+export interface BarekeyGeneratedTypeMap {}
+
+export type BarekeyGeneratedValueForKey<TKey extends string> =
+  TKey extends keyof BarekeyGeneratedTypeMap ? BarekeyGeneratedTypeMap[TKey] : unknown;
 
 export type BarekeyResolvedValue = {
   name: string;
   kind: BarekeyResolvedKind;
+  declaredType: BarekeyDeclaredType;
   value: string;
   decision?: {
     bucket?: number;
@@ -65,6 +77,7 @@ export type BarekeyClientOptions = {
 export type BarekeyEvaluateSingleResponse = {
   name: string;
   kind: BarekeyResolvedKind;
+  declaredType: BarekeyDeclaredType;
   value: string;
   decision?: BarekeyResolvedValue["decision"];
 };

@@ -13,6 +13,13 @@ import {
   decryptSecretValueForProject,
   encryptSecretValueForProject,
 } from "./lib/encryption";
+import {
+  declaredTypeValidator,
+  fallbackDeclaredType,
+  type DeclaredVariableType,
+  validateAndNormalizeDeclaredAbRoll,
+  validateAndNormalizeDeclaredValue,
+} from "./lib/declared_types";
 
 function validateVariableName(value: string): string {
   const trimmed = value.trim();
@@ -40,6 +47,7 @@ const secretVariableMetadataValidator = v.object({
   stageSlug: v.string(),
   name: v.string(),
   kind: v.literal("secret"),
+  declaredType: declaredTypeValidator,
   createdAtMs: v.number(),
   updatedAtMs: v.number(),
   chance: v.null(),
@@ -52,6 +60,7 @@ const abRollVariableMetadataValidator = v.object({
   stageSlug: v.string(),
   name: v.string(),
   kind: v.literal("ab_roll"),
+  declaredType: declaredTypeValidator,
   createdAtMs: v.number(),
   updatedAtMs: v.number(),
   chance: v.number(),
@@ -65,18 +74,21 @@ const variableMetadataValidator = v.union(
 const preparedCreateValidator = v.object({
   name: v.string(),
   kind: v.literal("secret"),
+  declaredType: declaredTypeValidator,
   encryptedValue: v.string(),
 });
 
 const preparedUpdateValidator = v.object({
   id: v.id("projectVariables"),
   kind: v.literal("secret"),
+  declaredType: declaredTypeValidator,
   encryptedValue: v.string(),
 });
 
 const preparedWriteCreateSecretValidator = v.object({
   name: v.string(),
   kind: v.literal("secret"),
+  declaredType: declaredTypeValidator,
   encryptedValue: v.string(),
   encryptedValueA: v.null(),
   encryptedValueB: v.null(),
@@ -86,6 +98,7 @@ const preparedWriteCreateSecretValidator = v.object({
 const preparedWriteCreateAbRollValidator = v.object({
   name: v.string(),
   kind: v.literal("ab_roll"),
+  declaredType: declaredTypeValidator,
   encryptedValue: v.null(),
   encryptedValueA: v.string(),
   encryptedValueB: v.string(),
@@ -100,6 +113,7 @@ const preparedWriteCreateValidator = v.union(
 const preparedWriteUpdateSecretValidator = v.object({
   id: v.id("projectVariables"),
   kind: v.literal("secret"),
+  declaredType: declaredTypeValidator,
   encryptedValue: v.string(),
   encryptedValueA: v.null(),
   encryptedValueB: v.null(),
@@ -109,6 +123,7 @@ const preparedWriteUpdateSecretValidator = v.object({
 const preparedWriteUpdateAbRollValidator = v.object({
   id: v.id("projectVariables"),
   kind: v.literal("ab_roll"),
+  declaredType: declaredTypeValidator,
   encryptedValue: v.null(),
   encryptedValueA: v.string(),
   encryptedValueB: v.string(),
@@ -135,6 +150,7 @@ type PreparedWriteMutationResult = {
     | {
         name: string;
         kind: "secret";
+        declaredType: DeclaredVariableType;
         encryptedValue: string;
         encryptedValueA: null;
         encryptedValueB: null;
@@ -143,6 +159,7 @@ type PreparedWriteMutationResult = {
     | {
         name: string;
         kind: "ab_roll";
+        declaredType: DeclaredVariableType;
         encryptedValue: null;
         encryptedValueA: string;
         encryptedValueB: string;
@@ -153,6 +170,7 @@ type PreparedWriteMutationResult = {
     | {
         id: Id<"projectVariables">;
         kind: "secret";
+        declaredType: DeclaredVariableType;
         encryptedValue: string;
         encryptedValueA: null;
         encryptedValueB: null;
@@ -161,6 +179,7 @@ type PreparedWriteMutationResult = {
     | {
         id: Id<"projectVariables">;
         kind: "ab_roll";
+        declaredType: DeclaredVariableType;
         encryptedValue: null;
         encryptedValueA: string;
         encryptedValueB: string;
@@ -182,11 +201,13 @@ type PreparedDraft = {
   creates: Array<{
     name: string;
     kind: "secret";
+    declaredType: DeclaredVariableType;
     encryptedValue: string;
   }>;
   updates: Array<{
     id: Id<"projectVariables">;
     kind: "secret";
+    declaredType: DeclaredVariableType;
     encryptedValue: string;
   }>;
   deletes: Array<Id<"projectVariables">>;
@@ -200,12 +221,14 @@ const writeModeValidator = v.union(v.literal("create_only"), v.literal("upsert")
 const writeSecretEntryValidator = v.object({
   name: v.string(),
   kind: v.literal("secret"),
+  declaredType: declaredTypeValidator,
   value: v.string(),
 });
 
 const writeAbRollEntryValidator = v.object({
   name: v.string(),
   kind: v.literal("ab_roll"),
+  declaredType: declaredTypeValidator,
   valueA: v.string(),
   valueB: v.string(),
   chance: v.number(),
@@ -216,12 +239,14 @@ const writeEntryValidator = v.union(writeSecretEntryValidator, writeAbRollEntryV
 const draftUpdateSecretValidator = v.object({
   id: v.id("projectVariables"),
   kind: v.literal("secret"),
+  declaredType: declaredTypeValidator,
   value: v.string(),
 });
 
 const draftUpdateAbRollValidator = v.object({
   id: v.id("projectVariables"),
   kind: v.literal("ab_roll"),
+  declaredType: declaredTypeValidator,
   valueA: v.string(),
   valueB: v.string(),
   chance: v.number(),
@@ -252,6 +277,12 @@ function encryptedPayloadByteLength(input: {
     total += utf8ByteLength(input.encryptedValueB);
   }
   return total;
+}
+
+function getRowDeclaredType(input: {
+  declaredType?: string | null;
+}): DeclaredVariableType {
+  return fallbackDeclaredType(input.declaredType);
 }
 
 /**
@@ -319,6 +350,7 @@ export const listForCurrentOrgProjectStage = query({
               stageSlug: row.stageSlug,
               name: row.name,
               kind: "secret" as const,
+              declaredType: getRowDeclaredType(row),
               createdAtMs: row.createdAtMs,
               updatedAtMs: row.updatedAtMs,
               chance: null,
@@ -330,6 +362,7 @@ export const listForCurrentOrgProjectStage = query({
               stageSlug: row.stageSlug,
               name: row.name,
               kind: "ab_roll" as const,
+              declaredType: getRowDeclaredType(row),
               createdAtMs: row.createdAtMs,
               updatedAtMs: row.updatedAtMs,
               chance: validateChance(row.chance ?? 0),
@@ -346,6 +379,7 @@ const variableResolverRowValidator = v.object({
   stageSlug: v.string(),
   name: v.string(),
   kind: variableKindValidator,
+  declaredType: declaredTypeValidator,
 });
 
 /**
@@ -390,6 +424,7 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
         stageSlug: string;
         name: string;
         kind: "secret" | "ab_roll";
+        declaredType: DeclaredVariableType;
       }
     >();
     for (const name of normalizedNames) {
@@ -410,6 +445,7 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
           stageSlug: row.stageSlug,
           name: row.name,
           kind: row.kind,
+          declaredType: getRowDeclaredType(row),
         });
       }
     }
@@ -421,6 +457,7 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
       stageSlug: string;
       name: string;
       kind: "secret" | "ab_roll";
+      declaredType: DeclaredVariableType;
     }> = [];
     for (const name of normalizedNames) {
       const resolved = rowsByName.get(name);
@@ -480,6 +517,7 @@ export const listVariableMetadataForOrgProjectStageInternal = internalQuery({
               stageSlug: row.stageSlug,
               name: row.name,
               kind: "secret" as const,
+              declaredType: getRowDeclaredType(row),
               createdAtMs: row.createdAtMs,
               updatedAtMs: row.updatedAtMs,
               chance: null,
@@ -491,6 +529,7 @@ export const listVariableMetadataForOrgProjectStageInternal = internalQuery({
               stageSlug: row.stageSlug,
               name: row.name,
               kind: "ab_roll" as const,
+              declaredType: getRowDeclaredType(row),
               createdAtMs: row.createdAtMs,
               updatedAtMs: row.updatedAtMs,
               chance: validateChance(row.chance ?? 0),
@@ -586,10 +625,12 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
       }
 
       if (entry.kind === "secret") {
+        const declaredType = entry.declaredType;
+        const normalizedValue = validateAndNormalizeDeclaredValue(declaredType, entry.value);
         const encryptedValue = await encryptSecretValueForProject(ctx, {
           projectId: project._id,
           orgId: project.orgId,
-          plaintext: entry.value,
+          plaintext: normalizedValue,
         });
         const nextBytes = encryptedPayloadByteLength({
           encryptedValue,
@@ -601,6 +642,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
           creates.push({
             name,
             kind: "secret",
+            declaredType,
             encryptedValue,
             encryptedValueA: null,
             encryptedValueB: null,
@@ -619,6 +661,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
         updates.push({
           id: existing._id,
           kind: "secret",
+          declaredType,
           encryptedValue,
           encryptedValueA: null,
           encryptedValueB: null,
@@ -629,16 +672,22 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
         continue;
       }
 
+      const declaredType = entry.declaredType;
       const chance = validateChance(entry.chance);
+      const normalizedValues = validateAndNormalizeDeclaredAbRoll(
+        declaredType,
+        entry.valueA,
+        entry.valueB,
+      );
       const encryptedValueA = await encryptSecretValueForProject(ctx, {
         projectId: project._id,
         orgId: project.orgId,
-        plaintext: entry.valueA,
+        plaintext: normalizedValues.valueA,
       });
       const encryptedValueB = await encryptSecretValueForProject(ctx, {
         projectId: project._id,
         orgId: project.orgId,
-        plaintext: entry.valueB,
+        plaintext: normalizedValues.valueB,
       });
       const nextBytes = encryptedPayloadByteLength({
         encryptedValue: null,
@@ -650,6 +699,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
         creates.push({
           name,
           kind: "ab_roll",
+          declaredType,
           encryptedValue: null,
           encryptedValueA,
           encryptedValueB,
@@ -668,6 +718,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
       updates.push({
         id: existing._id,
         kind: "ab_roll",
+        declaredType,
         encryptedValue: null,
         encryptedValueA,
         encryptedValueB,
@@ -772,6 +823,7 @@ export const applyPreparedVariableWritesForOrgProjectStageInternal = internalMut
 
       await ctx.db.patch(update.id, {
         kind: update.kind,
+        declaredType: update.declaredType,
         encryptedValue: update.encryptedValue,
         encryptedValueA: update.encryptedValueA,
         encryptedValueB: update.encryptedValueB,
@@ -791,6 +843,7 @@ export const applyPreparedVariableWritesForOrgProjectStageInternal = internalMut
         stageSlug: stage.slug,
         name: create.name,
         kind: create.kind,
+        declaredType: create.declaredType,
         encryptedValue: create.encryptedValue,
         encryptedValueA: create.encryptedValueA,
         encryptedValueB: create.encryptedValueB,
@@ -956,12 +1009,14 @@ export const applyDraftForCurrentOrgProjectStage = action({
           id: Id<"projectVariables">;
           name: string;
           kind: "secret";
+          declaredType: DeclaredVariableType;
           chance: null;
         }
       | {
           id: Id<"projectVariables">;
           name: string;
           kind: "ab_roll";
+          declaredType: DeclaredVariableType;
           chance: number;
         }
     > = await ctx.runQuery(
@@ -985,6 +1040,7 @@ export const applyDraftForCurrentOrgProjectStage = action({
         entries.push({
           name: existing.name,
           kind: "secret",
+          declaredType: update.declaredType,
           value: update.value,
         });
         continue;
@@ -993,6 +1049,7 @@ export const applyDraftForCurrentOrgProjectStage = action({
       entries.push({
         name: existing.name,
         kind: "ab_roll",
+        declaredType: update.declaredType,
         valueA: update.valueA,
         valueB: update.valueB,
         chance: validateChance(update.chance),
@@ -1112,6 +1169,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
     const preparedUpdates: Array<{
       id: (typeof args.updates)[number]["id"];
       kind: "secret";
+      declaredType: DeclaredVariableType;
       encryptedValue: string;
     }> = [];
     for (const update of args.updates) {
@@ -1139,6 +1197,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
       preparedUpdates.push({
         id: update.id,
         kind: update.kind,
+        declaredType: "string",
         encryptedValue,
       });
     }
@@ -1146,6 +1205,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
     const preparedCreates: Array<{
       name: string;
       kind: "secret";
+      declaredType: DeclaredVariableType;
       encryptedValue: string;
     }> = [];
     for (const create of args.creates) {
@@ -1163,6 +1223,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
       preparedCreates.push({
         name,
         kind: create.kind,
+        declaredType: "string",
         encryptedValue,
       });
       stageVariableNames.add(name);
@@ -1255,6 +1316,7 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
 
       await ctx.db.patch(update.id, {
         kind: update.kind,
+        declaredType: update.declaredType,
         encryptedValue: update.encryptedValue,
         encryptedValueA: null,
         encryptedValueB: null,
@@ -1274,6 +1336,7 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
         stageSlug: args.stageSlug,
         name: create.name,
         kind: create.kind,
+        declaredType: create.declaredType,
         encryptedValue: create.encryptedValue,
         encryptedValueA: null,
         encryptedValueB: null,
@@ -1312,12 +1375,14 @@ export const decryptValueForOrgProjectStageInternal = internalMutation({
       id: v.id("projectVariables"),
       name: v.string(),
       kind: v.literal("secret"),
+      declaredType: declaredTypeValidator,
       value: v.string(),
     }),
     v.object({
       id: v.id("projectVariables"),
       name: v.string(),
       kind: v.literal("ab_roll"),
+      declaredType: declaredTypeValidator,
       valueA: v.string(),
       valueB: v.string(),
       chance: v.number(),
@@ -1327,16 +1392,18 @@ export const decryptValueForOrgProjectStageInternal = internalMutation({
     ctx,
     args,
   ): Promise<
-    | {
+      | {
         id: Id<"projectVariables">;
         name: string;
         kind: "secret";
+        declaredType: DeclaredVariableType;
         value: string;
       }
     | {
         id: Id<"projectVariables">;
         name: string;
         kind: "ab_roll";
+        declaredType: DeclaredVariableType;
         valueA: string;
         valueB: string;
         chance: number;
@@ -1386,6 +1453,7 @@ export const decryptValueForOrgProjectStageInternal = internalMutation({
         id: variable._id,
         name: variable.name,
         kind: "secret",
+        declaredType: getRowDeclaredType(variable),
         value,
       };
     }
@@ -1409,6 +1477,7 @@ export const decryptValueForOrgProjectStageInternal = internalMutation({
       id: variable._id,
       name: variable.name,
       kind: "ab_roll",
+      declaredType: getRowDeclaredType(variable),
       valueA,
       valueB,
       chance: validateChance(variable.chance ?? 0),
@@ -1434,12 +1503,14 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
       id: v.id("projectVariables"),
       name: v.string(),
       kind: v.literal("secret"),
+      declaredType: declaredTypeValidator,
       value: v.string(),
     }),
     v.object({
       id: v.id("projectVariables"),
       name: v.string(),
       kind: v.literal("ab_roll"),
+      declaredType: declaredTypeValidator,
       valueA: v.string(),
       valueB: v.string(),
       chance: v.number(),
@@ -1452,11 +1523,13 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
     id: Id<"projectVariables">;
     name: string;
     kind: "secret";
+    declaredType: DeclaredVariableType;
     value: string;
   } | {
     id: Id<"projectVariables">;
     name: string;
     kind: "ab_roll";
+    declaredType: DeclaredVariableType;
     valueA: string;
     valueB: string;
     chance: number;
@@ -1512,6 +1585,7 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
         id: variable._id,
         name: variable.name,
         kind: "secret",
+        declaredType: getRowDeclaredType(variable),
         value,
       };
     }
@@ -1535,6 +1609,7 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
       id: variable._id,
       name: variable.name,
       kind: "ab_roll",
+      declaredType: getRowDeclaredType(variable),
       valueA,
       valueB,
       chance: validateChance(variable.chance ?? 0),

@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+import { declaredTypeValidator } from "./lib/declared_types";
+
 export default defineSchema({
   users: defineTable({
     clerkUserId: v.string(),
@@ -79,6 +81,7 @@ export default defineSchema({
     stageSlug: v.string(),
     name: v.string(),
     kind: v.union(v.literal("secret"), v.literal("ab_roll")),
+    declaredType: v.optional(declaredTypeValidator),
     encryptedValue: v.union(v.string(), v.null()),
     encryptedValueA: v.union(v.string(), v.null()),
     encryptedValueB: v.union(v.string(), v.null()),

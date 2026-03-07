@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { httpAction } from "./_generated/server";
 import { getOrgClaimsFromIdentity } from "./lib/auth";
+import { normalizeDeclaredType } from "./lib/declared_types";
 
 type EvaluateSingleRequest = {
   projectSlug: string;
@@ -36,11 +37,13 @@ type EnvWriteRequest = {
     | {
         name: string;
         kind: "secret";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
         value: string;
       }
     | {
         name: string;
         kind: "ab_roll";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
         valueA: string;
         valueB: string;
         chance: number;
@@ -56,6 +59,7 @@ type ResolvedVariableRow = {
   stageSlug: string;
   name: string;
   kind: "secret" | "ab_roll";
+  declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
 };
 
 type DecryptedVariable =
@@ -63,12 +67,14 @@ type DecryptedVariable =
       id: Id<"projectVariables">;
       name: string;
       kind: "secret";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       value: string;
     }
   | {
       id: Id<"projectVariables">;
       name: string;
       kind: "ab_roll";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       valueA: string;
       valueB: string;
       chance: number;
@@ -266,7 +272,15 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     const entry = rawEntry as Record<string, unknown>;
     const name = typeof entry.name === "string" ? entry.name.trim() : "";
     const kind = typeof entry.kind === "string" ? entry.kind : "";
+    const declaredTypeRaw =
+      typeof entry.declaredType === "string" ? entry.declaredType : "string";
     if (name.length === 0) {
+      return null;
+    }
+    let declaredType: EnvWriteRequest["entries"][number]["declaredType"];
+    try {
+      declaredType = normalizeDeclaredType(declaredTypeRaw);
+    } catch {
       return null;
     }
     if (kind === "secret") {
@@ -276,6 +290,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
       entries.push({
         name,
         kind: "secret",
+        declaredType,
         value: entry.value,
       });
       continue;
@@ -294,6 +309,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
       entries.push({
         name,
         kind: "ab_roll",
+        declaredType,
         valueA: entry.valueA,
         valueB: entry.valueB,
         chance: entry.chance,
@@ -447,6 +463,7 @@ async function resolveVariableValue(input: {
 }): Promise<{
   name: string;
   kind: "secret" | "ab_roll";
+  declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
   value: string;
   decision?: {
     bucket: number;
@@ -460,6 +477,7 @@ async function resolveVariableValue(input: {
     return {
       name: input.variable.name,
       kind: "secret",
+      declaredType: input.variable.declaredType,
       value: input.variable.value,
     };
   }
@@ -475,6 +493,7 @@ async function resolveVariableValue(input: {
   return {
     name: input.variable.name,
     kind: "ab_roll",
+    declaredType: input.variable.declaredType,
     value: bucket < chance ? input.variable.valueA : input.variable.valueB,
     decision: {
       bucket,
@@ -605,6 +624,7 @@ const evaluateOne = httpAction(async (ctx, request) => {
     return buildJsonResponse(200, {
       name: resolved.name,
       kind: resolved.kind,
+      declaredType: resolved.declaredType,
       value: resolved.value,
       decision: resolved.decision,
     });
@@ -713,6 +733,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
     const values: Array<{
       name: string;
       kind: "secret" | "ab_roll";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       value: string;
       decision?: {
         bucket: number;
@@ -745,6 +766,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       values.push({
         name: resolved.name,
         kind: resolved.kind,
+        declaredType: resolved.declaredType,
         value: resolved.value,
         decision: resolved.decision,
       });
@@ -837,6 +859,7 @@ const envList = httpAction(async (ctx, request) => {
   const variables: Array<{
     name: string;
     kind: "secret" | "ab_roll";
+    declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
     createdAtMs: number;
     updatedAtMs: number;
     chance: number | null;
@@ -853,6 +876,7 @@ const envList = httpAction(async (ctx, request) => {
     variables: variables.map((row) => ({
       name: row.name,
       kind: row.kind,
+      declaredType: row.declaredType,
       createdAtMs: row.createdAtMs,
       updatedAtMs: row.updatedAtMs,
       chance: row.chance,
@@ -981,6 +1005,7 @@ const envPull = httpAction(async (ctx, request) => {
   const values: Array<{
     name: string;
     kind: "secret" | "ab_roll";
+    declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
     value: string;
     decision?: {
       bucket: number;
@@ -1360,7 +1385,7 @@ const typegenManifest = httpAction(async (ctx, request) => {
     });
   }
 
-  const manifest = await ctx.runQuery(internal.typegen.buildManifestForOrgProjectStageInternal, {
+  const manifest = await ctx.runMutation(internal.typegen.buildManifestForOrgProjectStageInternal, {
     orgId: authContext.orgId,
     projectSlug,
     stageSlug,
