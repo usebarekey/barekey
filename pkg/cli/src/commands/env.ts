@@ -113,6 +113,7 @@ async function runEnvList(options: EnvTargetOptions & { json?: boolean }): Promi
     path: "/v1/env/list",
     accessToken,
     payload: {
+      orgSlug: target.orgSlug,
       projectSlug: target.projectSlug,
       stageSlug: target.stageSlug,
     },
@@ -176,6 +177,7 @@ async function runEnvWrite(
     path: "/v1/env/write",
     accessToken,
     payload: {
+      orgSlug: target.orgSlug,
       projectSlug: target.projectSlug,
       stageSlug: target.stageSlug,
       mode: operation,
@@ -217,6 +219,7 @@ async function runEnvDelete(
       path: "/v1/env/list",
       accessToken,
       payload: {
+        orgSlug: target.orgSlug,
         projectSlug: target.projectSlug,
         stageSlug: target.stageSlug,
       },
@@ -253,6 +256,7 @@ async function runEnvDelete(
     path: "/v1/env/write",
     accessToken,
     payload: {
+      orgSlug: target.orgSlug,
       projectSlug: target.projectSlug,
       stageSlug: target.stageSlug,
       mode: "upsert",
@@ -296,6 +300,7 @@ async function runEnvPull(
     path: "/v1/env/pull",
     accessToken,
     payload: {
+      orgSlug: target.orgSlug,
       projectSlug: target.projectSlug,
       stageSlug: target.stageSlug,
       seed: options.seed,

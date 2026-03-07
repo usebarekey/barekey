@@ -9,6 +9,7 @@
  */
 
 import type * as autumn from "../autumn.js";
+import type * as clerk from "../clerk.js";
 import type * as cli_auth from "../cli_auth.js";
 import type * as dev_auth from "../dev_auth.js";
 import type * as http from "../http.js";
@@ -32,6 +33,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   autumn: typeof autumn;
+  clerk: typeof clerk;
   cli_auth: typeof cli_auth;
   dev_auth: typeof dev_auth;
   http: typeof http;

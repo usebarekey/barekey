@@ -13,6 +13,7 @@
     "format:check": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore --check ."
   },
   "dependencies": {
+    "@clerk/backend": "^2.32.1",
     "@noble/hashes": "^2.0.1",
     "@useautumn/convex": "^0.0.23",
     "autumn-js": "^0.1.81",

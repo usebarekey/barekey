@@ -56,6 +56,7 @@ export class BarekeyClient {
       baseUrl: this.baseUrl,
       path: "/v1/env/evaluate",
       payload: {
+        orgSlug: this.options.orgSlug,
         projectSlug: this.options.projectSlug,
         stageSlug: this.options.stageSlug,
         name,
@@ -114,6 +115,7 @@ export class BarekeyClient {
         baseUrl: this.baseUrl,
         path: "/v1/env/evaluate-batch",
         payload: {
+          orgSlug: this.options.orgSlug,
           projectSlug: this.options.projectSlug,
           stageSlug: this.options.stageSlug,
           names: missingNames,

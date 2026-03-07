@@ -26,7 +26,7 @@ async function runTypegen(options: EnvTargetOptions & { out: string }): Promise<
       }>;
   }>({
     baseUrl: local.baseUrl,
-    path: `/v1/typegen/manifest?projectSlug=${encodeURIComponent(target.projectSlug)}&stageSlug=${encodeURIComponent(target.stageSlug)}`,
+    path: `/v1/typegen/manifest?projectSlug=${encodeURIComponent(target.projectSlug)}&stageSlug=${encodeURIComponent(target.stageSlug)}${target.orgSlug ? `&orgSlug=${encodeURIComponent(target.orgSlug)}` : ""}`,
     accessToken,
   });
 
