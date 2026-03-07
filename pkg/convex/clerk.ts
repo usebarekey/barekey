@@ -26,7 +26,9 @@ function isNotFoundClerkError(error: unknown): boolean {
     return true;
   }
 
-  return value.errors?.some((entry) => entry.code === "resource_not_found") ?? false;
+  return Array.isArray(value.errors)
+    ? value.errors.some((entry) => entry.code === "resource_not_found")
+    : false;
 }
 
 /**

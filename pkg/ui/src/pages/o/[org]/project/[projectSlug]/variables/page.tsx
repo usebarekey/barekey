@@ -1401,11 +1401,7 @@ export function Page() {
                               value={activeValue.declaredType}
                               onValueChange={(next) => {
                                 const declaredType = next as DeclaredVariableType;
-                                if (
-                                  declaredType === "json" &&
-                                  !isRevealed &&
-                                  pendingValue === undefined
-                                ) {
+                                if (declaredType === "json" && !isRevealed) {
                                   toast.error("Reveal this value before changing its type to JSON.");
                                   return;
                                 }

@@ -86,9 +86,39 @@ function normalizeFloat(raw: string): string {
   return trimmed;
 }
 
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    return isLeapYear(year) ? 29 : 28;
+  }
+  if (month === 4 || month === 6 || month === 9 || month === 11) {
+    return 30;
+  }
+  return 31;
+}
+
 function normalizeDate(raw: string): string {
   const trimmed = raw.trim();
   if (!RFC3339_WITH_TIMEZONE_PATTERN.test(trimmed)) {
+    throw new Error("Date variables must be ISO 8601 instants with timezone.");
+  }
+  const [datePart] = trimmed.split("T", 1);
+  const [yearPart, monthPart, dayPart] = datePart?.split("-", 3) ?? [];
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  const day = Number(dayPart);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth(year, month)
+  ) {
     throw new Error("Date variables must be ISO 8601 instants with timezone.");
   }
   const parsed = new Date(trimmed);
