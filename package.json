@@ -6,12 +6,15 @@
   "scripts": {
     "convex:dev": "bunx convex dev",
     "auth:dev": "cd pkg/auth && bun run dev",
+    "auth:build": "cd pkg/auth && bun run build",
     "ui:dev": "cd pkg/ui && bun run dev",
+    "ui:build": "cd pkg/ui && bun run build",
     "lint": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore .",
     "lint:fix": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore --fix .",
     "format": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore .",
     "format:check": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore --check ."
   },
+  "packageManager": "bun@1.2.22",
   "dependencies": {
     "@clerk/backend": "^2.32.1",
     "@noble/hashes": "^2.0.1",

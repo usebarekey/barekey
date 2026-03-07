@@ -1139,12 +1139,16 @@ const cliDeviceStart = httpAction(async (ctx, request) => {
   });
 
   const uiOrigin = getCliUiOrigin(request);
-  const verificationUri = `${uiOrigin}/cli/device?user_code=${encodeURIComponent(deviceStart.userCode)}`;
+  const verificationUrl = new URL(`${uiOrigin}/cli/device`);
+  verificationUrl.searchParams.set("user_code", deviceStart.userCode);
+  if (clientName !== null) {
+    verificationUrl.searchParams.set("client_name", clientName);
+  }
 
   return buildJsonResponse(200, {
     deviceCode: deviceStart.deviceCode,
     userCode: deviceStart.userCode,
-    verificationUri,
+    verificationUri: verificationUrl.toString(),
     intervalSec: deviceStart.intervalSec,
     expiresInSec: deviceStart.expiresInSec,
     requestId,
