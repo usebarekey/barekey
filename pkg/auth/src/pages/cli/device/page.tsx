@@ -208,10 +208,13 @@ export function Page() {
               <div className="grid lg:grid-cols-[minmax(0,1.3fr)_22rem]">
                 <section className="border-b border-border/80 p-6 sm:p-8 lg:border-r lg:border-b-0">
                   <div className="max-w-2xl">
-                    <img src={logoSrc} alt="Barekey" className="mb-8 w-10 rounded-md" />
-                    <h1 className="text-[2rem] leading-tight font-semibold tracking-tight text-foreground sm:text-[2.5rem]">
-                      Approve CLI sign-in
-                    </h1>
+                    <div className="mb-6 flex items-center gap-4">
+                      <img src={logoSrc} alt="Barekey" className="h-8 w-auto shrink-0" />
+                      <div aria-hidden="true" className="h-8 w-px bg-border" />
+                      <h1 className="text-2xl leading-none font-semibold tracking-tight text-foreground sm:text-3xl">
+                        Approve CLI sign-in
+                      </h1>
+                    </div>
                     <p className="mt-3 max-w-xl text-[15px] leading-6 text-muted-foreground">
                       Check the device code before you continue. This links your current browser
                       session to the terminal waiting for approval.
@@ -256,7 +259,7 @@ export function Page() {
 
                 <aside className="p-6 sm:p-8">
                   <div className="rounded-xl border border-border/80 bg-background p-5">
-                    <div className="mb-5 text-sm font-medium text-foreground">Request details</div>
+                    <div className="mb-2 text-sm font-medium text-foreground">Request details</div>
 
                     <DetailRow icon={IconDeviceLaptop} label="Computer" value={deviceLabel} />
 
