@@ -9,9 +9,11 @@ import { Router } from "@/router";
 
 import "@/main.css";
 
-const DEFAULT_CLERK_PUBLISHABLE_KEY = "pk_test_bGl2ZS1iZWFyLTQ4LmNsZXJrLmFjY291bnRzLmRldiQ";
-const clerkPublishableKey =
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? DEFAULT_CLERK_PUBLISHABLE_KEY;
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!clerkPublishableKey) {
+  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY for the auth app.");
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

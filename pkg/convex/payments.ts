@@ -1,6 +1,8 @@
+import { Autumn } from "autumn-js";
 import { v } from "convex/values";
 
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   action,
   internalAction,
@@ -8,6 +10,7 @@ import {
   internalQuery,
   type ActionCtx,
   type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import {
   assertExpectedOrgSlug,
@@ -37,12 +40,46 @@ const FeatureId = {
   StorageBytes: "storage_bytes",
 } as const;
 
+const PLANLESS_WORKSPACE_ERROR_MESSAGE =
+  "This workspace is without a plan. Choose a billing plan to enable projects.";
+const BILLING_UNAVAILABLE_ERROR_MESSAGE = "Billing service is temporarily unavailable.";
+const METERED_USAGE_ROLLBACK_ERROR_MESSAGE = "Failed to roll back metered usage.";
+
 const MB_BYTES = 1_000_000;
 const GB_BYTES = 1_000_000_000;
 
 type BillingTierValue = (typeof BillingTier)[keyof typeof BillingTier];
 type BillingIntervalValue = (typeof BillingInterval)[keyof typeof BillingInterval];
 type OverageModeValue = (typeof OverageMode)[keyof typeof OverageMode];
+
+type CanonicalRow = {
+  _id: string;
+  createdAtMs: number;
+};
+
+type WorkspacePlanState = {
+  currentProductId: string;
+  currentTier: BillingTierValue | null;
+};
+
+function createAutumnClient(): Autumn {
+  return new Autumn({
+    secretKey: process.env.AUTUMN_SECRET_KEY ?? "",
+  });
+}
+
+function pickCanonicalRow<T extends CanonicalRow>(rows: Array<T>): T | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return [...rows].sort((left, right) => {
+    if (left.createdAtMs !== right.createdAtMs) {
+      return left.createdAtMs - right.createdAtMs;
+    }
+    return String(left._id).localeCompare(String(right._id));
+  })[0] ?? null;
+}
 
 type DefaultVariant = {
   productId: string;
@@ -622,6 +659,57 @@ function readCurrentVariantFromProductId(input: string | null): {
   };
 }
 
+async function ensureAutumnCustomerForOrg(input: {
+  orgId: string;
+  orgSlug: string | null;
+}): Promise<{
+  data: unknown;
+  error: unknown;
+}> {
+  const autumn = createAutumnClient();
+  const result = await autumn.customers.create({
+    id: input.orgId,
+    name: input.orgSlug ?? input.orgId,
+  });
+  return {
+    data: result.data,
+    error: result.error,
+  };
+}
+
+async function readWorkspacePlanStateForOrg(
+  ctx: ActionCtx,
+  input: {
+    orgId: string;
+    orgSlug: string | null;
+  },
+): Promise<WorkspacePlanState> {
+  const customerResult = await ensureAutumnCustomerForOrg(input);
+  if (customerResult.error !== null) {
+    throw new Error(BILLING_UNAVAILABLE_ERROR_MESSAGE);
+  }
+
+  const currentProductId = readCurrentProductId(customerResult.data);
+  if (currentProductId === null) {
+    throw new Error(PLANLESS_WORKSPACE_ERROR_MESSAGE);
+  }
+
+  const currentVariant = readCurrentVariantFromProductId(currentProductId);
+  if (currentVariant?.tier === BillingTier.Free) {
+    const hasAssignedFreePlanCredit = await hasFreePlanCreditAssignedToOrg(ctx, {
+      orgId: input.orgId,
+    });
+    if (!hasAssignedFreePlanCredit) {
+      throw new Error(PLANLESS_WORKSPACE_ERROR_MESSAGE);
+    }
+  }
+
+  return {
+    currentProductId,
+    currentTier: currentVariant?.tier ?? null,
+  };
+}
+
 function readDefaultVariantByProductId(input: string | null): DefaultVariant | null {
   if (input === null) {
     return null;
@@ -695,6 +783,52 @@ async function computeEncryptedBytesForOrg(
   return total;
 }
 
+async function getCanonicalOrgStorageUsageRow(
+  ctx: QueryCtx | MutationCtx,
+  orgId: string,
+): Promise<
+  | {
+      _id: Id<"orgStorageUsage">;
+      orgId: string;
+      encryptedBytes: number;
+      createdAtMs: number;
+      updatedAtMs: number;
+    }
+  | null
+> {
+  const rows = await ctx.db
+    .query("orgStorageUsage")
+    .withIndex("by_org_id", (q) => q.eq("orgId", orgId))
+    .collect();
+  return pickCanonicalRow(rows);
+}
+
+async function getCanonicalFreePlanCreditForClerkUserId(
+  ctx: Pick<MutationCtx, "db">,
+  clerkUserId: string,
+): Promise<
+  | {
+      _id: Id<"userFreePlanCredits">;
+      clerkUserId: string;
+      totalCredits: number;
+      remainingCredits: number;
+      assignedOrgId: string | null;
+      assignedOrgSlug: string | null;
+      consumedAtMs: number | null;
+      revokedAtMs: number | null;
+      revokedReason: string | null;
+      createdAtMs: number;
+      updatedAtMs: number;
+    }
+  | null
+> {
+  const rows = await ctx.db
+    .query("userFreePlanCredits")
+    .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
+    .collect();
+  return pickCanonicalRow(rows);
+}
+
 export const getPricingCatalogPublic = action({
   args: {},
   returns: v.object({
@@ -730,10 +864,11 @@ export const getOrgStorageUsageInternal = internalQuery({
     v.null(),
   ),
   handler: async (ctx, args) => {
-    const row = await ctx.db
+    const rows = await ctx.db
       .query("orgStorageUsage")
       .withIndex("by_org_id", (q) => q.eq("orgId", args.orgId))
-      .unique();
+      .collect();
+    const row = pickCanonicalRow(rows);
     if (row === null) {
       return null;
     }
@@ -753,10 +888,7 @@ export const ensureOrgStorageUsageForOrgInternal = internalMutation({
     initialized: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("orgStorageUsage")
-      .withIndex("by_org_id", (q) => q.eq("orgId", args.orgId))
-      .unique();
+    const existing = await getCanonicalOrgStorageUsageRow(ctx, args.orgId);
     if (existing !== null) {
       return {
         encryptedBytes: existing.encryptedBytes,
@@ -789,10 +921,7 @@ export const applyStorageDeltaForOrgInternal = internalMutation({
     updatedAtMs: v.number(),
   }),
   handler: async (ctx, args): Promise<{ encryptedBytes: number; updatedAtMs: number }> => {
-    let existing = await ctx.db
-      .query("orgStorageUsage")
-      .withIndex("by_org_id", (q) => q.eq("orgId", args.orgId))
-      .unique();
+    let existing = await getCanonicalOrgStorageUsageRow(ctx, args.orgId);
     if (existing === null) {
       const encryptedBytes = await computeEncryptedBytesForOrg(ctx, args.orgId);
       const now = Date.now();
@@ -804,7 +933,6 @@ export const applyStorageDeltaForOrgInternal = internalMutation({
       });
       existing = {
         _id: rowId,
-        _creationTime: now,
         orgId: args.orgId,
         encryptedBytes,
         createdAtMs: now,
@@ -842,18 +970,38 @@ export const logBillingRequestInternal = internalMutation({
       .withIndex("by_org_id_and_request_key", (q) =>
         q.eq("orgId", args.orgId).eq("requestKey", args.requestKey),
       )
-      .first();
-    if (existing !== null) {
+      .collect();
+    if (existing.length > 0) {
       return { inserted: false };
     }
 
-    await ctx.db.insert("billingRequestLog", {
+    const rowId = await ctx.db.insert("billingRequestLog", {
       orgId: args.orgId,
       requestKey: args.requestKey,
       featureId: args.featureId,
       units: args.units,
       createdAtMs: Date.now(),
     });
+    const rows = await ctx.db
+      .query("billingRequestLog")
+      .withIndex("by_org_id_and_request_key", (q) =>
+        q.eq("orgId", args.orgId).eq("requestKey", args.requestKey),
+      )
+      .collect();
+    const canonical = pickCanonicalRow(rows);
+    if (canonical === null) {
+      return { inserted: false };
+    }
+    if (canonical._id !== rowId) {
+      await ctx.db.delete(rowId);
+      return { inserted: false };
+    }
+
+    for (const row of rows) {
+      if (row._id !== canonical._id) {
+        await ctx.db.delete(row._id);
+      }
+    }
     return { inserted: true };
   },
 });
@@ -864,10 +1012,11 @@ export const getFreePlanCreditForClerkUserIdInternal = internalQuery({
   },
   returns: v.union(freePlanCreditStateValidator, v.null()),
   handler: async (ctx, args) => {
-    const row = await ctx.db
+    const rows = await ctx.db
       .query("userFreePlanCredits")
       .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
-      .unique();
+      .collect();
+    const row = pickCanonicalRow(rows);
     if (row === null) {
       return null;
     }
@@ -902,10 +1051,7 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
   returns: freePlanCreditStateValidator,
   handler: async (ctx, args): Promise<FreePlanCreditState> => {
     const now = Date.now();
-    let row = await ctx.db
-      .query("userFreePlanCredits")
-      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
-      .unique();
+    let row = await getCanonicalFreePlanCreditForClerkUserId(ctx, args.clerkUserId);
 
     if (row === null) {
       const rowId = await ctx.db.insert("userFreePlanCredits", {
@@ -922,7 +1068,6 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
       });
       row = {
         _id: rowId,
-        _creationTime: now,
         clerkUserId: args.clerkUserId,
         totalCredits: 1,
         remainingCredits: 1,
@@ -938,13 +1083,14 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
     if (row === null) {
       throw new Error("Unable to create a free organization credit.");
     }
-    const currentRowId = row._id;
+    const currentRow = row;
+    const currentRowId = currentRow._id;
 
     if (
       args.consumeForOrgIfAvailable &&
       args.orgId !== null &&
-      row.assignedOrgId === null &&
-      row.remainingCredits > 0
+      currentRow.assignedOrgId === null &&
+      currentRow.remainingCredits > 0
     ) {
       const existingOrgAssignments = await ctx.db
         .query("userFreePlanCredits")
@@ -954,11 +1100,11 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
         (entry) => entry._id !== currentRowId,
       );
       if (assignmentExistsForAnotherCredit) {
-        return toFreePlanCreditState(row);
+        return toFreePlanCreditState(currentRow);
       }
 
-      const nextRemainingCredits = Math.max(0, row.remainingCredits - 1);
-      await ctx.db.patch(row._id, {
+      const nextRemainingCredits = Math.max(0, currentRow.remainingCredits - 1);
+      await ctx.db.patch(currentRow._id, {
         remainingCredits: nextRemainingCredits,
         assignedOrgId: args.orgId,
         assignedOrgSlug: args.orgSlug,
@@ -968,7 +1114,7 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
         updatedAtMs: now,
       });
       row = {
-        ...row,
+        ...currentRow,
         remainingCredits: nextRemainingCredits,
         assignedOrgId: args.orgId,
         assignedOrgSlug: args.orgSlug,
@@ -979,21 +1125,21 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
       };
     } else if (
       args.orgId !== null &&
-      row.assignedOrgId === args.orgId &&
-      row.assignedOrgSlug !== args.orgSlug
+      currentRow.assignedOrgId === args.orgId &&
+      currentRow.assignedOrgSlug !== args.orgSlug
     ) {
-      await ctx.db.patch(row._id, {
+      await ctx.db.patch(currentRow._id, {
         assignedOrgSlug: args.orgSlug,
         updatedAtMs: now,
       });
       row = {
-        ...row,
+        ...currentRow,
         assignedOrgSlug: args.orgSlug,
         updatedAtMs: now,
       };
     }
 
-    return toFreePlanCreditState(row);
+    return toFreePlanCreditState(row ?? currentRow);
   },
 });
 
@@ -1016,10 +1162,7 @@ export const consumeFreePlanCreditForCurrentOrgInternal = internalMutation({
   }),
   handler: async (ctx, args): Promise<ConsumeFreePlanCreditResult> => {
     const now = Date.now();
-    let row = await ctx.db
-      .query("userFreePlanCredits")
-      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
-      .unique();
+    let row = await getCanonicalFreePlanCreditForClerkUserId(ctx, args.clerkUserId);
 
     if (row === null) {
       const rowId = await ctx.db.insert("userFreePlanCredits", {
@@ -1036,7 +1179,6 @@ export const consumeFreePlanCreditForCurrentOrgInternal = internalMutation({
       });
       row = {
         _id: rowId,
-        _creationTime: now,
         clerkUserId: args.clerkUserId,
         totalCredits: 1,
         remainingCredits: 1,
@@ -1048,6 +1190,9 @@ export const consumeFreePlanCreditForCurrentOrgInternal = internalMutation({
         createdAtMs: now,
         updatedAtMs: now,
       };
+    }
+    if (row === null) {
+      throw new Error("Unable to create a free organization credit.");
     }
 
     if (row.assignedOrgId === args.orgId) {
@@ -1145,10 +1290,7 @@ export const revokeFreePlanCreditForCurrentOrgInternal = internalMutation({
   }),
   handler: async (ctx, args) => {
     const now = Date.now();
-    let row = await ctx.db
-      .query("userFreePlanCredits")
-      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
-      .unique();
+    let row = await getCanonicalFreePlanCreditForClerkUserId(ctx, args.clerkUserId);
 
     if (row === null) {
       const rowId = await ctx.db.insert("userFreePlanCredits", {
@@ -1165,7 +1307,6 @@ export const revokeFreePlanCreditForCurrentOrgInternal = internalMutation({
       });
       row = {
         _id: rowId,
-        _creationTime: now,
         clerkUserId: args.clerkUserId,
         totalCredits: 1,
         remainingCredits: 1,
@@ -1300,9 +1441,53 @@ export const reserveFeatureUnitsForCurrentOrgInternal = internalAction({
       assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
     }
 
-    await ctx.runAction(internal.payments.assertWorkspacePlanForCurrentOrgInternal, {
-      expectedOrgSlug: args.expectedOrgSlug,
+    return await ctx.runAction(internal.payments.reserveFeatureUnitsForOrgInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug,
+      featureId: args.featureId,
+      units: args.units,
+      reason: args.reason,
     });
+  },
+});
+
+export const reserveFeatureUnitsForOrgInternal = internalAction({
+  args: {
+    orgId: v.string(),
+    orgSlug: v.union(v.string(), v.null()),
+    featureId: v.string(),
+    units: v.number(),
+    reason: v.string(),
+  },
+  returns: v.object({
+    reservedUnits: v.number(),
+    errorCode: v.union(
+      v.literal("USAGE_LIMIT_EXCEEDED"),
+      v.literal("BILLING_UNAVAILABLE"),
+      v.null(),
+    ),
+  }),
+  handler: async (_ctx, args): Promise<ReserveFeatureUnitsResult> => {
+    try {
+      await readWorkspacePlanStateForOrg(_ctx, {
+        orgId: args.orgId,
+        orgSlug: args.orgSlug,
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message === PLANLESS_WORKSPACE_ERROR_MESSAGE
+      ) {
+        return {
+          reservedUnits: 0,
+          errorCode: "USAGE_LIMIT_EXCEEDED",
+        };
+      }
+      return {
+        reservedUnits: 0,
+        errorCode: "BILLING_UNAVAILABLE",
+      };
+    }
 
     if (!Number.isFinite(args.units) || args.units <= 0) {
       return {
@@ -1311,10 +1496,12 @@ export const reserveFeatureUnitsForCurrentOrgInternal = internalAction({
       };
     }
 
-    const result = await ctx.runAction(api.autumn.check, {
-      featureId: args.featureId,
-      requiredBalance: args.units,
-      sendEvent: true,
+    const autumn = createAutumnClient();
+    const result = await autumn.check({
+      customer_id: args.orgId,
+      feature_id: args.featureId,
+      required_balance: args.units,
+      send_event: true,
     });
 
     if (result.error !== null || result.data === null) {
@@ -1415,38 +1602,58 @@ export const assertWorkspacePlanForCurrentOrgInternal = internalAction({
     currentProductId: v.string(),
     currentTier: v.union(v.literal("free"), v.literal("pro"), v.literal("max"), v.null()),
   }),
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    orgId: string;
+    currentProductId: string;
+    currentTier: BillingTierValue | null;
+  }> => {
     const identity = await requireIdentity(ctx);
     const activeOrg = requireActiveOrgIdClaims(identity);
     if (activeOrg.orgSlug !== null) {
       assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
     }
 
-    const customerResult = await ctx.runAction(api.autumn.createCustomer, {
-      errorOnNotFound: false,
+    const planState = await ctx.runAction(internal.payments.assertWorkspacePlanForOrgInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug,
     });
-    if (customerResult.error !== null) {
-      throw new Error("Billing service is temporarily unavailable.");
-    }
-
-    const currentProductId = readCurrentProductId(customerResult.data);
-    if (currentProductId === null) {
-      throw new Error("This workspace is without a plan. Choose a billing plan to enable projects.");
-    }
-
-    const currentVariant = readCurrentVariantFromProductId(currentProductId);
-    if (currentVariant?.tier === BillingTier.Free) {
-      const hasAssignedFreePlanCredit = await hasFreePlanCreditAssignedToOrg(ctx, {
-        orgId: activeOrg.orgId,
-      });
-      if (!hasAssignedFreePlanCredit) {
-        throw new Error("This workspace is without a plan. Choose a billing plan to enable projects.");
-      }
-    }
     return {
       orgId: activeOrg.orgId,
-      currentProductId,
-      currentTier: currentVariant?.tier ?? null,
+      currentProductId: planState.currentProductId,
+      currentTier: planState.currentTier,
+    };
+  },
+});
+
+export const assertWorkspacePlanForOrgInternal = internalAction({
+  args: {
+    orgId: v.string(),
+    orgSlug: v.union(v.string(), v.null()),
+  },
+  returns: v.object({
+    orgId: v.string(),
+    currentProductId: v.string(),
+    currentTier: v.union(v.literal("free"), v.literal("pro"), v.literal("max"), v.null()),
+  }),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    orgId: string;
+    currentProductId: string;
+    currentTier: BillingTierValue | null;
+  }> => {
+    const planState = await readWorkspacePlanStateForOrg(ctx, {
+      orgId: args.orgId,
+      orgSlug: args.orgSlug,
+    });
+    return {
+      orgId: args.orgId,
+      currentProductId: planState.currentProductId,
+      currentTier: planState.currentTier,
     };
   },
 });
@@ -1461,26 +1668,58 @@ export const compensateFeatureUnitsForCurrentOrgInternal = internalAction({
   returns: v.object({
     compensatedUnits: v.number(),
   }),
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    compensatedUnits: number;
+  }> => {
     const identity = await requireIdentity(ctx);
     const activeOrg = requireActiveOrgIdClaims(identity);
     if (activeOrg.orgSlug !== null) {
       assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
     }
 
+    return await ctx.runAction(internal.payments.compensateFeatureUnitsForOrgInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug,
+      featureId: args.featureId,
+      units: args.units,
+      reason: args.reason,
+    });
+  },
+});
+
+export const compensateFeatureUnitsForOrgInternal = internalAction({
+  args: {
+    orgId: v.string(),
+    orgSlug: v.union(v.string(), v.null()),
+    featureId: v.string(),
+    units: v.number(),
+    reason: v.string(),
+  },
+  returns: v.object({
+    compensatedUnits: v.number(),
+  }),
+  handler: async (_ctx, args) => {
     if (!Number.isFinite(args.units) || args.units <= 0) {
       return {
         compensatedUnits: 0,
       };
     }
 
-    const result = await ctx.runAction(api.autumn.track, {
-      featureId: args.featureId,
+    const autumn = createAutumnClient();
+    const result = await autumn.track({
+      customer_id: args.orgId,
+      feature_id: args.featureId,
       value: -Math.abs(args.units),
+      properties: {
+        reason: args.reason,
+      },
     });
 
     if (result.error !== null) {
-      throw new Error("Failed to roll back metered usage.");
+      throw new Error(METERED_USAGE_ROLLBACK_ERROR_MESSAGE);
     }
 
     return {

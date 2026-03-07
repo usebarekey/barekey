@@ -4,8 +4,6 @@ import type {
   BarekeyGetOptions,
 } from "../types";
 
-const NO_EXPIRY_MS = Number.MAX_SAFE_INTEGER;
-
 export type BarekeyCachePolicy = {
   readEnabled: boolean;
   writeEnabled: boolean;
@@ -37,12 +35,13 @@ export class InMemoryCacheAdapter implements BarekeyCacheAdapter {
 }
 
 export function resolveCachePolicy(options?: BarekeyGetOptions): BarekeyCachePolicy {
-  // Default behavior: cache all evaluations for process lifetime.
+  // Default behavior: bypass cache so rotated secrets and unseeded ab_roll
+  // evaluations remain fresh unless the caller opts into stickiness.
   if (options?.dynamic === undefined) {
     return {
-      readEnabled: true,
-      writeEnabled: true,
-      ttlMs: NO_EXPIRY_MS,
+      readEnabled: false,
+      writeEnabled: false,
+      ttlMs: 0,
     };
   }
 

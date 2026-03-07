@@ -31,7 +31,9 @@ function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).length;
 }
 
-const variableSummaryValidator = v.object({
+const variableKindValidator = v.union(v.literal("secret"), v.literal("ab_roll"));
+
+const secretVariableMetadataValidator = v.object({
   id: v.id("projectVariables"),
   projectId: v.id("projects"),
   orgId: v.string(),
@@ -40,21 +42,25 @@ const variableSummaryValidator = v.object({
   kind: v.literal("secret"),
   createdAtMs: v.number(),
   updatedAtMs: v.number(),
+  chance: v.null(),
 });
 
-const variableKindValidator = v.union(v.literal("secret"), v.literal("ab_roll"));
-
-const variableMetadataValidator = v.object({
+const abRollVariableMetadataValidator = v.object({
   id: v.id("projectVariables"),
   projectId: v.id("projects"),
   orgId: v.string(),
   stageSlug: v.string(),
   name: v.string(),
-  kind: variableKindValidator,
+  kind: v.literal("ab_roll"),
   createdAtMs: v.number(),
   updatedAtMs: v.number(),
-  chance: v.union(v.number(), v.null()),
+  chance: v.number(),
 });
+
+const variableMetadataValidator = v.union(
+  secretVariableMetadataValidator,
+  abRollVariableMetadataValidator,
+);
 
 const preparedCreateValidator = v.object({
   name: v.string(),
@@ -68,17 +74,100 @@ const preparedUpdateValidator = v.object({
   encryptedValue: v.string(),
 });
 
+const preparedWriteCreateSecretValidator = v.object({
+  name: v.string(),
+  kind: v.literal("secret"),
+  encryptedValue: v.string(),
+  encryptedValueA: v.null(),
+  encryptedValueB: v.null(),
+  chance: v.null(),
+});
+
+const preparedWriteCreateAbRollValidator = v.object({
+  name: v.string(),
+  kind: v.literal("ab_roll"),
+  encryptedValue: v.null(),
+  encryptedValueA: v.string(),
+  encryptedValueB: v.string(),
+  chance: v.number(),
+});
+
+const preparedWriteCreateValidator = v.union(
+  preparedWriteCreateSecretValidator,
+  preparedWriteCreateAbRollValidator,
+);
+
+const preparedWriteUpdateSecretValidator = v.object({
+  id: v.id("projectVariables"),
+  kind: v.literal("secret"),
+  encryptedValue: v.string(),
+  encryptedValueA: v.null(),
+  encryptedValueB: v.null(),
+  chance: v.null(),
+});
+
+const preparedWriteUpdateAbRollValidator = v.object({
+  id: v.id("projectVariables"),
+  kind: v.literal("ab_roll"),
+  encryptedValue: v.null(),
+  encryptedValueA: v.string(),
+  encryptedValueB: v.string(),
+  chance: v.number(),
+});
+
+const preparedWriteUpdateValidator = v.union(
+  preparedWriteUpdateSecretValidator,
+  preparedWriteUpdateAbRollValidator,
+);
+
 type DraftWriteResult = {
   createdCount: number;
   updatedCount: number;
   deletedCount: number;
 };
 
-type WriteMutationResult = {
+type PreparedWriteMutationResult = {
   createdCount: number;
   updatedCount: number;
   deletedCount: number;
   storageDeltaBytes: number;
+  creates: Array<
+    | {
+        name: string;
+        kind: "secret";
+        encryptedValue: string;
+        encryptedValueA: null;
+        encryptedValueB: null;
+        chance: null;
+      }
+    | {
+        name: string;
+        kind: "ab_roll";
+        encryptedValue: null;
+        encryptedValueA: string;
+        encryptedValueB: string;
+        chance: number;
+      }
+  >;
+  updates: Array<
+    | {
+        id: Id<"projectVariables">;
+        kind: "secret";
+        encryptedValue: string;
+        encryptedValueA: null;
+        encryptedValueB: null;
+        chance: null;
+      }
+    | {
+        id: Id<"projectVariables">;
+        kind: "ab_roll";
+        encryptedValue: null;
+        encryptedValueA: string;
+        encryptedValueB: string;
+        chance: number;
+      }
+  >;
+  deletes: Array<Id<"projectVariables">>;
 };
 
 type WriteWithUsageResult = {
@@ -124,6 +213,22 @@ const writeAbRollEntryValidator = v.object({
 
 const writeEntryValidator = v.union(writeSecretEntryValidator, writeAbRollEntryValidator);
 
+const draftUpdateSecretValidator = v.object({
+  id: v.id("projectVariables"),
+  kind: v.literal("secret"),
+  value: v.string(),
+});
+
+const draftUpdateAbRollValidator = v.object({
+  id: v.id("projectVariables"),
+  kind: v.literal("ab_roll"),
+  valueA: v.string(),
+  valueB: v.string(),
+  chance: v.number(),
+});
+
+const draftUpdateValidator = v.union(draftUpdateSecretValidator, draftUpdateAbRollValidator);
+
 function validateChance(value: number): number {
   if (!Number.isFinite(value) || value < 0 || value > 1) {
     throw new Error("ab_roll chance must be a finite number between 0 and 1.");
@@ -161,7 +266,7 @@ export const listForCurrentOrgProjectStage = query({
     projectSlug: v.string(),
     stageSlug: v.string(),
   },
-  returns: v.array(variableSummaryValidator),
+  returns: v.array(variableMetadataValidator),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
@@ -205,17 +310,31 @@ export const listForCurrentOrgProjectStage = query({
       .collect();
 
     return rows
-      .filter((row) => row.kind === "secret")
-      .map((row) => ({
-        id: row._id,
-        projectId: row.projectId,
-        orgId: row.orgId,
-        stageSlug: row.stageSlug,
-        name: row.name,
-        kind: "secret" as const,
-        createdAtMs: row.createdAtMs,
-        updatedAtMs: row.updatedAtMs,
-      }))
+      .map((row) =>
+        row.kind === "secret"
+          ? {
+              id: row._id,
+              projectId: row.projectId,
+              orgId: row.orgId,
+              stageSlug: row.stageSlug,
+              name: row.name,
+              kind: "secret" as const,
+              createdAtMs: row.createdAtMs,
+              updatedAtMs: row.updatedAtMs,
+              chance: null,
+            }
+          : {
+              id: row._id,
+              projectId: row.projectId,
+              orgId: row.orgId,
+              stageSlug: row.stageSlug,
+              name: row.name,
+              kind: "ab_roll" as const,
+              createdAtMs: row.createdAtMs,
+              updatedAtMs: row.updatedAtMs,
+              chance: validateChance(row.chance ?? 0),
+            },
+      )
       .sort((left, right) => left.name.localeCompare(right.name));
   },
 });
@@ -352,28 +471,39 @@ export const listVariableMetadataForOrgProjectStageInternal = internalQuery({
       .collect();
 
     return rows
-      .map((row) => ({
-        id: row._id,
-        projectId: row.projectId,
-        orgId: row.orgId,
-        stageSlug: row.stageSlug,
-        name: row.name,
-        kind: row.kind,
-        createdAtMs: row.createdAtMs,
-        updatedAtMs: row.updatedAtMs,
-        chance: row.chance ?? null,
-      }))
+      .map((row) =>
+        row.kind === "secret"
+          ? {
+              id: row._id,
+              projectId: row.projectId,
+              orgId: row.orgId,
+              stageSlug: row.stageSlug,
+              name: row.name,
+              kind: "secret" as const,
+              createdAtMs: row.createdAtMs,
+              updatedAtMs: row.updatedAtMs,
+              chance: null,
+            }
+          : {
+              id: row._id,
+              projectId: row.projectId,
+              orgId: row.orgId,
+              stageSlug: row.stageSlug,
+              name: row.name,
+              kind: "ab_roll" as const,
+              createdAtMs: row.createdAtMs,
+              updatedAtMs: row.updatedAtMs,
+              chance: validateChance(row.chance ?? 0),
+            },
+      )
       .sort((left, right) => left.name.localeCompare(right.name));
   },
 });
 
 /**
- * Encrypts and persists create/update/delete operations by variable name.
- *
- * This is internal to HTTP auth wrappers. It computes encrypted-byte deltas
- * in the same mutation that writes rows to keep storage accounting exact.
+ * Encrypts pending create/update payloads for HTTP and CLI writes before metering.
  */
-export const writeVariablesForOrgProjectStageInternal = internalMutation({
+export const prepareVariableWritesForOrgProjectStageInternal = internalMutation({
   args: {
     orgId: v.string(),
     clerkUserId: v.string(),
@@ -388,8 +518,11 @@ export const writeVariablesForOrgProjectStageInternal = internalMutation({
     updatedCount: v.number(),
     deletedCount: v.number(),
     storageDeltaBytes: v.number(),
+    creates: v.array(preparedWriteCreateValidator),
+    updates: v.array(preparedWriteUpdateValidator),
+    deletes: v.array(v.id("projectVariables")),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<PreparedWriteMutationResult> => {
     const project = await ctx.db
       .query("projects")
       .withIndex("by_org_id_and_slug", (q) =>
@@ -433,7 +566,9 @@ export const writeVariablesForOrgProjectStageInternal = internalMutation({
     let updatedCount = 0;
     let deletedCount = 0;
     let storageDeltaBytes = 0;
-    const now = Date.now();
+    const creates: PreparedWriteMutationResult["creates"] = [];
+    const updates: PreparedWriteMutationResult["updates"] = [];
+    const deletes: Array<Id<"projectVariables">> = [];
 
     for (const entry of args.entries) {
       const name = validateVariableName(entry.name);
@@ -463,19 +598,13 @@ export const writeVariablesForOrgProjectStageInternal = internalMutation({
         });
 
         if (existing === null) {
-          await ctx.db.insert("projectVariables", {
-            projectId: project._id,
-            orgId: project.orgId,
-            stageSlug: stage.slug,
+          creates.push({
             name,
             kind: "secret",
             encryptedValue,
             encryptedValueA: null,
             encryptedValueB: null,
             chance: null,
-            createdByClerkUserId: args.clerkUserId,
-            createdAtMs: now,
-            updatedAtMs: now,
           });
           createdCount += 1;
           storageDeltaBytes += nextBytes;
@@ -487,13 +616,13 @@ export const writeVariablesForOrgProjectStageInternal = internalMutation({
           encryptedValueA: existing.encryptedValueA,
           encryptedValueB: existing.encryptedValueB,
         });
-        await ctx.db.patch(existing._id, {
+        updates.push({
+          id: existing._id,
           kind: "secret",
           encryptedValue,
           encryptedValueA: null,
           encryptedValueB: null,
           chance: null,
-          updatedAtMs: now,
         });
         updatedCount += 1;
         storageDeltaBytes += nextBytes - previousBytes;
@@ -518,19 +647,13 @@ export const writeVariablesForOrgProjectStageInternal = internalMutation({
       });
 
       if (existing === null) {
-        await ctx.db.insert("projectVariables", {
-          projectId: project._id,
-          orgId: project.orgId,
-          stageSlug: stage.slug,
+        creates.push({
           name,
           kind: "ab_roll",
           encryptedValue: null,
           encryptedValueA,
           encryptedValueB,
           chance,
-          createdByClerkUserId: args.clerkUserId,
-          createdAtMs: now,
-          updatedAtMs: now,
         });
         createdCount += 1;
         storageDeltaBytes += nextBytes;
@@ -542,13 +665,13 @@ export const writeVariablesForOrgProjectStageInternal = internalMutation({
         encryptedValueA: existing.encryptedValueA,
         encryptedValueB: existing.encryptedValueB,
       });
-      await ctx.db.patch(existing._id, {
+      updates.push({
+        id: existing._id,
         kind: "ab_roll",
         encryptedValue: null,
         encryptedValueA,
         encryptedValueB,
         chance,
-        updatedAtMs: now,
       });
       updatedCount += 1;
       storageDeltaBytes += nextBytes - previousBytes;
@@ -565,7 +688,7 @@ export const writeVariablesForOrgProjectStageInternal = internalMutation({
         encryptedValueA: existing.encryptedValueA,
         encryptedValueB: existing.encryptedValueB,
       });
-      await ctx.db.delete(existing._id);
+      deletes.push(existing._id);
       deletedCount += 1;
     }
 
@@ -574,16 +697,130 @@ export const writeVariablesForOrgProjectStageInternal = internalMutation({
       updatedCount,
       deletedCount,
       storageDeltaBytes,
+      creates,
+      updates,
+      deletes,
     };
   },
 });
 
 /**
- * Applies an encrypted-byte delta to org storage usage after write mutation.
+ * Commits a previously prepared HTTP/CLI variable write transaction.
+ */
+export const applyPreparedVariableWritesForOrgProjectStageInternal = internalMutation({
+  args: {
+    orgId: v.string(),
+    clerkUserId: v.string(),
+    projectSlug: v.string(),
+    stageSlug: v.string(),
+    creates: v.array(preparedWriteCreateValidator),
+    updates: v.array(preparedWriteUpdateValidator),
+    deletes: v.array(v.id("projectVariables")),
+  },
+  returns: v.object({
+    createdCount: v.number(),
+    updatedCount: v.number(),
+    deletedCount: v.number(),
+  }),
+  handler: async (ctx, args): Promise<WriteWithUsageResult> => {
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_org_id_and_slug", (q) =>
+        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
+      )
+      .unique();
+    if (project === null) {
+      throw new Error("Project not found.");
+    }
+
+    const stage = await ctx.db
+      .query("projectStages")
+      .withIndex("by_project_id_and_slug", (q) =>
+        q.eq("projectId", project._id).eq("slug", args.stageSlug),
+      )
+      .unique();
+    if (stage === null) {
+      throw new Error("Stage not found.");
+    }
+
+    const existingRows = await ctx.db
+      .query("projectVariables")
+      .withIndex("by_project_id_and_stage_slug", (q) =>
+        q.eq("projectId", project._id).eq("stageSlug", stage.slug),
+      )
+      .collect();
+    const byId = new Map(existingRows.map((row) => [row._id, row]));
+    const stageVariableNames = new Set(existingRows.map((row) => row.name));
+    const deletedIds = new Set(args.deletes);
+    for (const variableId of deletedIds) {
+      const existing = byId.get(variableId);
+      if (!existing) {
+        throw new Error("Variable delete target does not exist.");
+      }
+      stageVariableNames.delete(existing.name);
+    }
+
+    const now = Date.now();
+    for (const update of args.updates) {
+      const existing = byId.get(update.id);
+      if (!existing) {
+        throw new Error("Variable update target does not exist.");
+      }
+      if (deletedIds.has(update.id)) {
+        throw new Error("Cannot update a variable that is marked for deletion.");
+      }
+
+      await ctx.db.patch(update.id, {
+        kind: update.kind,
+        encryptedValue: update.encryptedValue,
+        encryptedValueA: update.encryptedValueA,
+        encryptedValueB: update.encryptedValueB,
+        chance: update.chance,
+        updatedAtMs: now,
+      });
+    }
+
+    for (const create of args.creates) {
+      if (stageVariableNames.has(create.name)) {
+        throw new Error(`Variable ${create.name} already exists in this stage.`);
+      }
+
+      await ctx.db.insert("projectVariables", {
+        projectId: project._id,
+        orgId: project.orgId,
+        stageSlug: stage.slug,
+        name: create.name,
+        kind: create.kind,
+        encryptedValue: create.encryptedValue,
+        encryptedValueA: create.encryptedValueA,
+        encryptedValueB: create.encryptedValueB,
+        chance: create.chance,
+        createdByClerkUserId: args.clerkUserId,
+        createdAtMs: now,
+        updatedAtMs: now,
+      });
+      stageVariableNames.add(create.name);
+    }
+
+    for (const variableId of deletedIds) {
+      await ctx.db.delete(variableId);
+    }
+
+    return {
+      createdCount: args.creates.length,
+      updatedCount: args.updates.length,
+      deletedCount: deletedIds.size,
+    };
+  },
+});
+
+/**
+ * Applies metered storage checks and then commits a prepared variable write.
  */
 export const writeVariablesForOrgProjectStageWithUsageInternal = internalAction({
   args: {
     orgId: v.string(),
+    orgSlug: v.union(v.string(), v.null()),
     clerkUserId: v.string(),
     projectSlug: v.string(),
     stageSlug: v.string(),
@@ -597,14 +834,85 @@ export const writeVariablesForOrgProjectStageWithUsageInternal = internalAction(
     deletedCount: v.number(),
   }),
   handler: async (ctx, args): Promise<WriteWithUsageResult> => {
-    const result: WriteMutationResult = await ctx.runMutation(
-      internal.project_variables.writeVariablesForOrgProjectStageInternal,
-      args,
+    const prepared = await ctx.runMutation(
+      internal.project_variables.prepareVariableWritesForOrgProjectStageInternal,
+      {
+        orgId: args.orgId,
+        clerkUserId: args.clerkUserId,
+        projectSlug: args.projectSlug,
+        stageSlug: args.stageSlug,
+        mode: args.mode,
+        entries: args.entries,
+        deletes: args.deletes,
+      },
     );
-    if (result.storageDeltaBytes !== 0) {
+
+    let reservedStorageUnits = 0;
+    if (prepared.storageDeltaBytes > 0) {
+      const reservation = await ctx.runAction(
+        internal.payments.reserveFeatureUnitsForOrgInternal,
+        {
+          orgId: args.orgId,
+          orgSlug: args.orgSlug,
+          featureId: "storage_bytes",
+          units: prepared.storageDeltaBytes,
+          reason: "project_variables_write",
+        },
+      );
+      if (reservation.errorCode === "USAGE_LIMIT_EXCEEDED") {
+        throw new Error("Usage limit exceeded for this workspace plan.");
+      }
+      if (reservation.errorCode === "BILLING_UNAVAILABLE") {
+        throw new Error("Billing service is temporarily unavailable.");
+      }
+      reservedStorageUnits = reservation.reservedUnits;
+    }
+
+    let result: WriteWithUsageResult;
+    try {
+      result = await ctx.runMutation(
+        internal.project_variables.applyPreparedVariableWritesForOrgProjectStageInternal,
+        {
+          orgId: args.orgId,
+          clerkUserId: args.clerkUserId,
+          projectSlug: args.projectSlug,
+          stageSlug: args.stageSlug,
+          creates: prepared.creates,
+          updates: prepared.updates,
+          deletes: prepared.deletes,
+        },
+      );
+    } catch (error: unknown) {
+      if (reservedStorageUnits > 0) {
+        try {
+          await ctx.runAction(internal.payments.compensateFeatureUnitsForOrgInternal, {
+            orgId: args.orgId,
+            orgSlug: args.orgSlug,
+            featureId: "storage_bytes",
+            units: reservedStorageUnits,
+            reason: "project_variables_write_rollback",
+          });
+        } catch (rollbackError: unknown) {
+          console.error("HTTP storage usage rollback failed.", rollbackError);
+        }
+      }
+      throw error;
+    }
+
+    if (prepared.storageDeltaBytes !== 0) {
       await ctx.runMutation(internal.payments.applyStorageDeltaForOrgInternal, {
         orgId: args.orgId,
-        deltaBytes: result.storageDeltaBytes,
+        deltaBytes: prepared.storageDeltaBytes,
+      });
+    }
+
+    if (prepared.storageDeltaBytes < 0) {
+      await ctx.runAction(internal.payments.compensateFeatureUnitsForOrgInternal, {
+        orgId: args.orgId,
+        orgSlug: args.orgSlug,
+        featureId: "storage_bytes",
+        units: Math.abs(prepared.storageDeltaBytes),
+        reason: "project_variables_write_negative_delta",
       });
     }
 
@@ -627,20 +935,8 @@ export const applyDraftForCurrentOrgProjectStage = action({
     expectedOrgSlug: v.string(),
     projectSlug: v.string(),
     stageSlug: v.string(),
-    creates: v.array(
-      v.object({
-        name: v.string(),
-        kind: v.literal("secret"),
-        value: v.string(),
-      }),
-    ),
-    updates: v.array(
-      v.object({
-        id: v.id("projectVariables"),
-        kind: v.literal("secret"),
-        value: v.string(),
-      }),
-    ),
+    creates: v.array(writeEntryValidator),
+    updates: v.array(draftUpdateValidator),
     deletes: v.array(v.id("projectVariables")),
   },
   returns: v.object({
@@ -649,83 +945,81 @@ export const applyDraftForCurrentOrgProjectStage = action({
     deletedCount: v.number(),
   }),
   handler: async (ctx, args): Promise<DraftWriteResult> => {
-    const prepared: PreparedDraft = await ctx.runMutation(
-      internal.project_variables.prepareDraftForCurrentOrgProjectStageInternal,
-      args,
-    );
-
-    let reservedStorageUnits = 0;
-    if (prepared.storageDeltaBytes > 0) {
-      const reservation = await ctx.runAction(
-        internal.payments.reserveFeatureUnitsForCurrentOrgInternal,
-        {
-          expectedOrgSlug: args.expectedOrgSlug,
-          featureId: "storage_bytes",
-          units: prepared.storageDeltaBytes,
-          reason: "project_variables_apply_draft",
-        },
-      );
-      if (reservation.errorCode === "USAGE_LIMIT_EXCEEDED") {
-        throw new Error("Usage limit exceeded for this workspace plan.");
-      }
-      if (reservation.errorCode === "BILLING_UNAVAILABLE") {
-        throw new Error("Billing service is temporarily unavailable.");
-      }
-      reservedStorageUnits = reservation.reservedUnits;
+    const identity = await requireIdentity(ctx);
+    const activeOrg = requireActiveOrgIdClaims(identity);
+    if (activeOrg.orgSlug !== null) {
+      assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
     }
 
-    let writeResult: DraftWriteResult;
-    try {
-      writeResult = await ctx.runMutation(
-        internal.project_variables.applyPreparedDraftForCurrentOrgProjectStageInternal,
-        {
-          expectedOrgSlug: args.expectedOrgSlug,
-          projectSlug: args.projectSlug,
-          stageSlug: args.stageSlug,
-          creates: prepared.creates,
-          updates: prepared.updates,
-          deletes: prepared.deletes,
-        },
-      );
-    } catch (error: unknown) {
-      if (reservedStorageUnits > 0) {
-        try {
-          await ctx.runAction(
-            internal.payments.compensateFeatureUnitsForCurrentOrgInternal,
-            {
-              expectedOrgSlug: args.expectedOrgSlug,
-              featureId: "storage_bytes",
-              units: reservedStorageUnits,
-              reason: "project_variables_apply_draft_rollback",
-            },
-          );
-        } catch (rollbackError: unknown) {
-          console.error("Storage usage rollback failed.", rollbackError);
+    const existingRows: Array<
+      | {
+          id: Id<"projectVariables">;
+          name: string;
+          kind: "secret";
+          chance: null;
         }
-      }
-      throw error;
-    }
+      | {
+          id: Id<"projectVariables">;
+          name: string;
+          kind: "ab_roll";
+          chance: number;
+        }
+    > = await ctx.runQuery(
+      internal.project_variables.listVariableMetadataForOrgProjectStageInternal,
+      {
+        orgId: activeOrg.orgId,
+        projectSlug: args.projectSlug,
+        stageSlug: args.stageSlug,
+      },
+    );
+    const existingById = new Map(existingRows.map((row) => [row.id, row] as const));
 
-    if (prepared.storageDeltaBytes !== 0) {
-      await ctx.runMutation(internal.payments.applyStorageDeltaForOrgInternal, {
-        orgId: prepared.orgId,
-        deltaBytes: prepared.storageDeltaBytes,
+    const entries = [...args.creates];
+    for (const update of args.updates) {
+      const existing = existingById.get(update.id);
+      if (existing === undefined) {
+        throw new Error("Variable update target does not exist.");
+      }
+
+      if (update.kind === "secret") {
+        entries.push({
+          name: existing.name,
+          kind: "secret",
+          value: update.value,
+        });
+        continue;
+      }
+
+      entries.push({
+        name: existing.name,
+        kind: "ab_roll",
+        valueA: update.valueA,
+        valueB: update.valueB,
+        chance: validateChance(update.chance),
       });
     }
 
-    if (prepared.storageDeltaBytes < 0) {
-      await ctx.runAction(
-        internal.payments.compensateFeatureUnitsForCurrentOrgInternal,
-        {
-          expectedOrgSlug: args.expectedOrgSlug,
-          featureId: "storage_bytes",
-          units: Math.abs(prepared.storageDeltaBytes),
-          reason: "project_variables_apply_draft_negative_delta",
-        },
-      );
-    }
+    const deletes = args.deletes.map((variableId) => {
+      const existing = existingById.get(variableId);
+      if (existing === undefined) {
+        throw new Error("Variable delete target does not exist.");
+      }
+      return existing.name;
+    });
 
-    return writeResult;
+    return await ctx.runAction(
+      internal.project_variables.writeVariablesForOrgProjectStageWithUsageInternal,
+      {
+        orgId: activeOrg.orgId,
+        orgSlug: activeOrg.orgSlug,
+        clerkUserId: activeOrg.clerkUserId,
+        projectSlug: args.projectSlug,
+        stageSlug: args.stageSlug,
+        mode: "upsert",
+        entries,
+        deletes,
+      },
+    );
   },
 });
 
@@ -1135,12 +1429,22 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
     stageSlug: v.string(),
     variableId: v.id("projectVariables"),
   },
-  returns: v.object({
-    id: v.id("projectVariables"),
-    name: v.string(),
-    kind: v.literal("secret"),
-    value: v.string(),
-  }),
+  returns: v.union(
+    v.object({
+      id: v.id("projectVariables"),
+      name: v.string(),
+      kind: v.literal("secret"),
+      value: v.string(),
+    }),
+    v.object({
+      id: v.id("projectVariables"),
+      name: v.string(),
+      kind: v.literal("ab_roll"),
+      valueA: v.string(),
+      valueB: v.string(),
+      chance: v.number(),
+    }),
+  ),
   handler: async (
     ctx,
     args,
@@ -1149,6 +1453,13 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
     name: string;
     kind: "secret";
     value: string;
+  } | {
+    id: Id<"projectVariables">;
+    name: string;
+    kind: "ab_roll";
+    valueA: string;
+    valueB: string;
+    chance: number;
   }> => {
     const identity = await requireIdentity(ctx);
     const activeOrg = requireActiveOrgIdClaims(identity);
@@ -1186,21 +1497,47 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
       throw new Error("Variable not found in this stage.");
     }
 
-    if (variable.kind !== "secret" || variable.encryptedValue === null) {
-      throw new Error("Only secret variables can be decrypted in this UI flow.");
+    if (variable.kind === "secret") {
+      if (variable.encryptedValue === null) {
+        throw new Error("Secret variable ciphertext is missing.");
+      }
+
+      const value = await decryptSecretValueForProject(ctx, {
+        projectId: project._id,
+        orgId: project.orgId,
+        encryptedValue: variable.encryptedValue,
+      });
+
+      return {
+        id: variable._id,
+        name: variable.name,
+        kind: "secret",
+        value,
+      };
     }
 
-    const value = await decryptSecretValueForProject(ctx, {
+    if (variable.encryptedValueA === null || variable.encryptedValueB === null) {
+      throw new Error("ab_roll ciphertext is missing.");
+    }
+
+    const valueA = await decryptSecretValueForProject(ctx, {
       projectId: project._id,
       orgId: project.orgId,
-      encryptedValue: variable.encryptedValue,
+      encryptedValue: variable.encryptedValueA,
+    });
+    const valueB = await decryptSecretValueForProject(ctx, {
+      projectId: project._id,
+      orgId: project.orgId,
+      encryptedValue: variable.encryptedValueB,
     });
 
     return {
       id: variable._id,
       name: variable.name,
-      kind: "secret",
-      value,
+      kind: "ab_roll",
+      valueA,
+      valueB,
+      chance: validateChance(variable.chance ?? 0),
     };
   },
 });

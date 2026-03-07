@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
-import { mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { getOrgClaimsFromIdentity, requireIdentity } from "./lib/auth";
 
 const RESERVED_USER_SLUG_BASES = new Set([
@@ -74,6 +75,56 @@ const currentUserFreePlanCreditValidator = v.object({
   assignedOrgSlug: v.union(v.string(), v.null()),
 });
 
+function pickCanonicalUserRow<T extends { _id: string; createdAtMs: number }>(
+  rows: Array<T>,
+): T | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return [...rows].sort((left, right) => {
+    if (left.createdAtMs !== right.createdAtMs) {
+      return left.createdAtMs - right.createdAtMs;
+    }
+    return String(left._id).localeCompare(String(right._id));
+  })[0] ?? null;
+}
+
+type UserRow = {
+  _id: Id<"users">;
+  clerkUserId: string;
+  slug: string;
+  slugBase: string;
+  email: string | null;
+  displayName: string | null;
+  imageUrl: string | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+  lastSeenAtMs: number;
+};
+
+async function getCanonicalUserByClerkUserId(
+  ctx: QueryCtx | MutationCtx,
+  clerkUserId: string,
+): Promise<UserRow | null> {
+  const rows: Array<UserRow> = await ctx.db
+    .query("users")
+    .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
+    .collect();
+  return pickCanonicalUserRow(rows);
+}
+
+async function getCanonicalUserBySlug(
+  ctx: QueryCtx | MutationCtx,
+  slug: string,
+): Promise<UserRow | null> {
+  const rows: Array<UserRow> = await ctx.db
+    .query("users")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .collect();
+  return pickCanonicalUserRow(rows);
+}
+
 export const ensureCurrentUser = mutation({
   args: {},
   returns: userRecordValidator,
@@ -86,10 +137,7 @@ export const ensureCurrentUser = mutation({
     const displayName = identity.name ?? identity.nickname ?? identity.preferredUsername ?? null;
     const imageUrl = identity.pictureUrl ?? null;
 
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
-      .unique();
+    const existingUser = await getCanonicalUserByClerkUserId(ctx, clerkUserId);
 
     if (existingUser) {
       await ctx.db.patch(existingUser._id, {
@@ -122,10 +170,7 @@ export const ensureCurrentUser = mutation({
     for (const suffixLength of [4, 6] as const) {
       for (let attempt = 0; attempt < 12; attempt += 1) {
         const candidate = `${slugBase}-${randomNumericSuffix(suffixLength)}`;
-        const collision = await ctx.db
-          .query("users")
-          .withIndex("by_slug", (q) => q.eq("slug", candidate))
-          .unique();
+        const collision = await getCanonicalUserBySlug(ctx, candidate);
         if (collision === null) {
           slug = candidate;
           break;
@@ -180,10 +225,7 @@ export const getCurrentUser = query({
       return null;
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
+    const user = await getCanonicalUserByClerkUserId(ctx, identity.subject);
 
     if (user === null) {
       return null;
@@ -212,10 +254,7 @@ export const getCurrentUserAccount = query({
       return null;
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
+    const user = await getCanonicalUserByClerkUserId(ctx, identity.subject);
 
     if (user === null) {
       return null;
@@ -241,24 +280,19 @@ export const getBySlug = query({
   },
   returns: v.union(
     v.object({
-      clerkUserId: v.string(),
       slug: v.string(),
       displayName: v.union(v.string(), v.null()),
     }),
     v.null(),
   ),
   handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .unique();
+    const user = await getCanonicalUserBySlug(ctx, args.slug);
 
     if (user === null) {
       return null;
     }
 
     return {
-      clerkUserId: user.clerkUserId,
       slug: user.slug,
       displayName: user.displayName,
     };
@@ -273,10 +307,16 @@ export const getCurrentUserFreePlanCredit = query({
   returns: currentUserFreePlanCreditValidator,
   handler: async (ctx) => {
     const identity = await requireIdentity(ctx);
-    const credit = await ctx.db
+    const credits = await ctx.db
       .query("userFreePlanCredits")
       .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
+      .collect();
+    const credit = pickCanonicalUserRow(
+      credits.map((row) => ({
+        ...row,
+        createdAtMs: row.createdAtMs,
+      })),
+    );
 
     if (credit === null) {
       return {
