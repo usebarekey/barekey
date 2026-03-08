@@ -1378,7 +1378,7 @@ const cliTokenRefresh = httpAction(async (ctx, request) => {
 
   if (access === null) {
     await ctx.runMutation(internal.cli_auth.revokeSessionInternal, {
-      refreshToken,
+      refreshToken: refreshed.refreshToken,
     });
     return errorResponse({
       status: 403,
