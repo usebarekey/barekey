@@ -45,13 +45,6 @@ export const resolveOrganizationAccessForCliUserInternal = internalAction({
   },
   returns: v.union(clerkOrgAccessValidator, v.null()),
   handler: async (_, args) => {
-    if (args.requestedOrgSlug === args.fallbackOrgSlug) {
-      return {
-        orgId: args.fallbackOrgId,
-        orgSlug: args.fallbackOrgSlug,
-      };
-    }
-
     const clerkSecretKey = process.env.CLERK_SECRET_KEY;
     if (!clerkSecretKey) {
       throw new Error("Missing CLERK_SECRET_KEY for CLI organization resolution.");

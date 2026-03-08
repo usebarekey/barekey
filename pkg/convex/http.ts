@@ -1369,6 +1369,25 @@ const cliTokenRefresh = httpAction(async (ctx, request) => {
     });
   }
 
+  const access = await ctx.runAction(internal.clerk.resolveOrganizationAccessForCliUserInternal, {
+    clerkUserId: refreshed.clerkUserId,
+    requestedOrgSlug: refreshed.orgSlug,
+    fallbackOrgId: refreshed.orgId,
+    fallbackOrgSlug: refreshed.orgSlug,
+  });
+
+  if (access === null) {
+    await ctx.runMutation(internal.cli_auth.revokeSessionInternal, {
+      refreshToken,
+    });
+    return errorResponse({
+      status: 403,
+      code: "ORG_SCOPE_INVALID",
+      message: "Access to the organization has been revoked.",
+      requestId,
+    });
+  }
+
   return buildJsonResponse(200, {
     accessToken: refreshed.accessToken,
     refreshToken: refreshed.refreshToken,
