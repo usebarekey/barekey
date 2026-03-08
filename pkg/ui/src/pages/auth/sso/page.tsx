@@ -3,19 +3,15 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import {
   IconBrandGithubFilled,
   IconBrandGoogleFilled,
-  IconFlask,
   IconKeyFilled,
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useSignIn } from "@clerk/react-router";
-import { useAction } from "convex/react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { api } from "@convex/_generated/api";
-
-type PendingAction = "passkey" | "google" | "github" | "dev" | null;
+type PendingAction = "passkey" | "google" | "github" | null;
 
 const CALLBACK_PATH = "/auth/sso/callback";
 const COMPLETE_REDIRECT_PATH = "/";
@@ -38,12 +34,8 @@ function getErrorMessage(error: unknown) {
 
 export function Page() {
   const { isLoaded, signIn, setActive } = useSignIn();
-  const createDevSignInToken = useAction(api.dev_auth.createSignInTokenForDevUser);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const isDevLoginEnabled =
-    import.meta.env.DEV && import.meta.env.VITE_DEV_LOGIN_ENABLED !== "false";
   const isBusy = pendingAction !== null;
 
   async function signInWithOAuth(strategy: "oauth_google" | "oauth_github") {
@@ -96,48 +88,12 @@ export function Page() {
     }
   }
 
-  async function signInAsDevUser() {
-    if (!isLoaded) return;
-
-    setError(null);
-    setPendingAction("dev");
-
-    try {
-      const { token } = await createDevSignInToken({});
-      const result = await signIn.create({
-        strategy: "ticket",
-        ticket: token,
-      });
-
-      if (result.status === "complete" && result.createdSessionId) {
-        await setActive({
-          session: result.createdSessionId,
-          redirectUrl: COMPLETE_REDIRECT_PATH,
-        });
-        return;
-      }
-
-      setError("Dev login requires additional verification steps.");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError));
-    } finally {
-      setPendingAction(null);
-    }
-  }
-
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
         <Logo className="h-8" />
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {isDevLoginEnabled ? (
-          <Button className="w-full" disabled={!isLoaded || isBusy} onClick={signInAsDevUser}>
-            <IconFlask />
-            {pendingAction === "dev" ? "Signing in as Dev..." : "Continue as Dev"}
-          </Button>
-        ) : null}
-
         <Button
           className="w-full"
           disabled={!isLoaded || isBusy}
