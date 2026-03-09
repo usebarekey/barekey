@@ -37,7 +37,7 @@ function normalizeRolloutMilestones(
     });
   }
 
-  let previousAtMs = -1;
+  let previousAtMs = -Infinity;
   return value.map((milestone) => {
     if (
       !Number.isFinite(milestone.percentage) ||

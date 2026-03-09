@@ -263,7 +263,7 @@ const ERROR_FACTORIES = {
 } as const satisfies Record<BarekeyErrorCode, (input?: BarekeyErrorInit) => BarekeyError>;
 
 export function isBarekeyErrorCode(value: string): value is BarekeyErrorCode {
-  return value in ERROR_DESCRIPTORS;
+  return Object.hasOwn(ERROR_DESCRIPTORS, value);
 }
 
 export function normalizeErrorCode(value: string): BarekeyErrorCode {
@@ -310,20 +310,24 @@ export function parseBigIntOrThrow(value: string): bigint {
       message: `Barekey could not coerce "${value}" to an int64.`,
     });
   }
+
+  let parsed: bigint;
   try {
-    const parsed = BigInt(normalized);
-    if (parsed < INT64_MIN || parsed > INT64_MAX) {
-      throw new CoerceFailedError({
-        message: `Barekey could not coerce "${value}" to an int64.`,
-      });
-    }
-    return parsed;
+    parsed = BigInt(normalized);
   } catch (error: unknown) {
     throw new CoerceFailedError({
       message: `Barekey could not coerce "${value}" to an int64.`,
       cause: error,
     });
   }
+
+  if (parsed < INT64_MIN || parsed > INT64_MAX) {
+    throw new CoerceFailedError({
+      message: `Barekey could not coerce "${value}" to an int64.`,
+    });
+  }
+
+  return parsed;
 }
 
 export function parseBooleanOrThrow(value: string): boolean {

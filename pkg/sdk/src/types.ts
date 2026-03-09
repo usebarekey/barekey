@@ -97,9 +97,15 @@ export type BarekeyStandardSchemaResult =
   | {
       issues: ReadonlyArray<{
         message?: string;
-        path?: ReadonlyArray<PropertyKey>;
+        path?: ReadonlyArray<BarekeyStandardSchemaPathSegment>;
       }>;
       value?: undefined;
+    };
+
+export type BarekeyStandardSchemaPathSegment =
+  | PropertyKey
+  | {
+      key: PropertyKey;
     };
 
 export type BarekeyStandardSchemaV1 = {

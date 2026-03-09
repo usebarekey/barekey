@@ -38,15 +38,19 @@ function readProcessEnv(key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function readConfigString(value: unknown): string | undefined {
+  return typeof value === "string" ? value.trim() : undefined;
+}
+
 function normalizeScope(input: {
-  organization?: string;
-  project?: string;
-  environment?: string;
+  organization?: unknown;
+  project?: unknown;
+  environment?: unknown;
   source: string;
 }): BarekeyResolvedScope {
-  const organization = input.organization?.trim() ?? "";
-  const project = input.project?.trim() ?? "";
-  const environment = input.environment?.trim() ?? "";
+  const organization = readConfigString(input.organization) ?? "";
+  const project = readConfigString(input.project) ?? "";
+  const environment = readConfigString(input.environment) ?? "";
   if (organization.length === 0 || project.length === 0 || environment.length === 0) {
     throw new InvalidConfigurationProvidedError({
       message: `${input.source} must provide organization, project, and environment.`,
@@ -60,7 +64,10 @@ function normalizeScope(input: {
   };
 }
 
-function normalizeJsonConfig(input: BarekeyJsonConfig, source: string): BarekeyResolvedScope {
+function normalizeJsonConfig(
+  input: BarekeyJsonConfig | Record<string, unknown>,
+  source: string,
+): BarekeyResolvedScope {
   return normalizeScope({
     organization: input.organization ?? input.org,
     project: input.project,
@@ -116,7 +123,7 @@ async function resolveScope(options: BarekeyClientOptions): Promise<BarekeyResol
   }
 
   return normalizeJsonConfig(
-    loadedConfig.json as BarekeyJsonConfig,
+    loadedConfig.json,
     `The barekey.json file at ${loadedConfig.path}`,
   );
 }

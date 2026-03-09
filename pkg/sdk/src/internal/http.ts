@@ -46,10 +46,9 @@ export async function postJson<TResponse>(input: {
       body: JSON.stringify(input.payload),
     });
 
+  const accessToken = input.auth ? await input.auth.getAccessToken() : undefined;
   let response: Response;
-  let accessToken: string | undefined;
   try {
-    accessToken = input.auth ? await input.auth.getAccessToken() : undefined;
     response = await makeRequest(accessToken);
   } catch (error: unknown) {
     throw new NetworkError({
@@ -60,8 +59,9 @@ export async function postJson<TResponse>(input: {
 
   if (response.status === 401 && input.auth?.onUnauthorized) {
     await input.auth.onUnauthorized();
+    const retryAccessToken = await input.auth.getAccessToken();
     try {
-      response = await makeRequest(await input.auth.getAccessToken());
+      response = await makeRequest(retryAccessToken);
     } catch (error: unknown) {
       throw new NetworkError({
         message: error instanceof Error ? error.message : "A Barekey network request failed.",

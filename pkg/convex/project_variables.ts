@@ -361,7 +361,21 @@ const draftUpdateAbRollValidator = v.object({
   chance: v.number(),
 });
 
-const draftUpdateValidator = v.union(draftUpdateSecretValidator, draftUpdateAbRollValidator);
+const draftUpdateRolloutValidator = v.object({
+  id: v.id("projectVariables"),
+  kind: v.literal("rollout"),
+  declaredType: declaredTypeValidator,
+  valueA: v.string(),
+  valueB: v.string(),
+  rolloutFunction: rolloutFunctionValidator,
+  rolloutMilestones: v.array(rolloutMilestoneValidator),
+});
+
+const draftUpdateValidator = v.union(
+  draftUpdateSecretValidator,
+  draftUpdateAbRollValidator,
+  draftUpdateRolloutValidator,
+);
 
 function validateChance(value: number): number {
   if (!Number.isFinite(value) || value < 0 || value > 1) {
@@ -1217,13 +1231,26 @@ export const applyDraftForCurrentOrgProjectStage = action({
         continue;
       }
 
+      if (update.kind === "ab_roll") {
+        entries.push({
+          name: existing.name,
+          kind: "ab_roll",
+          declaredType: update.declaredType,
+          valueA: update.valueA,
+          valueB: update.valueB,
+          chance: validateChance(update.chance),
+        });
+        continue;
+      }
+
       entries.push({
         name: existing.name,
-        kind: "ab_roll",
+        kind: "rollout",
         declaredType: update.declaredType,
         valueA: update.valueA,
         valueB: update.valueB,
-        chance: validateChance(update.chance),
+        rolloutFunction: update.rolloutFunction,
+        rolloutMilestones: validateRolloutMilestones(update.rolloutMilestones),
       });
     }
 

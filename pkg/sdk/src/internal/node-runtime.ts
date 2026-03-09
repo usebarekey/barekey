@@ -364,6 +364,9 @@ export async function loadBarekeyJsonConfig(): Promise<{
         });
       }
     } catch (error: unknown) {
+      if (error instanceof InvalidConfigurationProvidedError) {
+        throw error;
+      }
       const nodeError = error as NodeJS.ErrnoException | null;
       if (nodeError?.code && nodeError.code !== "ENOENT") {
         throw new InvalidConfigurationProvidedError({
