@@ -27,7 +27,7 @@ export function validateRolloutMilestones(value: Array<RolloutMilestone>): Array
     throw new Error("rollout milestones must contain at least one entry.");
   }
 
-  let previousAtMs = -1;
+  let previousAtMs = -Infinity;
   return value.map((milestone) => {
     const percentage = milestone.percentage;
     if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {

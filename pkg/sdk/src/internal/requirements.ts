@@ -1,5 +1,9 @@
 import { InvalidConfigurationProvidedError, RequirementsValidationFailedError } from "../errors.js";
-import type { BarekeyStandardSchemaResult, BarekeyStandardSchemaV1 } from "../types.js";
+import type {
+  BarekeyStandardSchemaPathSegment,
+  BarekeyStandardSchemaResult,
+  BarekeyStandardSchemaV1,
+} from "../types.js";
 
 function isStandardSchemaResult(value: unknown): value is BarekeyStandardSchemaResult {
   if (typeof value !== "object" || value === null) {
@@ -7,6 +11,13 @@ function isStandardSchemaResult(value: unknown): value is BarekeyStandardSchemaR
   }
 
   return "value" in value || "issues" in value;
+}
+
+function formatPathSegment(segment: BarekeyStandardSchemaPathSegment): string {
+  if (typeof segment === "object" && segment !== null && "key" in segment) {
+    return String(segment.key);
+  }
+  return String(segment);
 }
 
 export async function validateRequirements(
@@ -36,7 +47,7 @@ export async function validateRequirements(
     const firstIssue = result.issues[0];
     const issuePath =
       firstIssue?.path && firstIssue.path.length > 0
-        ? ` at ${firstIssue.path.map((segment: PropertyKey) => String(segment)).join(".")}`
+        ? ` at ${firstIssue.path.map(formatPathSegment).join(".")}`
         : "";
     const issueMessage = firstIssue?.message ?? "Validation failed.";
     throw new RequirementsValidationFailedError({

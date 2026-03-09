@@ -171,15 +171,13 @@ export class BarekeyClient {
     name: string,
     options?: BarekeyGetOptions,
   ): Promise<BarekeyEvaluatedValue> {
+    await this.ensureRequirementsValidated();
     const context = await this.getRuntimeContext();
     const cacheKey = this.buildEvaluationCacheKey(context, name, options);
     const dynamic = options?.dynamic;
     if (dynamic !== true) {
       const cached = this.evaluationCache.getRecord(cacheKey);
-      if (
-        cached !== null &&
-        (dynamic === undefined || Date.now() - cached.storedAtMs <= dynamic.ttl)
-      ) {
+      if (cached !== null && dynamic !== undefined && Date.now() - cached.storedAtMs <= dynamic.ttl) {
         return cached.value;
       }
     }
