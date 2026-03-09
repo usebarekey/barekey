@@ -224,6 +224,8 @@ type PreparedWriteMutationResult = {
         encryptedValueA: null;
         encryptedValueB: null;
         chance: null;
+        rolloutFunction: null;
+        rolloutMilestones: null;
       }
     | {
         name: string;
@@ -257,6 +259,8 @@ type PreparedWriteMutationResult = {
         encryptedValueA: null;
         encryptedValueB: null;
         chance: null;
+        rolloutFunction: null;
+        rolloutMilestones: null;
       }
     | {
         id: Id<"projectVariables">;
@@ -857,21 +861,59 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
         encryptedValueB,
       });
 
-      const rolloutFunction = entry.kind === "rollout" ? entry.rolloutFunction : null;
-      const rolloutMilestones =
-        entry.kind === "rollout" ? validateRolloutMilestones(entry.rolloutMilestones) : null;
-      const chance = entry.kind === "ab_roll" ? validateChance(entry.chance) : null;
+      if (entry.kind === "ab_roll") {
+        const chance = validateChance(entry.chance);
 
-      if (existing === null) {
-        creates.push({
-          name,
-          kind: entry.kind,
+        if (existing === null) {
+          creates.push({
+            name,
+            kind: "ab_roll",
+            declaredType,
+            encryptedValue: null,
+            encryptedValueA,
+            encryptedValueB,
+            chance,
+            rolloutFunction: null,
+            rolloutMilestones: null,
+          });
+          createdCount += 1;
+          storageDeltaBytes += nextBytes;
+          continue;
+        }
+
+        const previousBytes = encryptedPayloadByteLength({
+          encryptedValue: existing.encryptedValue,
+          encryptedValueA: existing.encryptedValueA,
+          encryptedValueB: existing.encryptedValueB,
+        });
+        updates.push({
+          id: existing._id,
+          kind: "ab_roll",
           declaredType,
           encryptedValue: null,
           encryptedValueA,
           encryptedValueB,
           chance,
-          rolloutFunction,
+          rolloutFunction: null,
+          rolloutMilestones: null,
+        });
+        updatedCount += 1;
+        storageDeltaBytes += nextBytes - previousBytes;
+        continue;
+      }
+
+      const rolloutMilestones = validateRolloutMilestones(entry.rolloutMilestones);
+
+      if (existing === null) {
+        creates.push({
+          name,
+          kind: "rollout",
+          declaredType,
+          encryptedValue: null,
+          encryptedValueA,
+          encryptedValueB,
+          chance: null,
+          rolloutFunction: entry.rolloutFunction,
           rolloutMilestones,
         });
         createdCount += 1;
@@ -886,13 +928,13 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
       });
       updates.push({
         id: existing._id,
-        kind: entry.kind,
+        kind: "rollout",
         declaredType,
         encryptedValue: null,
         encryptedValueA,
         encryptedValueB,
-        chance,
-        rolloutFunction,
+        chance: null,
+        rolloutFunction: entry.rolloutFunction,
         rolloutMilestones,
       });
       updatedCount += 1;

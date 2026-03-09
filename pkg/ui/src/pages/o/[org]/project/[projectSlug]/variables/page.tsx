@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import type { RolloutFunction, RolloutMilestone } from "@convex/lib/rollout";
 import type { ProjectRouteContext } from "../layout";
 import { FloatingDraftToolbar } from "@/components/custom/floating-draft-toolbar";
 import { Button } from "@/components/ui/button";
@@ -45,12 +46,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 type DeclaredVariableType = "string" | "boolean" | "int64" | "float" | "date" | "json";
 
-type NewVariableDraft = {
-  localId: string;
-  name: string;
-  isRevealed: boolean;
-} & VariableDraftValue;
-
 type StageDraftState = {
   newRows: Array<NewVariableDraft>;
   updatedValues: Record<string, VariableDraftValue>;
@@ -74,7 +69,22 @@ type AbRollDraftValue = {
   chance: string;
 };
 
-type VariableDraftValue = SecretDraftValue | AbRollDraftValue;
+type RolloutDraftValue = {
+  kind: "rollout";
+  declaredType: DeclaredVariableType;
+  valueA: string;
+  valueB: string;
+  rolloutFunction: RolloutFunction;
+  rolloutMilestones: Array<RolloutMilestone>;
+};
+
+type NewVariableDraftValue = SecretDraftValue | AbRollDraftValue;
+type VariableDraftValue = SecretDraftValue | AbRollDraftValue | RolloutDraftValue;
+type NewVariableDraft = {
+  localId: string;
+  name: string;
+  isRevealed: boolean;
+} & NewVariableDraftValue;
 
 type RevealedVariableValue =
   | {
@@ -88,11 +98,19 @@ type RevealedVariableValue =
       valueA: string;
       valueB: string;
       chance: number;
+    }
+  | {
+      kind: "rollout";
+      declaredType: DeclaredVariableType;
+      valueA: string;
+      valueB: string;
+      rolloutFunction: RolloutFunction;
+      rolloutMilestones: Array<RolloutMilestone>;
     };
 
 type ComposerRowState = {
   name: string;
-} & VariableDraftValue;
+} & NewVariableDraftValue;
 
 type ImportIssue = ParsedEnvIssue & {
   source: string;
@@ -194,11 +212,11 @@ function usesMultilineEditor(declaredType: DeclaredVariableType): boolean {
   return declaredType === "json";
 }
 
-function canEditExistingAbRollValue(input: {
+function canEditExistingVariantValue(input: {
   isRevealed: boolean;
   pendingValue: VariableDraftValue | undefined;
 }): boolean {
-  return input.isRevealed || input.pendingValue?.kind === "ab_roll";
+  return input.isRevealed || (input.pendingValue !== undefined && input.pendingValue.kind !== "secret");
 }
 
 function createEmptyDraftState(): StageDraftState {
@@ -249,9 +267,11 @@ type VariableDisplayRow =
       type: "existing";
       id: Id<"projectVariables">;
       name: string;
-      kind: "secret" | "ab_roll";
+      kind: "secret" | "ab_roll" | "rollout";
       declaredType: DeclaredVariableType;
       chance: number | null;
+      rolloutFunction: RolloutFunction | null;
+      rolloutMilestones: Array<RolloutMilestone> | null;
       createdAtMs: number;
       updatedAtMs: number;
     }
@@ -288,10 +308,27 @@ function createAbRollDraftValue(
   };
 }
 
+function createRolloutDraftValue(
+  valueA = "",
+  valueB = "",
+  declaredType: DeclaredVariableType = "string",
+  rolloutFunction: RolloutFunction = "linear",
+  rolloutMilestones: Array<RolloutMilestone> = [],
+): RolloutDraftValue {
+  return {
+    kind: "rollout",
+    declaredType,
+    valueA,
+    valueB,
+    rolloutFunction,
+    rolloutMilestones,
+  };
+}
+
 function createDraftValueByKind(
   kind: "secret" | "ab_roll",
   declaredType: DeclaredVariableType = "string",
-): VariableDraftValue {
+): NewVariableDraftValue {
   return kind === "secret"
     ? createSecretDraftValue("", declaredType)
     : createAbRollDraftValue("", "", "0.5", declaredType);
@@ -322,12 +359,20 @@ function formatChanceValue(value: number | null): string {
 function toDraftValueFromRevealed(value: RevealedVariableValue): VariableDraftValue {
   return value.kind === "secret"
     ? createSecretDraftValue(value.value, value.declaredType)
-    : createAbRollDraftValue(
-        value.valueA,
-        value.valueB,
-        formatChanceValue(value.chance),
-        value.declaredType,
-      );
+    : value.kind === "ab_roll"
+      ? createAbRollDraftValue(
+          value.valueA,
+          value.valueB,
+          formatChanceValue(value.chance),
+          value.declaredType,
+        )
+      : createRolloutDraftValue(
+          value.valueA,
+          value.valueB,
+          value.declaredType,
+          value.rolloutFunction,
+          value.rolloutMilestones,
+        );
 }
 
 function toDraftValueFromExistingRow(
@@ -335,7 +380,30 @@ function toDraftValueFromExistingRow(
 ): VariableDraftValue {
   return row.kind === "secret"
     ? createSecretDraftValue("", row.declaredType)
-    : createAbRollDraftValue("", "", formatChanceValue(row.chance), row.declaredType);
+    : row.kind === "ab_roll"
+      ? createAbRollDraftValue("", "", formatChanceValue(row.chance), row.declaredType)
+      : createRolloutDraftValue(
+          "",
+          "",
+          row.declaredType,
+          row.rolloutFunction ?? "linear",
+          row.rolloutMilestones ?? [],
+        );
+}
+
+function getCurrentVariantDraftValue(
+  previousValue: VariableDraftValue | undefined,
+  fallback: VariableDraftValue,
+): AbRollDraftValue | RolloutDraftValue {
+  if (previousValue !== undefined && previousValue.kind !== "secret") {
+    return previousValue;
+  }
+
+  if (fallback.kind !== "secret") {
+    return fallback;
+  }
+
+  throw new Error("Expected a non-secret variable draft.");
 }
 
 export function Page() {
@@ -449,6 +517,8 @@ export function Page() {
         kind: row.kind,
         declaredType: row.declaredType,
         chance: row.chance,
+        rolloutFunction: row.rolloutFunction,
+        rolloutMilestones: row.rolloutMilestones,
         createdAtMs: row.createdAtMs,
         updatedAtMs: row.updatedAtMs,
       }));
@@ -512,7 +582,7 @@ export function Page() {
     });
   }
 
-  function upsertVariableDraftByName(name: string, nextValue: VariableDraftValue): void {
+  function upsertVariableDraftByName(name: string, nextValue: NewVariableDraftValue): void {
     const normalizedName = name.trim();
     if (normalizedName.length === 0) {
       return;
@@ -702,6 +772,15 @@ export function Page() {
           valueB: string;
           chance: number;
         }
+      | {
+          name: string;
+          kind: "rollout";
+          declaredType: DeclaredVariableType;
+          valueA: string;
+          valueB: string;
+          rolloutFunction: RolloutFunction;
+          rolloutMilestones: Array<RolloutMilestone>;
+        }
     > = [];
     let updates: Array<
       | {
@@ -718,25 +797,48 @@ export function Page() {
           valueB: string;
           chance: number;
         }
+      | {
+          id: Id<"projectVariables">;
+          kind: "rollout";
+          declaredType: DeclaredVariableType;
+          valueA: string;
+          valueB: string;
+          rolloutFunction: RolloutFunction;
+          rolloutMilestones: Array<RolloutMilestone>;
+        }
     > = [];
     try {
       creates = currentDraft.newRows.map((row) => {
         const normalized = normalizeDraftPayload(row);
-        return normalized.kind === "secret"
-          ? {
-              name: row.name.trim(),
-              kind: "secret" as const,
-              declaredType: normalized.declaredType,
-              value: normalized.value,
-            }
-          : {
-              name: row.name.trim(),
-              kind: "ab_roll" as const,
-              declaredType: normalized.declaredType,
-              valueA: normalized.valueA,
-              valueB: normalized.valueB,
-              chance: parseChanceValue(normalized.chance),
-            };
+        if (normalized.kind === "secret") {
+          return {
+            name: row.name.trim(),
+            kind: "secret" as const,
+            declaredType: normalized.declaredType,
+            value: normalized.value,
+          };
+        }
+
+        if (normalized.kind === "ab_roll") {
+          return {
+            name: row.name.trim(),
+            kind: "ab_roll" as const,
+            declaredType: normalized.declaredType,
+            valueA: normalized.valueA,
+            valueB: normalized.valueB,
+            chance: parseChanceValue(normalized.chance),
+          };
+        }
+
+        return {
+          name: row.name.trim(),
+          kind: "rollout" as const,
+          declaredType: normalized.declaredType,
+          valueA: normalized.valueA,
+          valueB: normalized.valueB,
+          rolloutFunction: normalized.rolloutFunction,
+          rolloutMilestones: normalized.rolloutMilestones,
+        };
       });
       updates = persistedRows
         .filter((row) => !currentDraft.deletedIds[row.id] && currentDraft.updatedValues[row.id] !== undefined)
@@ -756,13 +858,25 @@ export function Page() {
             };
           }
 
+          if (normalized.kind === "ab_roll") {
+            return {
+              id: row.id,
+              kind: "ab_roll" as const,
+              declaredType: normalized.declaredType,
+              valueA: normalized.valueA,
+              valueB: normalized.valueB,
+              chance: parseChanceValue(normalized.chance),
+            };
+          }
+
           return {
             id: row.id,
-            kind: "ab_roll" as const,
+            kind: "rollout" as const,
             declaredType: normalized.declaredType,
             valueA: normalized.valueA,
             valueB: normalized.valueB,
-            chance: parseChanceValue(normalized.chance),
+            rolloutFunction: normalized.rolloutFunction,
+            rolloutMilestones: normalized.rolloutMilestones,
           };
         });
     } catch (error: unknown) {
@@ -837,13 +951,22 @@ export function Page() {
                   declaredType: decrypted.declaredType,
                   value: decrypted.value,
                 }
-              : {
-                  kind: "ab_roll",
-                  declaredType: decrypted.declaredType,
-                  valueA: decrypted.valueA,
-                  valueB: decrypted.valueB,
-                  chance: decrypted.chance,
-                };
+              : decrypted.kind === "ab_roll"
+                ? {
+                    kind: "ab_roll",
+                    declaredType: decrypted.declaredType,
+                    valueA: decrypted.valueA,
+                    valueB: decrypted.valueB,
+                    chance: decrypted.chance,
+                  }
+                : {
+                    kind: "rollout",
+                    declaredType: decrypted.declaredType,
+                    valueA: decrypted.valueA,
+                    valueB: decrypted.valueB,
+                    rolloutFunction: decrypted.rolloutFunction,
+                    rolloutMilestones: decrypted.rolloutMilestones,
+                  };
           current.revealedIds[variableId] = true;
           return current;
         });
@@ -889,12 +1012,20 @@ export function Page() {
 
     return decrypted.kind === "secret"
       ? createSecretDraftValue(decrypted.value, decrypted.declaredType)
-      : createAbRollDraftValue(
-          decrypted.valueA,
-          decrypted.valueB,
-          formatChanceValue(decrypted.chance),
-          decrypted.declaredType,
-        );
+      : decrypted.kind === "ab_roll"
+        ? createAbRollDraftValue(
+            decrypted.valueA,
+            decrypted.valueB,
+            formatChanceValue(decrypted.chance),
+            decrypted.declaredType,
+          )
+        : createRolloutDraftValue(
+            decrypted.valueA,
+            decrypted.valueB,
+            decrypted.declaredType,
+            decrypted.rolloutFunction,
+            decrypted.rolloutMilestones,
+          );
   }
 
   const hasDraft = hasPersistedDraftChanges(currentDraft);
@@ -1201,7 +1332,7 @@ export function Page() {
                         ? toDraftValueFromRevealed(revealedValue)
                         : toDraftValueFromExistingRow(row));
                     const isDecrypting = Boolean(currentDraft.decryptingIds[row.id]);
-                    const canEditHiddenAbRoll = canEditExistingAbRollValue({
+                    const canEditHiddenVariant = canEditExistingVariantValue({
                       isRevealed,
                       pendingValue,
                     });
@@ -1254,19 +1385,18 @@ export function Page() {
                                   <Textarea
                                     value={activeValue.valueA}
                                     placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
-                                    disabled={!canEditHiddenAbRoll}
+                                    disabled={!canEditHiddenVariant}
                                     onChange={(event) => {
                                       const valueA = event.currentTarget.value;
                                       updateCurrentStageDraft((current) => {
-                                        const previousValue = current.updatedValues[row.id];
-                                        const currentValue =
-                                          previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                        const currentValue = getCurrentVariantDraftValue(
+                                          current.updatedValues[row.id],
+                                          activeValue,
+                                        );
                                         current.updatedValues[row.id] = {
-                                          kind: "ab_roll",
+                                          ...currentValue,
                                           declaredType: activeValue.declaredType,
                                           valueA,
-                                          valueB: currentValue.valueB,
-                                          chance: currentValue.chance,
                                         };
                                         return current;
                                       });
@@ -1275,19 +1405,18 @@ export function Page() {
                                   <Textarea
                                     value={activeValue.valueB}
                                     placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
-                                    disabled={!canEditHiddenAbRoll}
+                                    disabled={!canEditHiddenVariant}
                                     onChange={(event) => {
                                       const valueB = event.currentTarget.value;
                                       updateCurrentStageDraft((current) => {
-                                        const previousValue = current.updatedValues[row.id];
-                                        const currentValue =
-                                          previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                        const currentValue = getCurrentVariantDraftValue(
+                                          current.updatedValues[row.id],
+                                          activeValue,
+                                        );
                                         current.updatedValues[row.id] = {
-                                          kind: "ab_roll",
+                                          ...currentValue,
                                           declaredType: activeValue.declaredType,
-                                          valueA: currentValue.valueA,
                                           valueB,
-                                          chance: currentValue.chance,
                                         };
                                         return current;
                                       });
@@ -1300,19 +1429,18 @@ export function Page() {
                                     type={isRevealed ? "text" : "password"}
                                     value={activeValue.valueA}
                                     placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
-                                    disabled={!canEditHiddenAbRoll}
+                                    disabled={!canEditHiddenVariant}
                                     onChange={(event) => {
                                       const valueA = event.currentTarget.value;
                                       updateCurrentStageDraft((current) => {
-                                        const previousValue = current.updatedValues[row.id];
-                                        const currentValue =
-                                          previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                        const currentValue = getCurrentVariantDraftValue(
+                                          current.updatedValues[row.id],
+                                          activeValue,
+                                        );
                                         current.updatedValues[row.id] = {
-                                          kind: "ab_roll",
+                                          ...currentValue,
                                           declaredType: activeValue.declaredType,
                                           valueA,
-                                          valueB: currentValue.valueB,
-                                          chance: currentValue.chance,
                                         };
                                         return current;
                                       });
@@ -1322,19 +1450,18 @@ export function Page() {
                                     type={isRevealed ? "text" : "password"}
                                     value={activeValue.valueB}
                                     placeholder={!isRevealed && pendingValue === undefined ? "••••••••••" : ""}
-                                    disabled={!canEditHiddenAbRoll}
+                                    disabled={!canEditHiddenVariant}
                                     onChange={(event) => {
                                       const valueB = event.currentTarget.value;
                                       updateCurrentStageDraft((current) => {
-                                        const previousValue = current.updatedValues[row.id];
-                                        const currentValue =
-                                          previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                        const currentValue = getCurrentVariantDraftValue(
+                                          current.updatedValues[row.id],
+                                          activeValue,
+                                        );
                                         current.updatedValues[row.id] = {
-                                          kind: "ab_roll",
+                                          ...currentValue,
                                           declaredType: activeValue.declaredType,
-                                          valueA: currentValue.valueA,
                                           valueB,
-                                          chance: currentValue.chance,
                                         };
                                         return current;
                                       });
@@ -1348,7 +1475,8 @@ export function Page() {
                         <TableCell>
                           <div className="space-y-2">
                             <Select
-                              value={activeValue.kind}
+                              value={row.kind === "rollout" ? "rollout" : activeValue.kind}
+                              disabled={row.kind === "rollout"}
                               onValueChange={(next) => {
                                 if (next !== "secret" && next !== "ab_roll") {
                                   return;
@@ -1366,9 +1494,9 @@ export function Page() {
                                               editableValue.declaredType,
                                             )
                                           : createAbRollDraftValue(
-                                              editableValue.kind === "ab_roll"
-                                                ? editableValue.valueA
-                                                : editableValue.value,
+                                              editableValue.kind === "secret"
+                                                ? editableValue.value
+                                                : editableValue.valueA,
                                               editableValue.kind === "ab_roll"
                                                 ? editableValue.valueB
                                                 : "",
@@ -1395,6 +1523,9 @@ export function Page() {
                               <SelectContent>
                                 <SelectItem value="secret">Secret</SelectItem>
                                 <SelectItem value="ab_roll">A/B roll</SelectItem>
+                                <SelectItem value="rollout" disabled>
+                                  Rollout
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <Select
@@ -1448,9 +1579,13 @@ export function Page() {
                                 onChange={(event) => {
                                   const chance = event.currentTarget.value;
                                   updateCurrentStageDraft((current) => {
-                                    const previousValue = current.updatedValues[row.id];
-                                    const currentValue =
-                                      previousValue?.kind === "ab_roll" ? previousValue : activeValue;
+                                    const currentValue = getCurrentVariantDraftValue(
+                                      current.updatedValues[row.id],
+                                      activeValue,
+                                    );
+                                    if (currentValue.kind !== "ab_roll") {
+                                      return current;
+                                    }
                                     current.updatedValues[row.id] = {
                                       ...currentValue,
                                       declaredType: activeValue.declaredType,
