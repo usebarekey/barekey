@@ -48,10 +48,19 @@ export async function loadRuntimeConfig(): Promise<BarekeyRuntimeConfigResult | 
   return {
     path: configPath,
     config: {
-      org: typeof parsed.org === "string" ? parsed.org.trim() : undefined,
+      org:
+        typeof parsed.organization === "string"
+          ? parsed.organization.trim()
+          : typeof parsed.org === "string"
+            ? parsed.org.trim()
+            : undefined,
       project: typeof parsed.project === "string" ? parsed.project.trim() : undefined,
       environment:
-        typeof parsed.environment === "string" ? parsed.environment.trim() : undefined,
+        typeof parsed.environment === "string"
+          ? parsed.environment.trim()
+          : typeof parsed.stage === "string"
+            ? parsed.stage.trim()
+            : undefined,
     },
   };
 }

@@ -1,9 +1,9 @@
 import { Command } from "commander";
 
-import { loadConfig, loadCredentials } from "./credentials-store";
-import { DEFAULT_BAREKEY_API_URL } from "./constants";
-import { loadRuntimeConfig } from "./runtime-config";
-import type { CliCredentials } from "./types";
+import { loadConfig, loadCredentials } from "./credentials-store.js";
+import { DEFAULT_BAREKEY_API_URL } from "./constants.js";
+import { loadRuntimeConfig } from "./runtime-config.js";
+import type { CliCredentials } from "./types.js";
 
 export type LocalSession = {
   baseUrl: string;
@@ -80,7 +80,7 @@ export async function resolveTarget(
       ? `Found ${runtime.path} but project/environment is incomplete.`
       : "No barekey.json found in current directory tree.";
     throw new Error(
-      `${hint} Pass --project/--stage, or create barekey.json with {\"project\":\"...\",\"environment\":\"...\"}.`,
+      `${hint} Pass --project/--stage, or create barekey.json with {"organization":"...","project":"...","environment":"..."}.`,
     );
   }
 

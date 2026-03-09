@@ -5,15 +5,15 @@ import { Command } from "commander";
 import pc from "picocolors";
 import open from "open";
 
-import { createCliAuthProvider } from "../auth-provider";
+import { createCliAuthProvider } from "../auth-provider.js";
 import {
   clearConfig,
   deleteCredentials,
   saveConfig,
   saveCredentials,
-} from "../credentials-store";
-import { getJson, postJson } from "../http";
-import { requireLocalSession, resolveBaseUrl, toJsonOutput } from "../command-utils";
+} from "../credentials-store.js";
+import { getJson, postJson } from "../http.js";
+import { requireLocalSession, resolveBaseUrl, toJsonOutput } from "../command-utils.js";
 
 async function runLogin(options: { baseUrl?: string }): Promise<void> {
   const baseUrl = await resolveBaseUrl(options.baseUrl);

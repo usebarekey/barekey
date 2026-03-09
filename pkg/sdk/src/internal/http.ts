@@ -1,8 +1,17 @@
-import { BarekeyError, normalizeErrorCode } from "../errors";
-import type {
-  BarekeyApiErrorResponse,
-  BarekeyAuthProvider,
-} from "../types";
+import { NetworkError, UnauthorizedError, createBarekeyErrorFromCode } from "../errors.js";
+
+type ApiErrorPayload = {
+  error?: {
+    code?: string;
+    message?: string;
+    requestId?: string;
+  };
+} | null;
+
+export type InternalAuthResolver = {
+  getAccessToken(): Promise<string>;
+  onUnauthorized?(): Promise<void>;
+};
 
 async function parseJsonResponse(response: Response): Promise<unknown> {
   try {
@@ -16,59 +25,76 @@ export function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/$/, "");
 }
 
-export async function fetchWithAuth(input: {
+export async function postJson<TResponse>(input: {
   fetchFn: typeof globalThis.fetch;
-  auth: BarekeyAuthProvider;
   baseUrl: string;
   path: string;
   payload: unknown;
-}): Promise<unknown> {
-  const makeRequest = async (token: string): Promise<Response> =>
-    input.fetchFn(`${input.baseUrl}${input.path}`, {
+  auth?: InternalAuthResolver;
+}): Promise<TResponse> {
+  const makeRequest = async (accessToken?: string): Promise<Response> =>
+    input.fetchFn(`${normalizeBaseUrl(input.baseUrl)}${input.path}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${token}`,
+        ...(accessToken
+          ? {
+              authorization: `Bearer ${accessToken}`,
+            }
+          : {}),
       },
       body: JSON.stringify(input.payload),
     });
 
-  const accessToken = await input.auth.getAccessToken();
   let response: Response;
+  let accessToken: string | undefined;
   try {
+    accessToken = input.auth ? await input.auth.getAccessToken() : undefined;
     response = await makeRequest(accessToken);
   } catch (error: unknown) {
-    throw new BarekeyError({
-      code: "NETWORK_ERROR",
-      message: error instanceof Error ? error.message : "Network request failed.",
+    throw new NetworkError({
+      message: error instanceof Error ? error.message : "A Barekey network request failed.",
+      cause: error,
     });
   }
 
-  if (response.status === 401 && input.auth.onAuthError) {
-    await input.auth.onAuthError(
-      new BarekeyError({
-        code: "UNAUTHORIZED",
-        message: "Access token was rejected.",
-        status: 401,
-      }),
-    );
-    const retryToken = await input.auth.getAccessToken();
-    response = await makeRequest(retryToken);
+  if (response.status === 401 && input.auth?.onUnauthorized) {
+    await input.auth.onUnauthorized();
+    try {
+      response = await makeRequest(await input.auth.getAccessToken());
+    } catch (error: unknown) {
+      throw new NetworkError({
+        message: error instanceof Error ? error.message : "A Barekey network request failed.",
+        cause: error,
+      });
+    }
   }
 
-  const parsed = await parseJsonResponse(response);
+  const parsed = (await parseJsonResponse(response)) as ApiErrorPayload | TResponse;
   if (!response.ok) {
-    const parsedError = parsed as BarekeyApiErrorResponse | null;
-    const message = parsedError?.error?.message ?? `Request failed with status ${response.status}.`;
-    const code = normalizeErrorCode(parsedError?.error?.code ?? "UNKNOWN_ERROR");
-    const requestId = parsedError?.error?.requestId ?? null;
-    throw new BarekeyError({
+    const parsedError = parsed as ApiErrorPayload;
+    const code =
+      parsedError?.error?.code ?? (response.status === 401 ? "UNAUTHORIZED" : "UNKNOWN_ERROR");
+    const message =
+      parsedError?.error?.message ??
+      (response.status === 401
+        ? "The provided Barekey credentials were rejected."
+        : `Barekey request failed with status ${response.status}.`);
+
+    if (response.status === 401 && code === "UNAUTHORIZED" && !parsedError?.error?.message) {
+      throw new UnauthorizedError({
+        requestId: parsedError?.error?.requestId ?? null,
+        status: response.status,
+      });
+    }
+
+    throw createBarekeyErrorFromCode({
       code,
       message,
-      requestId,
+      requestId: parsedError?.error?.requestId ?? null,
       status: response.status,
     });
   }
 
-  return parsed;
+  return parsed as TResponse;
 }

@@ -1,22 +1,50 @@
-export { BarekeyClient } from "./client";
-export { initEnv, env } from "./env-singleton";
-export { BarekeyError } from "./errors";
-export { BarekeyValueBuilder } from "./value-builder";
+export { BarekeyClient } from "./client.js";
+export { BarekeyEnvHandle } from "./handle.js";
+export {
+  BarekeyError,
+  BillingUnavailableError,
+  CoerceFailedError,
+  DeviceCodeExpiredError,
+  DeviceCodeNotFoundError,
+  EvaluationFailedError,
+  FsNotAvailableError,
+  InvalidConfigurationProvidedError,
+  InvalidCredentialsProvidedError,
+  InvalidDynamicOptionsError,
+  InvalidJsonError,
+  InvalidOrgScopeError,
+  InvalidRefreshTokenError,
+  InvalidRequestError,
+  NetworkError,
+  NoConfigurationProvidedError,
+  NoCredentialsProvidedError,
+  OrgScopeInvalidError,
+  RequirementsValidationFailedError,
+  TemporalNotAvailableError,
+  UnauthorizedError,
+  UnknownError,
+  UsageLimitExceededError,
+  UserCodeInvalidError,
+  VariableNotFoundError,
+  createBarekeyErrorFromCode,
+  docsUrlForErrorCode,
+  formatBarekeyErrorMessage,
+  isBarekeyErrorCode,
+  normalizeErrorCode,
+} from "./errors.js";
 
 export type {
-  BarekeyApiErrorResponse,
-  BarekeyAuthProvider,
-  BarekeyCacheAdapter,
-  BarekeyCacheRecord,
+  AB,
   BarekeyClientOptions,
   BarekeyDeclaredType,
   BarekeyErrorCode,
-  BarekeyEvaluateBatchResponse,
-  BarekeyEvaluateSingleResponse,
-  BarekeyGeneratedTypeMap,
-  BarekeyGeneratedValueForKey,
   BarekeyGetOptions,
+  BarekeyJsonConfig,
   BarekeyResolvedKind,
-  BarekeyResolvedValue,
+  BarekeyRolloutMilestone,
+  BarekeyStandardSchemaV1,
   BarekeyTemporalInstant,
-} from "./types";
+  Env,
+  Linear,
+  Secret,
+} from "./types.js";

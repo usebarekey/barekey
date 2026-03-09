@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
-import type { CliConfig, CliCredentials } from "./types";
+import type { CliConfig, CliCredentials } from "./types.js";
 
 const SERVICE_NAME = "barekey-cli";
 const CONFIG_DIR = path.join(homedir(), ".config", "barekey");

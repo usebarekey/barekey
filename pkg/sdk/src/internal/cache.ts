@@ -1,82 +1,33 @@
-import type {
-  BarekeyCacheAdapter,
-  BarekeyCacheRecord,
-  BarekeyGetOptions,
-} from "../types";
-
-export type BarekeyCachePolicy = {
-  readEnabled: boolean;
-  writeEnabled: boolean;
-  ttlMs: number;
+type MemoryCacheRecord<TValue> = {
+  value: TValue;
+  storedAtMs: number;
+  expiresAtMs: number | null;
 };
 
-export class InMemoryCacheAdapter implements BarekeyCacheAdapter {
-  private readonly store = new Map<string, BarekeyCacheRecord>();
+export class MemoryCache<TValue> {
+  private readonly records = new Map<string, MemoryCacheRecord<TValue>>();
 
-  async get(key: string): Promise<BarekeyCacheRecord | null> {
-    const record = this.store.get(key) ?? null;
+  getRecord(key: string): MemoryCacheRecord<TValue> | null {
+    const record = this.records.get(key) ?? null;
     if (record === null) {
       return null;
     }
-    if (record.expiresAtMs <= Date.now()) {
-      this.store.delete(key);
+    if (record.expiresAtMs !== null && record.expiresAtMs <= Date.now()) {
+      this.records.delete(key);
       return null;
     }
     return record;
   }
 
-  async set(key: string, value: BarekeyCacheRecord): Promise<void> {
-    this.store.set(key, value);
+  get(key: string): TValue | null {
+    return this.getRecord(key)?.value ?? null;
   }
 
-  async delete(key: string): Promise<void> {
-    this.store.delete(key);
+  set(key: string, value: TValue, expiresAtMs: number | null = null): void {
+    this.records.set(key, {
+      value,
+      storedAtMs: Date.now(),
+      expiresAtMs,
+    });
   }
-}
-
-export function resolveCachePolicy(options?: BarekeyGetOptions): BarekeyCachePolicy {
-  // Default behavior: bypass cache so rotated secrets and unseeded ab_roll
-  // evaluations remain fresh unless the caller opts into stickiness.
-  if (options?.dynamic === undefined) {
-    return {
-      readEnabled: false,
-      writeEnabled: false,
-      ttlMs: 0,
-    };
-  }
-
-  // Dynamic mode defaults to bypass cache unless explicit TTL is provided.
-  const ttl = options.dynamic.ttl;
-  if (ttl === undefined) {
-    return {
-      readEnabled: false,
-      writeEnabled: false,
-      ttlMs: 0,
-    };
-  }
-
-  if (!Number.isFinite(ttl) || ttl <= 0) {
-    return {
-      readEnabled: false,
-      writeEnabled: false,
-      ttlMs: 0,
-    };
-  }
-
-  return {
-    readEnabled: true,
-    writeEnabled: true,
-    ttlMs: ttl,
-  };
-}
-
-export function toCacheKey(input: {
-  orgSlug: string;
-  projectSlug: string;
-  stageSlug: string;
-  name: string;
-  seed: string;
-  key: string;
-}): string {
-  return `${input.orgSlug}|${input.projectSlug}|${input.stageSlug}|${input.name}|${input.seed}|${input.key}`;
 }

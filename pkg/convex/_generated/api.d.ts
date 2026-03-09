@@ -11,11 +11,11 @@
 import type * as autumn from "../autumn.js";
 import type * as clerk from "../clerk.js";
 import type * as cli_auth from "../cli_auth.js";
-import type * as dev_auth from "../dev_auth.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_declared_types from "../lib/declared_types.js";
 import type * as lib_encryption from "../lib/encryption.js";
+import type * as lib_rollout from "../lib/rollout.js";
 import type * as orgs from "../orgs.js";
 import type * as payments from "../payments.js";
 import type * as project_stages from "../project_stages.js";
@@ -35,11 +35,11 @@ declare const fullApi: ApiFromModules<{
   autumn: typeof autumn;
   clerk: typeof clerk;
   cli_auth: typeof cli_auth;
-  dev_auth: typeof dev_auth;
   http: typeof http;
   "lib/auth": typeof lib_auth;
   "lib/declared_types": typeof lib_declared_types;
   "lib/encryption": typeof lib_encryption;
+  "lib/rollout": typeof lib_rollout;
   orgs: typeof orgs;
   payments: typeof payments;
   project_stages: typeof project_stages;
