@@ -1,0 +1,6 @@
+name = "barekey-api-proxy"
+main = "./src/index.ts"
+compatibility_date = "2026-03-09"
+
+[vars]
+CONVEX_HTTP_ORIGIN = "https://kindred-newt-974.convex.site"

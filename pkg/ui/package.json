@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "cf:dev": "bun run build && wrangler dev",
+    "cf:deploy": "bun run build && wrangler deploy",
     "lint": "oxlint --config ../../.config/oxlint.json --ignore-path ../../.config/.oxlintignore .",
     "preview": "vite preview"
   },
