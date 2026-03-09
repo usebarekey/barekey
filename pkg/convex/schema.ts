@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 import { declaredTypeValidator } from "./lib/declared_types";
+import { rolloutFunctionValidator, rolloutMilestoneValidator } from "./lib/rollout";
 
 export default defineSchema({
   users: defineTable({
@@ -80,12 +81,14 @@ export default defineSchema({
     orgId: v.string(),
     stageSlug: v.string(),
     name: v.string(),
-    kind: v.union(v.literal("secret"), v.literal("ab_roll")),
+    kind: v.union(v.literal("secret"), v.literal("ab_roll"), v.literal("rollout")),
     declaredType: v.optional(declaredTypeValidator),
     encryptedValue: v.union(v.string(), v.null()),
     encryptedValueA: v.union(v.string(), v.null()),
     encryptedValueB: v.union(v.string(), v.null()),
     chance: v.union(v.number(), v.null()),
+    rolloutFunction: v.union(rolloutFunctionValidator, v.null()),
+    rolloutMilestones: v.union(v.array(rolloutMilestoneValidator), v.null()),
     createdByClerkUserId: v.string(),
     createdAtMs: v.number(),
     updatedAtMs: v.number(),

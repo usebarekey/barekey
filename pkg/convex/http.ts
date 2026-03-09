@@ -5,6 +5,11 @@ import type { Id } from "./_generated/dataModel";
 import { httpAction } from "./_generated/server";
 import { getOrgClaimsFromIdentity } from "./lib/auth";
 import { normalizeDeclaredType } from "./lib/declared_types";
+import {
+  resolveLinearRolloutChance,
+  type RolloutMilestone,
+  validateRolloutMilestones,
+} from "./lib/rollout";
 
 type EvaluateSingleRequest = {
   orgSlug?: string;
@@ -30,6 +35,13 @@ type EnvListRequest = {
   stageSlug: string;
 };
 
+type EnvDefinitionsRequest = {
+  orgSlug?: string;
+  projectSlug: string;
+  stageSlug: string;
+  names?: Array<string>;
+};
+
 type EnvWriteMode = "create_only" | "upsert";
 
 type EnvWriteRequest = {
@@ -52,6 +64,15 @@ type EnvWriteRequest = {
         valueB: string;
         chance: number;
       }
+    | {
+        name: string;
+        kind: "rollout";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+        valueA: string;
+        valueB: string;
+        rolloutFunction: "linear";
+        rolloutMilestones: Array<RolloutMilestone>;
+      }
   >;
   deletes: Array<string>;
 };
@@ -62,7 +83,7 @@ type ResolvedVariableRow = {
   orgId: string;
   stageSlug: string;
   name: string;
-  kind: "secret" | "ab_roll";
+  kind: "secret" | "ab_roll" | "rollout";
   declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
 };
 
@@ -82,6 +103,16 @@ type DecryptedVariable =
       valueA: string;
       valueB: string;
       chance: number;
+    }
+  | {
+      id: Id<"projectVariables">;
+      name: string;
+      kind: "rollout";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      valueA: string;
+      valueB: string;
+      rolloutFunction: "linear";
+      rolloutMilestones: Array<RolloutMilestone>;
     };
 
 type AuthContext = {
@@ -268,6 +299,48 @@ function parseListRequest(payload: unknown): EnvListRequest | null {
   };
 }
 
+function parseDefinitionsRequest(payload: unknown): EnvDefinitionsRequest | null {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+
+  const input = payload as Record<string, unknown>;
+  const projectSlug = typeof input.projectSlug === "string" ? input.projectSlug.trim() : "";
+  const stageSlug = typeof input.stageSlug === "string" ? input.stageSlug.trim() : "";
+  if (projectSlug.length === 0 || stageSlug.length === 0) {
+    return null;
+  }
+
+  const rawNames = Array.isArray(input.names) ? input.names : null;
+  const names =
+    rawNames === null
+      ? undefined
+      : rawNames
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => normalizeName(value));
+
+  if (rawNames !== null && (names === undefined || names.length !== rawNames.length)) {
+    return null;
+  }
+
+  if (names !== undefined) {
+    const uniqueNames = new Set<string>();
+    for (const name of names) {
+      if (name.length === 0 || uniqueNames.has(name)) {
+        return null;
+      }
+      uniqueNames.add(name);
+    }
+  }
+
+  return {
+    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
+    projectSlug,
+    stageSlug,
+    names,
+  };
+}
+
 function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
   if (typeof payload !== "object" || payload === null) {
     return null;
@@ -292,8 +365,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     const entry = rawEntry as Record<string, unknown>;
     const name = typeof entry.name === "string" ? entry.name.trim() : "";
     const kind = typeof entry.kind === "string" ? entry.kind : "";
-    const declaredTypeRaw =
-      typeof entry.declaredType === "string" ? entry.declaredType : "string";
+    const declaredTypeRaw = typeof entry.declaredType === "string" ? entry.declaredType : "string";
     if (name.length === 0) {
       return null;
     }
@@ -334,6 +406,52 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
         valueB: entry.valueB,
         chance: entry.chance,
       });
+      continue;
+    }
+    if (kind === "rollout") {
+      if (
+        typeof entry.valueA !== "string" ||
+        typeof entry.valueB !== "string" ||
+        entry.rolloutFunction !== "linear" ||
+        !Array.isArray(entry.rolloutMilestones)
+      ) {
+        return null;
+      }
+      const rolloutMilestones = entry.rolloutMilestones
+        .map((milestone) => {
+          if (typeof milestone !== "object" || milestone === null) {
+            return null;
+          }
+          const value = milestone as Record<string, unknown>;
+          if (
+            typeof value.at !== "string" ||
+            typeof value.percentage !== "number" ||
+            !Number.isFinite(value.percentage)
+          ) {
+            return null;
+          }
+          return {
+            at: value.at,
+            percentage: value.percentage,
+          };
+        })
+        .filter((milestone): milestone is RolloutMilestone => milestone !== null);
+      if (rolloutMilestones.length !== entry.rolloutMilestones.length) {
+        return null;
+      }
+      try {
+        entries.push({
+          name,
+          kind: "rollout",
+          declaredType,
+          valueA: entry.valueA,
+          valueB: entry.valueB,
+          rolloutFunction: "linear",
+          rolloutMilestones: validateRolloutMilestones(rolloutMilestones),
+        });
+      } catch {
+        return null;
+      }
       continue;
     }
     return null;
@@ -433,20 +551,21 @@ async function resolveAuthContext(
   }
 
   const effectiveOrgSlug = requestedOrgSlug?.trim() || session.orgSlug;
-  const resolvedOrg = effectiveOrgSlug === session.orgSlug
-    ? {
-        orgId: session.orgId,
-        orgSlug: session.orgSlug,
-      }
-    : ((await ctx.runAction(internal.clerk.resolveOrganizationAccessForCliUserInternal, {
-        clerkUserId: session.clerkUserId,
-        requestedOrgSlug: effectiveOrgSlug,
-        fallbackOrgId: session.orgId,
-        fallbackOrgSlug: session.orgSlug,
-      })) as {
-        orgId: string;
-        orgSlug: string;
-      } | null);
+  const resolvedOrg =
+    effectiveOrgSlug === session.orgSlug
+      ? {
+          orgId: session.orgId,
+          orgSlug: session.orgSlug,
+        }
+      : ((await ctx.runAction(internal.clerk.resolveOrganizationAccessForCliUserInternal, {
+          clerkUserId: session.clerkUserId,
+          requestedOrgSlug: effectiveOrgSlug,
+          fallbackOrgId: session.orgId,
+          fallbackOrgSlug: session.orgSlug,
+        })) as {
+          orgId: string;
+          orgSlug: string;
+        } | null);
 
   if (resolvedOrg === null) {
     return {
@@ -525,10 +644,7 @@ async function deterministicBucket(input: string): Promise<number> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
   const bytes = new Uint8Array(digest);
   const value =
-    ((bytes[0] ?? 0) << 24) |
-    ((bytes[1] ?? 0) << 16) |
-    ((bytes[2] ?? 0) << 8) |
-    (bytes[3] ?? 0);
+    ((bytes[0] ?? 0) << 24) | ((bytes[1] ?? 0) << 16) | ((bytes[2] ?? 0) << 8) | (bytes[3] ?? 0);
   return (value >>> 0) / 4294967296;
 }
 
@@ -538,7 +654,7 @@ async function resolveVariableValue(input: {
   key?: string;
 }): Promise<{
   name: string;
-  kind: "secret" | "ab_roll";
+  kind: "secret" | "ab_roll" | "rollout";
   declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
   value: string;
   decision?: {
@@ -546,7 +662,7 @@ async function resolveVariableValue(input: {
     chance: number;
     seed?: string;
     key?: string;
-    matchedRule: "ab_roll";
+    matchedRule: "ab_roll" | "linear_rollout";
   };
 }> {
   if (input.variable.kind === "secret") {
@@ -560,23 +676,43 @@ async function resolveVariableValue(input: {
 
   const seed = input.seed?.trim() ?? "";
   const key = input.key?.trim() ?? "";
-  const chance = input.variable.chance;
   const bucket =
     seed.length > 0 || key.length > 0
-      ? await deterministicBucket(`ab_roll:${input.variable.name}:${seed}:${key}`)
+      ? await deterministicBucket(`${input.variable.kind}:${input.variable.name}:${seed}:${key}`)
       : Math.random();
 
+  if (input.variable.kind === "ab_roll") {
+    const chance = input.variable.chance;
+    return {
+      name: input.variable.name,
+      kind: "ab_roll",
+      declaredType: input.variable.declaredType,
+      value: bucket < chance ? input.variable.valueA : input.variable.valueB,
+      decision: {
+        bucket,
+        chance,
+        seed: seed.length > 0 ? seed : undefined,
+        key: key.length > 0 ? key : undefined,
+        matchedRule: "ab_roll",
+      },
+    };
+  }
+
+  const chance = resolveLinearRolloutChance({
+    milestones: input.variable.rolloutMilestones,
+    nowMs: Date.now(),
+  });
   return {
     name: input.variable.name,
-    kind: "ab_roll",
+    kind: "rollout",
     declaredType: input.variable.declaredType,
-    value: bucket < chance ? input.variable.valueA : input.variable.valueB,
+    value: bucket < chance ? input.variable.valueB : input.variable.valueA,
     decision: {
       bucket,
       chance,
       seed: seed.length > 0 ? seed : undefined,
       key: key.length > 0 ? key : undefined,
-      matchedRule: "ab_roll",
+      matchedRule: "linear_rollout",
     },
   };
 }
@@ -810,7 +946,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
     const byName = new Map(rows.map((row) => [row.name, row]));
     const values: Array<{
       name: string;
-      kind: "secret" | "ab_roll";
+      kind: "secret" | "ab_roll" | "rollout";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       value: string;
       decision?: {
@@ -818,7 +954,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
         chance: number;
         seed?: string;
         key?: string;
-        matchedRule: "ab_roll";
+        matchedRule: "ab_roll" | "linear_rollout";
       };
     }> = [];
 
@@ -937,11 +1073,13 @@ const envList = httpAction(async (ctx, request) => {
 
   const variables: Array<{
     name: string;
-    kind: "secret" | "ab_roll";
+    kind: "secret" | "ab_roll" | "rollout";
     declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
     createdAtMs: number;
     updatedAtMs: number;
     chance: number | null;
+    rolloutFunction: "linear" | null;
+    rolloutMilestones: Array<RolloutMilestone> | null;
   }> = await ctx.runQuery(
     internal.project_variables.listVariableMetadataForOrgProjectStageInternal,
     {
@@ -959,6 +1097,8 @@ const envList = httpAction(async (ctx, request) => {
       createdAtMs: row.createdAtMs,
       updatedAtMs: row.updatedAtMs,
       chance: row.chance,
+      rolloutFunction: row.rolloutFunction,
+      rolloutMilestones: row.rolloutMilestones,
     })),
     requestId,
   });
@@ -1085,7 +1225,7 @@ const envPull = httpAction(async (ctx, request) => {
 
   const values: Array<{
     name: string;
-    kind: "secret" | "ab_roll";
+    kind: "secret" | "ab_roll" | "rollout";
     declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
     value: string;
     decision?: {
@@ -1093,7 +1233,7 @@ const envPull = httpAction(async (ctx, request) => {
       chance: number;
       seed?: string;
       key?: string;
-      matchedRule: "ab_roll";
+      matchedRule: "ab_roll" | "linear_rollout";
     };
   }> = [];
   for (const row of rows) {
@@ -1118,6 +1258,148 @@ const envPull = httpAction(async (ctx, request) => {
   return buildJsonResponse(200, {
     values,
     byName,
+    requestId,
+  });
+});
+
+const envDefinitions = httpAction(async (ctx, request) => {
+  const requestId = readRequestId(request);
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_JSON",
+      message: "Request body must be valid JSON.",
+      requestId,
+    });
+  }
+
+  const parsed = parseDefinitionsRequest(payload);
+  if (parsed === null) {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_REQUEST",
+      message: "projectSlug and stageSlug are required.",
+      requestId,
+    });
+  }
+
+  const authResult = await resolveAuthContext(ctx, request, parsed.orgSlug);
+  if (!authResult.ok) {
+    return errorResponse({
+      status: authResult.status,
+      code: authResult.code,
+      message: authResult.message,
+      requestId,
+    });
+  }
+  const authContext = authResult.context;
+
+  const rows: Array<ResolvedVariableRow> =
+    parsed.names === undefined
+      ? await ctx.runQuery(
+          internal.project_variables.listVariableMetadataForOrgProjectStageInternal,
+          {
+            orgId: authContext.orgId,
+            projectSlug: parsed.projectSlug,
+            stageSlug: parsed.stageSlug,
+          },
+        )
+      : await ctx.runQuery(
+          internal.project_variables.resolveVariableRowsForOrgProjectStageInternal,
+          {
+            orgId: authContext.orgId,
+            projectSlug: parsed.projectSlug,
+            stageSlug: parsed.stageSlug,
+            names: parsed.names,
+          },
+        );
+
+  if (parsed.names !== undefined && rows.length !== parsed.names.length) {
+    const returnedNames = new Set(rows.map((row) => row.name));
+    const missingName = parsed.names.find((name) => !returnedNames.has(name)) ?? parsed.names[0];
+    return errorResponse({
+      status: 404,
+      code: "VARIABLE_NOT_FOUND",
+      message: `Variable ${missingName ?? "unknown"} was not found in this stage.`,
+      requestId,
+    });
+  }
+
+  const definitions: Array<
+    | {
+        name: string;
+        kind: "secret";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+        value: string;
+      }
+    | {
+        name: string;
+        kind: "ab_roll";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+        valueA: string;
+        valueB: string;
+        chance: number;
+      }
+    | {
+        name: string;
+        kind: "rollout";
+        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+        valueA: string;
+        valueB: string;
+        rolloutFunction: "linear";
+        rolloutMilestones: Array<RolloutMilestone>;
+      }
+  > = [];
+
+  for (const row of rows) {
+    const decrypted = (await ctx.runMutation(
+      internal.project_variables.decryptValueForOrgProjectStageInternal,
+      {
+        orgId: authContext.orgId,
+        projectSlug: parsed.projectSlug,
+        stageSlug: parsed.stageSlug,
+        variableId: row.id,
+      },
+    )) as DecryptedVariable;
+
+    if (decrypted.kind === "secret") {
+      definitions.push({
+        name: decrypted.name,
+        kind: "secret",
+        declaredType: decrypted.declaredType,
+        value: decrypted.value,
+      });
+      continue;
+    }
+
+    if (decrypted.kind === "ab_roll") {
+      definitions.push({
+        name: decrypted.name,
+        kind: "ab_roll",
+        declaredType: decrypted.declaredType,
+        valueA: decrypted.valueA,
+        valueB: decrypted.valueB,
+        chance: decrypted.chance,
+      });
+      continue;
+    }
+
+    definitions.push({
+      name: decrypted.name,
+      kind: "rollout",
+      declaredType: decrypted.declaredType,
+      valueA: decrypted.valueA,
+      valueB: decrypted.valueB,
+      rolloutFunction: decrypted.rolloutFunction,
+      rolloutMilestones: decrypted.rolloutMilestones,
+    });
+  }
+
+  return buildJsonResponse(200, {
+    definitions,
     requestId,
   });
 });
@@ -1571,6 +1853,17 @@ http.route({
 });
 http.route({
   path: "/v1/env/pull",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
+
+http.route({
+  path: "/v1/env/definitions",
+  method: "POST",
+  handler: envDefinitions,
+});
+http.route({
+  path: "/v1/env/definitions",
   method: "OPTIONS",
   handler: corsPreflight,
 });

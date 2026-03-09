@@ -1,10 +1,13 @@
-import type { BarekeyAuthProvider } from "@barekey/sdk";
+import { postJson } from "./http.js";
+import type { CliCredentials } from "./types.js";
+import { loadConfig, loadCredentials, saveCredentials } from "./credentials-store.js";
 
-import { postJson } from "./http";
-import type { CliCredentials } from "./types";
-import { loadConfig, loadCredentials, saveCredentials } from "./credentials-store";
+type CliAuthProvider = {
+  getAccessToken(): Promise<string>;
+  onAuthError?(): Promise<void>;
+};
 
-export function createCliAuthProvider(): BarekeyAuthProvider {
+export function createCliAuthProvider(): CliAuthProvider {
   let cachedCredentials: CliCredentials | null = null;
   let forceRefresh = false;
 

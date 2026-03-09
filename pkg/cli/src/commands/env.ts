@@ -1,11 +1,10 @@
 import { writeFile } from "node:fs/promises";
 
 import { cancel, confirm, isCancel } from "@clack/prompts";
-import { BarekeyClient } from "@barekey/sdk";
 import { Command } from "commander";
 import pc from "picocolors";
 
-import { createCliAuthProvider } from "../auth-provider";
+import { createCliAuthProvider } from "../auth-provider.js";
 import {
   addTargetOptions,
   dotenvEscape,
@@ -14,8 +13,8 @@ import {
   resolveTarget,
   toJsonOutput,
   type EnvTargetOptions,
-} from "../command-utils";
-import { postJson } from "../http";
+} from "../command-utils.js";
+import { postJson } from "../http.js";
 
 async function runEnvGet(
   name: string,
@@ -28,20 +27,32 @@ async function runEnvGet(
   const local = await requireLocalSession();
   const target = await resolveTarget(options, local);
   const authProvider = createCliAuthProvider();
-  const client = new BarekeyClient({
+  const accessToken = await authProvider.getAccessToken();
+  const resolved = await postJson<{
+    name: string;
+    kind: "secret" | "ab_roll" | "rollout";
+    declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+    value: string;
+    decision?: {
+      bucket: number;
+      chance: number;
+      seed?: string;
+      key?: string;
+      matchedRule: "ab_roll" | "linear_rollout";
+    };
+  }>({
     baseUrl: local.baseUrl,
-    auth: authProvider,
-    projectSlug: target.projectSlug,
-    stageSlug: target.stageSlug,
-    orgSlug: target.orgSlug,
-  });
-
-  const resolved = await client
-    .get(name, {
+    path: "/v1/env/evaluate",
+    accessToken,
+    payload: {
+      orgSlug: target.orgSlug,
+      projectSlug: target.projectSlug,
+      stageSlug: target.stageSlug,
+      name,
       seed: options.seed,
       key: options.key,
-    })
-    .raw();
+    },
+  });
 
   if (options.json) {
     toJsonOutput(true, resolved);
@@ -62,33 +73,49 @@ async function runEnvGetMany(
   const local = await requireLocalSession();
   const target = await resolveTarget(options, local);
   const authProvider = createCliAuthProvider();
-  const client = new BarekeyClient({
-    baseUrl: local.baseUrl,
-    auth: authProvider,
-    projectSlug: target.projectSlug,
-    stageSlug: target.stageSlug,
-    orgSlug: target.orgSlug,
-  });
+  const accessToken = await authProvider.getAccessToken();
 
   const names = options.names
     .split(",")
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
 
-  const resolved = await client.getMany(names, {
-    seed: options.seed,
-    key: options.key,
+  const resolved = await postJson<{
+    values: Array<{
+      name: string;
+      kind: "secret" | "ab_roll" | "rollout";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      value: string;
+      decision?: {
+        bucket: number;
+        chance: number;
+        seed?: string;
+        key?: string;
+        matchedRule: "ab_roll" | "linear_rollout";
+      };
+    }>;
+  }>({
+    baseUrl: local.baseUrl,
+    path: "/v1/env/evaluate-batch",
+    accessToken,
+    payload: {
+      orgSlug: target.orgSlug,
+      projectSlug: target.projectSlug,
+      stageSlug: target.stageSlug,
+      names,
+      seed: options.seed,
+      key: options.key,
+    },
   });
 
   if (options.json) {
-    toJsonOutput(true, resolved);
+    toJsonOutput(true, resolved.values);
     return;
   }
 
-  for (const key of Object.keys(resolved).sort((left, right) => left.localeCompare(right))) {
-    const value = resolved[key];
+  for (const value of resolved.values.sort((left, right) => left.name.localeCompare(right.name))) {
     if (value) {
-      console.log(`${key}=${value.value}`);
+      console.log(`${value.name}=${value.value}`);
     }
   }
 }
@@ -102,11 +129,13 @@ async function runEnvList(options: EnvTargetOptions & { json?: boolean }): Promi
   const response = await postJson<{
     variables: Array<{
       name: string;
-      kind: "secret" | "ab_roll";
+      kind: "secret" | "ab_roll" | "rollout";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       createdAtMs: number;
       updatedAtMs: number;
       chance: number | null;
+      rolloutFunction: "linear" | null;
+      rolloutMilestones: Array<{ at: string; percentage: number }> | null;
     }>;
   }>({
     baseUrl: local.baseUrl,
@@ -131,7 +160,15 @@ async function runEnvList(options: EnvTargetOptions & { json?: boolean }): Promi
 
   for (const row of response.variables) {
     const chanceSuffix = row.kind === "ab_roll" ? ` chance=${row.chance ?? 0}` : "";
-    console.log(`${row.name}  ${pc.dim(row.kind)}  ${pc.dim(row.declaredType)}${chanceSuffix}`);
+    const rolloutSuffix =
+      row.kind === "rollout"
+        ? ` ${pc.dim(
+            `${row.rolloutFunction ?? "linear"}(${row.rolloutMilestones?.length ?? 0} milestones)`,
+          )}`
+        : "";
+    console.log(
+      `${row.name}  ${pc.dim(row.kind)}  ${pc.dim(row.declaredType)}${chanceSuffix}${rolloutSuffix}`,
+    );
   }
 }
 

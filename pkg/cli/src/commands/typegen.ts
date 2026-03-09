@@ -1,7 +1,12 @@
-import { writeTypegenFile } from "../typegen";
-import { createCliAuthProvider } from "../auth-provider";
-import { addTargetOptions, requireLocalSession, resolveTarget, type EnvTargetOptions } from "../command-utils";
-import { getJson } from "../http";
+import { writeTypegenFile } from "../typegen.js";
+import { createCliAuthProvider } from "../auth-provider.js";
+import {
+  addTargetOptions,
+  requireLocalSession,
+  resolveTarget,
+  type EnvTargetOptions,
+} from "../command-utils.js";
+import { getJson } from "../http.js";
 import { Command } from "commander";
 
 async function runTypegen(options: EnvTargetOptions & { out: string }): Promise<void> {
