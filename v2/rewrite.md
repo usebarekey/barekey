@@ -8,11 +8,11 @@ pkg/api -> standalone server responsible for all requests other than auth (repla
 
 -- stack undecided? (Tanstack start or sveltekit)
 pkg/dashboard -> application (replacing react/vite spa)
-pkg/docs -> static docs (replacing mintlify)
+docs repo -> static docs (replacing mintlify)
 pkg/landing -> static pages like / or /pricing and similiar.
 
-pkg/cli -> our cli allowing full progamatic and agentic use for every single feature in the dashboard (Rust cli(Clap?))
-pkg/sdk
+cli repo -> our cli allowing full progamatic and agentic use for every single feature in the dashboard (Rust cli(Clap?))
+sdk repo
 -- add docs or a universal sdk for community adapters
 typescript
 rust
