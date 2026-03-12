@@ -15,6 +15,7 @@ import {
 
 import { Logo } from "@/components/custom/logo";
 import { CodeBlock } from "@/components/custom/code-block";
+import { useAnalytics } from "@/lib/posthog";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,8 @@ if (useNewDashboard) {
 ];
 
 export function Nav({ scrolled, isSignedIn, dashboardPath }: { scrolled: boolean; isSignedIn: boolean; dashboardPath: string }) {
+	const { capture } = useAnalytics();
+
 	return (
 		<header
 			className={cn(
@@ -80,7 +83,17 @@ export function Nav({ scrolled, isSignedIn, dashboardPath }: { scrolled: boolean
 				</Link>
 
 				<div className="flex items-center gap-6">
-					<Link to="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+					<Link
+						to="/pricing"
+						className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+						onClick={() => {
+							capture("navigation_clicked", {
+								destination: "/pricing",
+								location: "nav",
+								type: "internal_link",
+							});
+						}}
+					>
 						Pricing
 					</Link>
 					<a
@@ -88,15 +101,40 @@ export function Nav({ scrolled, isSignedIn, dashboardPath }: { scrolled: boolean
 						target="_blank"
 						rel="noopener noreferrer"
 						className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+						onClick={() => {
+							capture("navigation_clicked", {
+								destination: "https://docs.barekey.dev",
+								location: "nav",
+								type: "external_link",
+							});
+						}}
 					>
 						Docs
 					</a>
 					{isSignedIn ? (
-						<Link to={dashboardPath} className={cn(buttonVariants({ size: "sm" }))}>
+						<Link
+							to={dashboardPath}
+							className={cn(buttonVariants({ size: "sm" }))}
+							onClick={() => {
+								capture("cta_clicked", {
+									cta: "dashboard",
+									location: "nav",
+								});
+							}}
+						>
 							Dashboard
 						</Link>
 					) : (
-						<Link to="/auth/sso" className={cn(buttonVariants({ size: "sm" }))}>
+						<Link
+							to="/auth/sso"
+							className={cn(buttonVariants({ size: "sm" }))}
+							onClick={() => {
+								capture("cta_clicked", {
+									cta: "get_started",
+									location: "nav",
+								});
+							}}
+						>
 							Get started
 						</Link>
 					)}
@@ -107,6 +145,8 @@ export function Nav({ scrolled, isSignedIn, dashboardPath }: { scrolled: boolean
 }
 
 function Hero({ primaryCtaPath }: { primaryCtaPath: string }) {
+	const { capture } = useAnalytics();
+
 	return (
 		<section className="relative overflow-hidden">
 			<div
@@ -135,7 +175,16 @@ function Hero({ primaryCtaPath }: { primaryCtaPath: string }) {
 						Encrypted variables, deterministic experiments, and progressive rollouts — managed from one SDK, visible from one dashboard.
 					</p>
 					<div className="flex gap-3 pt-2">
-						<Link to={primaryCtaPath} className={cn(buttonVariants({ size: "lg" }))}>
+						<Link
+							to={primaryCtaPath}
+							className={cn(buttonVariants({ size: "lg" }))}
+							onClick={() => {
+								capture("cta_clicked", {
+									cta: "get_started",
+									location: "hero",
+								});
+							}}
+						>
 							Get started
 							<IconArrowRight className="size-4" />
 						</Link>
@@ -144,6 +193,12 @@ function Hero({ primaryCtaPath }: { primaryCtaPath: string }) {
 							target="_blank"
 							rel="noopener noreferrer"
 							className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+							onClick={() => {
+								capture("cta_clicked", {
+									cta: "documentation",
+									location: "hero",
+								});
+							}}
 						>
 							Documentation
 						</a>
@@ -337,6 +392,7 @@ function Bento() {
 
 function SdkPreview() {
 	const [activeTab, setActiveTab] = useState(0);
+	const { capture } = useAnalytics();
 	const active = codeExamples[activeTab];
 
 	return (
@@ -362,7 +418,13 @@ function SdkPreview() {
 								<button
 									key={example.file}
 									type="button"
-									onClick={() => setActiveTab(i)}
+									onClick={() => {
+										setActiveTab(i);
+										capture("sdk_example_selected", {
+											example_file: example.file,
+											example_index: i,
+										});
+									}}
 									className={cn(
 										"border-l px-4 py-2.5 font-mono text-xs transition-colors",
 										i === activeTab
@@ -383,6 +445,8 @@ function SdkPreview() {
 }
 
 function CtaBanner({ primaryCtaPath }: { primaryCtaPath: string }) {
+	const { capture } = useAnalytics();
+
 	return (
 		<section className="border-t py-20 md:py-28">
 			<div className="mx-auto max-w-7xl px-6">
@@ -393,7 +457,16 @@ function CtaBanner({ primaryCtaPath }: { primaryCtaPath: string }) {
 					<p className="max-w-md text-muted-foreground">
 						Free to start. No credit card required.
 					</p>
-					<Link to={primaryCtaPath} className={cn(buttonVariants({ size: "lg" }))}>
+					<Link
+						to={primaryCtaPath}
+						className={cn(buttonVariants({ size: "lg" }))}
+						onClick={() => {
+							capture("cta_clicked", {
+								cta: "get_started",
+								location: "cta_banner",
+							});
+						}}
+					>
 						Get started
 						<IconArrowRight className="size-4" />
 					</Link>

@@ -15,6 +15,7 @@ import { useAuth } from "@clerk/react-router";
 
 import { api } from "@convex/_generated/api";
 import { buttonVariants } from "@/components/ui/button";
+import { useAnalytics } from "@/lib/posthog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Nav, Footer } from "@/pages/home/landing";
 import { cn } from "@/lib/utils";
@@ -150,6 +151,7 @@ function formatStorageBytes(value: number): string {
 
 export function Page() {
   const { isLoaded, isSignedIn, orgSlug } = useAuth();
+  const { capture } = useAnalytics();
   const getPricingCatalog = useAction(api.payments.getPricingCatalogPublic);
   const dashboardPath = orgSlug ? `/o/${orgSlug}/overview` : "/o/select";
   const billingPath = orgSlug ? `/o/${orgSlug}/billing` : "/o/select";
@@ -262,6 +264,10 @@ export function Page() {
                 const next = values[0];
                 if (next === "without_overages" || next === "with_overages") {
                   setOverageMode(next);
+                  capture("pricing_config_changed", {
+                    config: "overage_mode",
+                    value: next,
+                  });
                 }
               }}
               variant="outline"
@@ -278,6 +284,10 @@ export function Page() {
                 const next = values[0];
                 if (next === "monthly" || next === "annually") {
                   setBillingInterval(next);
+                  capture("pricing_config_changed", {
+                    config: "billing_interval",
+                    value: next,
+                  });
                 }
               }}
               variant="outline"
@@ -408,6 +418,16 @@ export function Page() {
                         buttonVariants({ variant: plan.id === "pro" ? "default" : "outline" }),
                         "mt-4",
                       )}
+                      onClick={() => {
+                        capture("pricing_cta_clicked", {
+                          billing_interval: billingInterval,
+                          cta_label: ctaLabel,
+                          destination: ctaPath,
+                          overage_mode: overageMode,
+                          plan_id: plan.id,
+                          signed_in: hasSignedInSession,
+                        });
+                      }}
                     >
                       {ctaLabel}
                       <IconArrowRight data-icon="inline-end" className="size-4" />

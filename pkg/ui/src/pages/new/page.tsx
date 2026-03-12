@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
+import { useAnalytics } from "@/lib/posthog";
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
 import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 
@@ -128,6 +129,7 @@ function isActiveOrganizationMismatchError(error: unknown): boolean {
 
 export function Page() {
   const navigate = useNavigate();
+  const { capture } = useAnalytics();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isLoaded: isAuthLoaded, isSignedIn, orgSlug } = useAuth();
   const { user } = useUser();
@@ -224,6 +226,11 @@ export function Page() {
       return;
     }
 
+    capture("create_kind_switched", {
+      next_kind: nextKind,
+      previous_kind: createKind,
+    });
+
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("type", nextKind);
     setSearchParams(nextParams, { replace: true });
@@ -240,6 +247,13 @@ export function Page() {
     setIsOrganizationSubmitting(true);
     setOrganizationErrorMessage(null);
     setOrganizationPlanSetupPath(null);
+    capture("organization_creation_submitted", {
+      billing_interval:
+        organizationStartingPlan === "free" ? "monthly" : organizationStartingInterval,
+      overage_mode:
+        organizationStartingPlan === "free" ? "without_overages" : organizationStartingOverageMode,
+      starting_plan: organizationStartingPlan,
+    });
     let createdOrgPathForRecovery: string | null = null;
 
     try {
@@ -324,16 +338,30 @@ export function Page() {
         }
 
         if (result.checkoutRequired && result.checkoutUrl) {
+          capture("organization_creation_succeeded", {
+            checkout_required: true,
+            starting_plan: organizationStartingPlan,
+          });
           window.location.assign(result.checkoutUrl);
           return;
         }
 
         setOrganizationName("");
+        capture("organization_creation_succeeded", {
+          checkout_required: false,
+          destination: `${createdOrgPath}/billing`,
+          starting_plan: organizationStartingPlan,
+        });
         void navigate(`${createdOrgPath}/billing`, { replace: true });
         return;
       }
 
       setOrganizationName("");
+      capture("organization_creation_succeeded", {
+        checkout_required: false,
+        destination: createdOrganization.slug ? `/o/${createdOrganization.slug}/overview` : "/o/select",
+        starting_plan: organizationStartingPlan,
+      });
       void navigate(
         createdOrganization.slug ? `/o/${createdOrganization.slug}/overview` : "/o/select",
         { replace: true },
@@ -350,6 +378,9 @@ export function Page() {
               extractRequestId(error),
             );
       setOrganizationErrorMessage(getClerkErrorMessage(error, defaultFallback));
+      capture("organization_creation_failed", {
+        starting_plan: organizationStartingPlan,
+      });
     } finally {
       setIsOrganizationSubmitting(false);
     }
@@ -374,6 +405,9 @@ export function Page() {
 
     setIsProjectSubmitting(true);
     setProjectErrorMessage(null);
+    capture("project_creation_submitted", {
+      organization_slug: orgSlug,
+    });
 
     try {
       const createdProject = await createProject({
@@ -382,9 +416,16 @@ export function Page() {
       });
 
       setProjectName("");
+      capture("project_creation_succeeded", {
+        destination: `/o/${orgSlug}/project/${createdProject.slug}/variables`,
+        organization_slug: orgSlug,
+      });
       void navigate(`/o/${orgSlug}/project/${createdProject.slug}/variables`, { replace: true });
     } catch (error: unknown) {
       setProjectErrorMessage(getProjectErrorMessage(error));
+      capture("project_creation_failed", {
+        organization_slug: orgSlug,
+      });
     } finally {
       setIsProjectSubmitting(false);
     }
@@ -404,15 +445,25 @@ export function Page() {
 
     setIsSwitchingOrganization(true);
     setProjectErrorMessage(null);
+    capture("project_creation_workspace_switch_submitted", {
+      current_org_slug: orgSlug,
+      next_org_slug: nextOrgSlug,
+    });
 
     try {
       await setActive({
         organization: targetMembership.organization.id,
       });
+      capture("project_creation_workspace_switch_succeeded", {
+        next_org_slug: nextOrgSlug,
+      });
     } catch (error: unknown) {
       setProjectErrorMessage(
         getClerkErrorMessage(error, "Unable to switch organization right now."),
       );
+      capture("project_creation_workspace_switch_failed", {
+        next_org_slug: nextOrgSlug,
+      });
     } finally {
       setIsSwitchingOrganization(false);
     }
@@ -509,6 +560,9 @@ export function Page() {
                         disabled={isOrganizationSubmitting}
                         onClick={() => {
                           setOrganizationStartingPlan(planOption.id);
+                          capture("organization_starting_plan_selected", {
+                            starting_plan: planOption.id,
+                          });
                         }}
                       >
                         <p className="text-sm font-medium">
@@ -538,6 +592,10 @@ export function Page() {
                             const next = values[0];
                             if (next === "monthly" || next === "annually") {
                               setOrganizationStartingInterval(next);
+                              capture("organization_plan_config_changed", {
+                                config: "billing_interval",
+                                value: next,
+                              });
                             }
                           }}
                           variant="outline"
@@ -563,6 +621,10 @@ export function Page() {
                             const next = values[0];
                             if (next === "without_overages" || next === "with_overages") {
                               setOrganizationStartingOverageMode(next);
+                              capture("organization_plan_config_changed", {
+                                config: "overage_mode",
+                                value: next,
+                              });
                             }
                           }}
                           variant="outline"

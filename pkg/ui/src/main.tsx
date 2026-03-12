@@ -7,6 +7,7 @@ import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { Router } from "@/router";
 import { Debugger } from "@/components/custom/debugger";
 import { Toaster } from "@/components/ui/sonner";
+import { PostHogRootProvider } from "@/lib/posthog";
 
 import "@/main.css";
 import { ConvexReactClient } from "convex/react";
@@ -43,10 +44,12 @@ createRoot(document.getElementById("root")!).render(
         afterSignOutUrl="/auth/sso"
       >
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-          <Debugger />
-          <ThemeWatcher />
-          <Toaster richColors />
-          <Router />
+          <PostHogRootProvider>
+            <Debugger />
+            <ThemeWatcher />
+            <Toaster richColors />
+            <Router />
+          </PostHogRootProvider>
         </ConvexProviderWithClerk>
       </ClerkProvider>
     </BrowserRouter>

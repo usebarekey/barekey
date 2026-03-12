@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useEnsureCurrentUserRecord } from "@/hooks/use-ensure-current-user-record";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
+import { useAnalytics } from "@/lib/posthog";
 import { generateDefaultOrgName, generateDefaultOrgSlugCandidate } from "@/lib/slugs";
 import {
   OrganizationList,
@@ -15,6 +16,7 @@ import { Link, Navigate } from "react-router-dom";
 
 export function Page() {
   const { isLoaded: isAuthLoaded, isSignedIn, orgSlug } = useAuth();
+  const { capture } = useAnalytics();
   const { user } = useUser();
   const {
     isLoaded: isOrgListLoaded,
@@ -42,6 +44,7 @@ export function Page() {
 
     setIsCreatingDefaultOrg(true);
     setCreateError(null);
+    capture("default_org_creation_submitted");
 
     const email = user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null;
     const fullName = user.fullName ?? user.username ?? user.firstName ?? null;
@@ -80,8 +83,10 @@ export function Page() {
       await setActive({
         organization: createdOrganization.id,
       });
+      capture("default_org_creation_succeeded");
     } catch (error: unknown) {
       setCreateError(getClerkErrorMessage(error, "Unable to create default organization."));
+      capture("default_org_creation_failed");
     } finally {
       setIsCreatingDefaultOrg(false);
     }
@@ -168,7 +173,17 @@ export function Page() {
         <div className="text-xs text-muted-foreground">
           Barekey workspaces live under <span className="font-mono">/o/:orgSlug</span>. User
           account pages live under <span className="font-mono">/u/:userSlug</span>.{" "}
-          <Link to="/" className="underline underline-offset-4">
+          <Link
+            to="/"
+            className="underline underline-offset-4"
+            onClick={() => {
+              capture("navigation_clicked", {
+                destination: "/",
+                location: "organization_select_footer",
+                type: "internal_link",
+              });
+            }}
+          >
             Back home
           </Link>
         </div>
