@@ -1,17 +1,15 @@
 import { Autumn } from "@useautumn/convex";
 
 import { components } from "./_generated/api";
+import { runtimeConfig } from "./lib/runtime_config";
 
-function readStringClaim(
-  identity: Record<string, unknown>,
-  claimName: string,
-): string | null {
+function readStringClaim(identity: Record<string, unknown>, claimName: string): string | null {
   const value = identity[claimName];
   return typeof value === "string" ? value : null;
 }
 
 export const autumn = new Autumn(components.autumn, {
-  secretKey: process.env.AUTUMN_SECRET_KEY ?? "",
+  secretKey: runtimeConfig.autumnSecretKey,
   identify: async (ctx: {
     auth: {
       getUserIdentity(): Promise<Record<string, unknown> | null>;

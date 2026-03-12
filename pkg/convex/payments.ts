@@ -12,11 +12,8 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import {
-  assertExpectedOrgSlug,
-  requireActiveOrgIdClaims,
-  requireIdentity,
-} from "./lib/auth";
+import { assertExpectedOrgSlug, requireActiveOrgIdClaims, requireIdentity } from "./lib/auth";
+import { runtimeConfig } from "./lib/runtime_config";
 
 const BillingTier = {
   Free: "free",
@@ -64,7 +61,7 @@ type WorkspacePlanState = {
 
 function createAutumnClient(): Autumn {
   return new Autumn({
-    secretKey: process.env.AUTUMN_SECRET_KEY ?? "",
+    secretKey: runtimeConfig.autumnSecretKey,
   });
 }
 
@@ -73,12 +70,14 @@ function pickCanonicalRow<T extends CanonicalRow>(rows: Array<T>): T | null {
     return null;
   }
 
-  return [...rows].sort((left, right) => {
-    if (left.createdAtMs !== right.createdAtMs) {
-      return left.createdAtMs - right.createdAtMs;
-    }
-    return String(left._id).localeCompare(String(right._id));
-  })[0] ?? null;
+  return (
+    [...rows].sort((left, right) => {
+      if (left.createdAtMs !== right.createdAtMs) {
+        return left.createdAtMs - right.createdAtMs;
+      }
+      return String(left._id).localeCompare(String(right._id));
+    })[0] ?? null
+  );
 }
 
 type DefaultVariant = {
@@ -300,9 +299,7 @@ type BillingStateResponse = {
   variants: Array<BillingVariant>;
 };
 
-function toDisabledFeatureUsage(input: {
-  featureId: string;
-}): FeatureUsage {
+function toDisabledFeatureUsage(input: { featureId: string }): FeatureUsage {
   return {
     featureId: input.featureId,
     allowed: false,
@@ -428,9 +425,7 @@ function isBillingManagerRole(role: string | null): boolean {
   return role === "org:admin" || role === "org:owner";
 }
 
-function readProductCatalog(
-  products: Array<Record<string, unknown>>,
-): Array<{
+function readProductCatalog(products: Array<Record<string, unknown>>): Array<{
   id: string;
   monthlyPriceUsd: number | null;
   includedStaticRequests: number | null;
@@ -513,9 +508,7 @@ function readProductCatalog(
   });
 }
 
-async function resolvePricingVariants(
-  ctx: ActionCtx,
-): Promise<Array<BillingVariant>> {
+async function resolvePricingVariants(ctx: ActionCtx): Promise<Array<BillingVariant>> {
   const autumnProductsResult = await ctx.runAction(api.autumn.listProducts, {});
   const rawProducts =
     autumnProductsResult.error === null &&
@@ -536,17 +529,13 @@ async function resolvePricingVariants(
       interval: fallback.interval,
       overageMode: fallback.overageMode,
       monthlyPriceUsd: configured?.monthlyPriceUsd ?? fallback.monthlyPriceUsd,
-      includedStaticRequests:
-        configured?.includedStaticRequests ?? fallback.includedStaticRequests,
+      includedStaticRequests: configured?.includedStaticRequests ?? fallback.includedStaticRequests,
       includedDynamicRequests:
         configured?.includedDynamicRequests ?? fallback.includedDynamicRequests,
       includedStorageBytes: configured?.includedStorageBytes ?? fallback.includedStorageBytes,
-      staticOveragePer1kUsd:
-        configured?.staticOveragePer1kUsd ?? fallback.staticOveragePer1kUsd,
-      dynamicOveragePer1kUsd:
-        configured?.dynamicOveragePer1kUsd ?? fallback.dynamicOveragePer1kUsd,
-      storageOveragePerGbUsd:
-        configured?.storageOveragePerGbUsd ?? fallback.storageOveragePerGbUsd,
+      staticOveragePer1kUsd: configured?.staticOveragePer1kUsd ?? fallback.staticOveragePer1kUsd,
+      dynamicOveragePer1kUsd: configured?.dynamicOveragePer1kUsd ?? fallback.dynamicOveragePer1kUsd,
+      storageOveragePerGbUsd: configured?.storageOveragePerGbUsd ?? fallback.storageOveragePerGbUsd,
       isConfiguredInAutumn: configured !== undefined,
     };
   });
@@ -717,10 +706,7 @@ function readDefaultVariantByProductId(input: string | null): DefaultVariant | n
   return DEFAULT_VARIANTS.find((variant) => variant.productId === input) ?? null;
 }
 
-async function readFeatureUsage(
-  ctx: ActionCtx,
-  featureId: string,
-): Promise<FeatureUsage> {
+async function readFeatureUsage(ctx: ActionCtx, featureId: string): Promise<FeatureUsage> {
   const result = await ctx.runAction(api.autumn.check, {
     featureId,
   });
@@ -744,17 +730,12 @@ async function readFeatureUsage(
     includedUsage: normalizeFiniteNumber(result.data.included_usage),
     usageLimit: normalizeFiniteNumber(result.data.usage_limit),
     overageAllowed:
-      typeof result.data.overage_allowed === "boolean"
-        ? result.data.overage_allowed
-        : null,
+      typeof result.data.overage_allowed === "boolean" ? result.data.overage_allowed : null,
     nextResetAtMs: normalizeFiniteNumber(result.data.next_reset_at),
   };
 }
 
-async function computeEncryptedBytesForOrg(
-  ctx: MutationCtx,
-  orgId: string,
-): Promise<number> {
+async function computeEncryptedBytesForOrg(ctx: MutationCtx, orgId: string): Promise<number> {
   const projects = await ctx.db
     .query("projects")
     .withIndex("by_org_id", (q) => q.eq("orgId", orgId))
@@ -786,16 +767,13 @@ async function computeEncryptedBytesForOrg(
 async function getCanonicalOrgStorageUsageRow(
   ctx: QueryCtx | MutationCtx,
   orgId: string,
-): Promise<
-  | {
-      _id: Id<"orgStorageUsage">;
-      orgId: string;
-      encryptedBytes: number;
-      createdAtMs: number;
-      updatedAtMs: number;
-    }
-  | null
-> {
+): Promise<{
+  _id: Id<"orgStorageUsage">;
+  orgId: string;
+  encryptedBytes: number;
+  createdAtMs: number;
+  updatedAtMs: number;
+} | null> {
   const rows = await ctx.db
     .query("orgStorageUsage")
     .withIndex("by_org_id", (q) => q.eq("orgId", orgId))
@@ -806,22 +784,19 @@ async function getCanonicalOrgStorageUsageRow(
 async function getCanonicalFreePlanCreditForClerkUserId(
   ctx: Pick<MutationCtx, "db">,
   clerkUserId: string,
-): Promise<
-  | {
-      _id: Id<"userFreePlanCredits">;
-      clerkUserId: string;
-      totalCredits: number;
-      remainingCredits: number;
-      assignedOrgId: string | null;
-      assignedOrgSlug: string | null;
-      consumedAtMs: number | null;
-      revokedAtMs: number | null;
-      revokedReason: string | null;
-      createdAtMs: number;
-      updatedAtMs: number;
-    }
-  | null
-> {
+): Promise<{
+  _id: Id<"userFreePlanCredits">;
+  clerkUserId: string;
+  totalCredits: number;
+  remainingCredits: number;
+  assignedOrgId: string | null;
+  assignedOrgSlug: string | null;
+  consumedAtMs: number | null;
+  revokedAtMs: number | null;
+  revokedReason: string | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+} | null> {
   const rows = await ctx.db
     .query("userFreePlanCredits")
     .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
@@ -1477,10 +1452,7 @@ export const reserveFeatureUnitsForOrgInternal = internalAction({
         orgSlug: args.orgSlug,
       });
     } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        error.message === PLANLESS_WORKSPACE_ERROR_MESSAGE
-      ) {
+      if (error instanceof Error && error.message === PLANLESS_WORKSPACE_ERROR_MESSAGE) {
         return {
           reservedUnits: 0,
           errorCode: "USAGE_LIMIT_EXCEEDED",
@@ -1587,9 +1559,9 @@ export const getWorkspacePlanStatusForCurrentOrg = action({
       orgRole: activeOrg.orgRole,
       canManageBilling: isBillingManagerRole(activeOrg.orgRole),
       currentProductId: isWithoutPlan ? null : currentProductId,
-      currentTier: isWithoutPlan ? null : currentVariant?.tier ?? null,
-      currentInterval: isWithoutPlan ? null : currentVariant?.interval ?? null,
-      currentOverageMode: isWithoutPlan ? null : currentVariant?.overageMode ?? null,
+      currentTier: isWithoutPlan ? null : (currentVariant?.tier ?? null),
+      currentInterval: isWithoutPlan ? null : (currentVariant?.interval ?? null),
+      currentOverageMode: isWithoutPlan ? null : (currentVariant?.overageMode ?? null),
       isPlanless: isWithoutPlan,
       billingUnavailable: false,
     };
@@ -1808,19 +1780,19 @@ export const getBillingStateForCurrentOrg = action({
     );
     const scheduledVariantFromCatalog =
       variants.find((variant) => variant.productId === (scheduledProduct?.id ?? "")) ?? null;
-    const scheduledVariantFromFallback = readCurrentVariantFromProductId(scheduledProduct?.id ?? null);
+    const scheduledVariantFromFallback = readCurrentVariantFromProductId(
+      scheduledProduct?.id ?? null,
+    );
     const scheduledDefaultVariant = readDefaultVariantByProductId(scheduledProduct?.id ?? null);
     const scheduledPlanChange: ScheduledPlanChange | null =
-      scheduledProduct !== undefined &&
-      scheduledVariantFromFallback !== null
+      scheduledProduct !== undefined && scheduledVariantFromFallback !== null
         ? {
             productId: scheduledProduct.id,
             tier: scheduledVariantFromCatalog?.tier ?? scheduledVariantFromFallback.tier,
             interval:
               scheduledVariantFromCatalog?.interval ?? scheduledVariantFromFallback.interval,
             overageMode:
-              scheduledVariantFromCatalog?.overageMode ??
-              scheduledVariantFromFallback.overageMode,
+              scheduledVariantFromCatalog?.overageMode ?? scheduledVariantFromFallback.overageMode,
             monthlyPriceUsd:
               scheduledVariantFromCatalog?.monthlyPriceUsd ??
               scheduledDefaultVariant?.monthlyPriceUsd ??
@@ -1830,8 +1802,7 @@ export const getBillingStateForCurrentOrg = action({
     const currentVariantFromCatalog: BillingVariant | null =
       variants.find((variant) => variant.productId === currentProductId) ?? null;
     const currentVariantFromFallback = readCurrentVariantFromProductId(currentProductId);
-    const currentTier =
-      currentVariantFromCatalog?.tier ?? currentVariantFromFallback?.tier ?? null;
+    const currentTier = currentVariantFromCatalog?.tier ?? currentVariantFromFallback?.tier ?? null;
     const hasAssignedFreePlanCredit =
       currentTier === BillingTier.Free
         ? await hasFreePlanCreditAssignedToOrg(ctx, {
@@ -1839,8 +1810,7 @@ export const getBillingStateForCurrentOrg = action({
           })
         : false;
     const isWithoutPlan =
-      currentProductId === null ||
-      (currentTier === BillingTier.Free && !hasAssignedFreePlanCredit);
+      currentProductId === null || (currentTier === BillingTier.Free && !hasAssignedFreePlanCredit);
     const effectiveStaticUsage = isWithoutPlan
       ? toDisabledFeatureUsage({
           featureId: FeatureId.StaticRequests,
@@ -1863,16 +1833,14 @@ export const getBillingStateForCurrentOrg = action({
       canManageBilling: isBillingManagerRole(activeOrg.orgRole),
       currentProductId: isWithoutPlan ? null : currentProductId,
       currentTier: isWithoutPlan ? null : currentTier,
-      currentInterval:
-        isWithoutPlan
-          ? null
-          : currentVariantFromCatalog?.interval ?? currentVariantFromFallback?.interval ?? null,
-      currentOverageMode:
-        isWithoutPlan
-          ? null
-          : currentVariantFromCatalog?.overageMode ??
-            currentVariantFromFallback?.overageMode ??
-            null,
+      currentInterval: isWithoutPlan
+        ? null
+        : (currentVariantFromCatalog?.interval ?? currentVariantFromFallback?.interval ?? null),
+      currentOverageMode: isWithoutPlan
+        ? null
+        : (currentVariantFromCatalog?.overageMode ??
+          currentVariantFromFallback?.overageMode ??
+          null),
       hasScheduledPlanChange,
       scheduledPlanChange,
       usage: {
@@ -1898,11 +1866,7 @@ export const changePlanForCurrentOrg = action({
     attachedProductId: v.string(),
     checkoutRequired: v.boolean(),
     checkoutUrl: v.union(v.string(), v.null()),
-    changeOutcome: v.union(
-      v.literal("applied"),
-      v.literal("scheduled"),
-      v.literal("submitted"),
-    ),
+    changeOutcome: v.union(v.literal("applied"), v.literal("scheduled"), v.literal("submitted")),
     effectiveProductId: v.union(v.string(), v.null()),
   }),
   handler: async (
@@ -2067,8 +2031,7 @@ export const changePlanForCurrentOrg = action({
     if (customerAfterAttachResult.error === null) {
       effectiveProductId = readCurrentProductId(customerAfterAttachResult.data);
       const allProducts = readCustomerProducts(customerAfterAttachResult.data);
-      const targetStatus =
-        allProducts.find((entry) => entry.id === productId)?.status ?? null;
+      const targetStatus = allProducts.find((entry) => entry.id === productId)?.status ?? null;
       if (effectiveProductId === productId) {
         changeOutcome = "applied";
       } else if (targetStatus === "scheduled") {
@@ -2122,11 +2085,7 @@ export const revokeCurrentUserFreePlanCredit = action({
   },
   returns: v.object({
     revoked: v.boolean(),
-    reason: v.union(
-      v.literal("revoked"),
-      v.literal("already_available"),
-      v.literal("mismatch"),
-    ),
+    reason: v.union(v.literal("revoked"), v.literal("already_available"), v.literal("mismatch")),
     previousAssignedOrgId: v.union(v.string(), v.null()),
     previousAssignedOrgSlug: v.union(v.string(), v.null()),
   }),
@@ -2174,14 +2133,11 @@ export const revokeCurrentUserFreePlanCredit = action({
       revoked: boolean;
       reason: "revoked" | "already_available" | "not_assigned_to_org";
       credit: FreePlanCreditState;
-    } = await ctx.runMutation(
-      internal.payments.revokeFreePlanCreditForCurrentOrgInternal,
-      {
-        clerkUserId: identity.subject,
-        orgId: previousAssignedOrgId,
-        reason: args.reason ?? "manual_revoke",
-      },
-    );
+    } = await ctx.runMutation(internal.payments.revokeFreePlanCreditForCurrentOrgInternal, {
+      clerkUserId: identity.subject,
+      orgId: previousAssignedOrgId,
+      reason: args.reason ?? "manual_revoke",
+    });
 
     return {
       revoked: revokeResult.revoked,

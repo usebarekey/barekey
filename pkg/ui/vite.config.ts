@@ -8,8 +8,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(() => {
   return {
-    // Load .env files from the monorepo root so all packages share one source.
-    envDir: path.resolve(__dirname, "../.."),
     build: {
       outDir: path.resolve(__dirname, "../../dist/ui"),
     },

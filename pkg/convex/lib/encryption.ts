@@ -1,5 +1,6 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { runtimeConfig } from "./runtime_config";
 
 const AES_GCM_ALGORITHM = "AES-GCM";
 const DEK_BYTES_LENGTH = 32;
@@ -50,12 +51,7 @@ function randomBytes(length: number): Uint8Array {
 }
 
 function getMasterKeyBytes(): Uint8Array {
-  const masterKeyBase64 = process.env[MASTER_KEY_ENV_NAME];
-  if (!masterKeyBase64) {
-    throw new Error(`Missing ${MASTER_KEY_ENV_NAME}.`);
-  }
-
-  const bytes = base64ToBytes(masterKeyBase64);
+  const bytes = base64ToBytes(runtimeConfig.barekeyMasterKeyBase64);
   if (bytes.length !== DEK_BYTES_LENGTH) {
     throw new Error(`${MASTER_KEY_ENV_NAME} must decode to exactly 32 bytes.`);
   }
@@ -115,12 +111,14 @@ function pickCanonicalProjectKeyRow(rows: Array<ProjectKeyRow>): ProjectKeyRow |
     return null;
   }
 
-  return [...rows].sort((left, right) => {
-    if (left.createdAtMs !== right.createdAtMs) {
-      return left.createdAtMs - right.createdAtMs;
-    }
-    return String(left._id).localeCompare(String(right._id));
-  })[0] ?? null;
+  return (
+    [...rows].sort((left, right) => {
+      if (left.createdAtMs !== right.createdAtMs) {
+        return left.createdAtMs - right.createdAtMs;
+      }
+      return String(left._id).localeCompare(String(right._id));
+    })[0] ?? null
+  );
 }
 
 async function listProjectKeyRows(
@@ -220,9 +218,10 @@ export async function decryptSecretValueForProject(
   }
 
   const canonical = pickCanonicalProjectKeyRow(keyRows);
-  const orderedRows = canonical === null
-    ? keyRows
-    : [canonical, ...keyRows.filter((row) => row._id !== canonical._id)];
+  const orderedRows =
+    canonical === null
+      ? keyRows
+      : [canonical, ...keyRows.filter((row) => row._id !== canonical._id)];
 
   let lastError: unknown = null;
   for (const row of orderedRows) {

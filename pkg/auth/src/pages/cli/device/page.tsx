@@ -9,12 +9,16 @@ import barekeyDarkPng from "@/assets/barekey-dark.png";
 import barekeyLightPng from "@/assets/barekey-light.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { runtimeConfig } from "@/lib/runtime-config";
 
 const DEFAULT_BAREKEY_API_URL = "https://api.barekey.dev";
 const USER_CODE_LENGTH = 8;
 
 function normalizeUserCode(value: string): string {
-  return value.replace(/[^a-zA-Z0-9]/g, "").slice(0, USER_CODE_LENGTH).toUpperCase();
+  return value
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, USER_CODE_LENGTH)
+    .toUpperCase();
 }
 
 function normalizeClientName(value: string | null): string | null {
@@ -76,11 +80,7 @@ function toUiErrorMessage(error: unknown): string {
   return message.length > 0 ? message : fallback;
 }
 
-function DetailRow(props: {
-  icon: typeof IconUser;
-  label: string;
-  value: string;
-}) {
+function DetailRow(props: { icon: typeof IconUser; label: string; value: string }) {
   const Icon = props.icon;
 
   return (
@@ -166,7 +166,7 @@ export function Page() {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_BAREKEY_API_URL ?? DEFAULT_BAREKEY_API_URL}/v1/cli/device/complete`,
+        `${runtimeConfig.barekeyApiUrl ?? DEFAULT_BAREKEY_API_URL}/v1/cli/device/complete`,
         {
           method: "POST",
           headers: {
@@ -250,7 +250,11 @@ export function Page() {
                           }}
                           disabled={isSubmitting || !isValidCode || !isReady}
                         >
-                          {isSubmitting ? "Authorizing..." : isReady ? "Approve sign-in" : "Preparing..."}
+                          {isSubmitting
+                            ? "Authorizing..."
+                            : isReady
+                              ? "Approve sign-in"
+                              : "Preparing..."}
                         </Button>
                       </SignedIn>
                     </div>

@@ -4,6 +4,7 @@ import { createClerkClient } from "@clerk/backend";
 import { v } from "convex/values";
 
 import { internalAction } from "./_generated/server";
+import { runtimeConfig } from "./lib/runtime_config";
 
 const clerkOrgAccessValidator = v.object({
   orgId: v.string(),
@@ -45,13 +46,8 @@ export const resolveOrganizationAccessForCliUserInternal = internalAction({
   },
   returns: v.union(clerkOrgAccessValidator, v.null()),
   handler: async (_, args) => {
-    const clerkSecretKey = process.env.CLERK_SECRET_KEY;
-    if (!clerkSecretKey) {
-      throw new Error("Missing CLERK_SECRET_KEY for CLI organization resolution.");
-    }
-
     const clerk = createClerkClient({
-      secretKey: clerkSecretKey,
+      secretKey: runtimeConfig.clerkSecretKey,
     });
 
     let organization: { id: string; slug: string } | null = null;

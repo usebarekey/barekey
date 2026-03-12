@@ -1,15 +1,19 @@
 {
   "private": true,
+  "license": "BSD-3-Clause",
   "workspaces": [
     "pkg/*"
   ],
   "scripts": {
-    "convex:dev": "bunx convex dev",
+    "bootstrap:seed-prod": "bun scripts/bootstrap.ts seed-prod",
+    "bootstrap:sync": "bun scripts/bootstrap.ts sync all",
+    "convex:dev": "bun scripts/bootstrap.ts sync convex && bunx convex dev",
+    "convex:deploy": "bun scripts/bootstrap.ts sync convex && bunx convex deploy",
     "auth:dev": "cd pkg/auth && bun run dev",
     "auth:build": "cd pkg/auth && bun run build",
     "auth:deploy": "cd pkg/auth && bun run cf:deploy",
-    "api-proxy:dev": "cd pkg/api-proxy && wrangler dev",
-    "api-proxy:deploy": "cd pkg/api-proxy && wrangler deploy",
+    "api-proxy:dev": "bun scripts/bootstrap.ts sync api-proxy && cd pkg/api-proxy && wrangler dev",
+    "api-proxy:deploy": "bun scripts/bootstrap.ts sync api-proxy && cd pkg/api-proxy && wrangler deploy",
     "ui:dev": "cd pkg/ui && bun run dev",
     "ui:build": "cd pkg/ui && bun run build",
     "ui:deploy": "cd pkg/ui && bun run cf:deploy",
@@ -19,7 +23,6 @@
     "format": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore .",
     "format:check": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore --check ."
   },
-  "packageManager": "bun@1.2.22",
   "dependencies": {
     "@clerk/backend": "^2.32.1",
     "@noble/hashes": "^2.0.1",
@@ -31,5 +34,5 @@
     "oxfmt": "^0.34.0",
     "oxlint": "^1.49.0"
   },
-  "license": "BSD-3-Clause"
+  "packageManager": "bun@1.2.22"
 }

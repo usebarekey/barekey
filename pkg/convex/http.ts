@@ -5,6 +5,7 @@ import type { Id } from "./_generated/dataModel";
 import { httpAction } from "./_generated/server";
 import { getOrgClaimsFromIdentity } from "./lib/auth";
 import { normalizeDeclaredType } from "./lib/declared_types";
+import { runtimeConfig } from "./lib/runtime_config";
 import {
   isRolloutFunction,
   resolveRolloutChance,
@@ -376,11 +377,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     const kind = typeof entry.kind === "string" ? entry.kind : "";
     const visibilityRaw =
       typeof entry.visibility === "string" ? entry.visibility.trim().toLowerCase() : "private";
-    if (
-      visibilityRaw !== "public" &&
-      visibilityRaw !== "private" &&
-      visibilityRaw.length !== 0
-    ) {
+    if (visibilityRaw !== "public" && visibilityRaw !== "private" && visibilityRaw.length !== 0) {
       return null;
     }
     const visibility: EnvVisibility = visibilityRaw === "public" ? "public" : "private";
@@ -634,11 +631,7 @@ function classifyReserveError(error: unknown): {
   };
 }
 
-function readBillingRequestKey(
-  request: Request,
-  requestId: string,
-  scope: string,
-): string {
+function readBillingRequestKey(request: Request, requestId: string, scope: string): string {
   const headerValue = request.headers.get("x-barekey-request-key")?.trim();
   const suffix = headerValue && headerValue.length > 0 ? headerValue : requestId;
   return `${scope}:${suffix}`;
@@ -655,7 +648,7 @@ function readOptionalString(input: Record<string, unknown>, key: string): string
 
 function getCliUiOrigin(request: Request): string {
   const defaultPublicUiOrigin = "https://barekey.dev";
-  const configured = process.env.BAREKEY_UI_ORIGIN;
+  const configured = runtimeConfig.barekeyUiOrigin;
   if (configured && configured.trim().length > 0) {
     const normalizedConfigured = configured.trim().replace(/\/$/, "");
     try {

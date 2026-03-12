@@ -3,10 +3,11 @@ import { PostHogProvider, usePostHog } from "@posthog/react";
 import posthog from "posthog-js";
 import { type ReactNode, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { runtimeConfig } from "./runtime-config";
 
-const posthogApiKey = import.meta.env.VITE_POSTHOG_KEY;
-const posthogApiHost = import.meta.env.VITE_POSTHOG_HOST ?? "https://a.barekey.dev";
-const posthogUiHost = import.meta.env.VITE_POSTHOG_UI_HOST ?? "https://us.posthog.com";
+const posthogApiKey = runtimeConfig.posthogKey;
+const posthogApiHost = runtimeConfig.posthogHost;
+const posthogUiHost = runtimeConfig.posthogUiHost;
 
 let hasInitializedPostHog = false;
 

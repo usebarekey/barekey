@@ -9,6 +9,7 @@
  */
 
 import type * as autumn from "../autumn.js";
+import type * as bootstrap from "../bootstrap.js";
 import type * as clerk from "../clerk.js";
 import type * as cli_auth from "../cli_auth.js";
 import type * as http from "../http.js";
@@ -16,6 +17,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_declared_types from "../lib/declared_types.js";
 import type * as lib_encryption from "../lib/encryption.js";
 import type * as lib_rollout from "../lib/rollout.js";
+import type * as lib_runtime_config from "../lib/runtime_config.js";
 import type * as lib_visibility from "../lib/visibility.js";
 import type * as orgs from "../orgs.js";
 import type * as payments from "../payments.js";
@@ -34,6 +36,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   autumn: typeof autumn;
+  bootstrap: typeof bootstrap;
   clerk: typeof clerk;
   cli_auth: typeof cli_auth;
   http: typeof http;
@@ -41,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   "lib/declared_types": typeof lib_declared_types;
   "lib/encryption": typeof lib_encryption;
   "lib/rollout": typeof lib_rollout;
+  "lib/runtime_config": typeof lib_runtime_config;
   "lib/visibility": typeof lib_visibility;
   orgs: typeof orgs;
   payments: typeof payments;

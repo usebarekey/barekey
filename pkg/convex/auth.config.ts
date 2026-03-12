@@ -1,15 +1,10 @@
 import type { AuthConfig } from "convex/server";
-
-const clerkIssuerDomain = process.env.CLERK_JWT_ISSUER_DOMAIN;
-
-if (!clerkIssuerDomain) {
-  throw new Error("Missing CLERK_JWT_ISSUER_DOMAIN for Convex auth config.");
-}
+import { runtimeConfig } from "./lib/runtime_config";
 
 export default {
   providers: [
     {
-      domain: clerkIssuerDomain,
+      domain: runtimeConfig.clerkIssuerDomain,
       applicationID: "convex",
     },
   ],
