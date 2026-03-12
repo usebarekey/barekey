@@ -14,6 +14,8 @@ import {
   validateRolloutMilestones,
 } from "./lib/rollout";
 
+type EnvVisibility = "private" | "public";
+
 type EvaluateSingleRequest = {
   orgSlug?: string;
   projectSlug: string;
@@ -55,12 +57,14 @@ type EnvWriteRequest = {
   entries: Array<
     | {
         name: string;
+        visibility: EnvVisibility;
         kind: "secret";
         declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
         value: string;
       }
     | {
         name: string;
+        visibility: EnvVisibility;
         kind: "ab_roll";
         declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
         valueA: string;
@@ -69,6 +73,7 @@ type EnvWriteRequest = {
       }
     | {
         name: string;
+        visibility: EnvVisibility;
         kind: "rollout";
         declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
         valueA: string;
@@ -86,6 +91,7 @@ type ResolvedVariableRow = {
   orgId: string;
   stageSlug: string;
   name: string;
+  visibility: EnvVisibility;
   kind: "secret" | "ab_roll" | "rollout";
   declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
 };
@@ -368,6 +374,16 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     const entry = rawEntry as Record<string, unknown>;
     const name = typeof entry.name === "string" ? entry.name.trim() : "";
     const kind = typeof entry.kind === "string" ? entry.kind : "";
+    const visibilityRaw =
+      typeof entry.visibility === "string" ? entry.visibility.trim().toLowerCase() : "private";
+    if (
+      visibilityRaw !== "public" &&
+      visibilityRaw !== "private" &&
+      visibilityRaw.length !== 0
+    ) {
+      return null;
+    }
+    const visibility: EnvVisibility = visibilityRaw === "public" ? "public" : "private";
     const declaredTypeRaw = typeof entry.declaredType === "string" ? entry.declaredType : "string";
     if (name.length === 0) {
       return null;
@@ -384,6 +400,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
       }
       entries.push({
         name,
+        visibility,
         kind: "secret",
         declaredType,
         value: entry.value,
@@ -403,6 +420,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
       }
       entries.push({
         name,
+        visibility,
         kind: "ab_roll",
         declaredType,
         valueA: entry.valueA,
@@ -446,6 +464,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
       try {
         entries.push({
           name,
+          visibility,
           kind: "rollout",
           declaredType,
           valueA: entry.valueA,
@@ -757,6 +776,88 @@ async function resolveVariableValue(input: {
       matchedRule,
     },
   };
+}
+
+function buildVariableDefinition(variable: DecryptedVariable):
+  | {
+      name: string;
+      kind: "secret";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      value: string;
+    }
+  | {
+      name: string;
+      kind: "ab_roll";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      valueA: string;
+      valueB: string;
+      chance: number;
+    }
+  | {
+      name: string;
+      kind: "rollout";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      valueA: string;
+      valueB: string;
+      rolloutFunction: RolloutFunction;
+      rolloutMilestones: Array<RolloutMilestone>;
+    } {
+  if (variable.kind === "secret") {
+    return {
+      name: variable.name,
+      kind: "secret",
+      declaredType: variable.declaredType,
+      value: variable.value,
+    };
+  }
+
+  if (variable.kind === "ab_roll") {
+    return {
+      name: variable.name,
+      kind: "ab_roll",
+      declaredType: variable.declaredType,
+      valueA: variable.valueA,
+      valueB: variable.valueB,
+      chance: variable.chance,
+    };
+  }
+
+  return {
+    name: variable.name,
+    kind: "rollout",
+    declaredType: variable.declaredType,
+    valueA: variable.valueA,
+    valueB: variable.valueB,
+    rolloutFunction: variable.rolloutFunction,
+    rolloutMilestones: variable.rolloutMilestones,
+  };
+}
+
+async function resolveDefinitionsForRows(
+  ctx: {
+    runMutation(functionReference: unknown, args: Record<string, unknown>): Promise<unknown>;
+  },
+  input: {
+    orgId: string;
+    projectSlug: string;
+    stageSlug: string;
+    rows: Array<ResolvedVariableRow>;
+  },
+): Promise<Array<ReturnType<typeof buildVariableDefinition>>> {
+  const definitions: Array<ReturnType<typeof buildVariableDefinition>> = [];
+  for (const row of input.rows) {
+    const decrypted = (await ctx.runMutation(
+      internal.project_variables.decryptValueForOrgProjectStageInternal,
+      {
+        orgId: input.orgId,
+        projectSlug: input.projectSlug,
+        stageSlug: input.stageSlug,
+        variableId: row.id,
+      },
+    )) as DecryptedVariable;
+    definitions.push(buildVariableDefinition(decrypted));
+  }
+  return definitions;
 }
 
 const evaluateOne = httpAction(async (ctx, request) => {
@@ -1105,6 +1206,7 @@ const envList = httpAction(async (ctx, request) => {
 
   const variables: Array<{
     name: string;
+    visibility: EnvVisibility;
     kind: "secret" | "ab_roll" | "rollout";
     declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
     createdAtMs: number;
@@ -1124,6 +1226,7 @@ const envList = httpAction(async (ctx, request) => {
   return buildJsonResponse(200, {
     variables: variables.map((row) => ({
       name: row.name,
+      visibility: row.visibility,
       kind: row.kind,
       declaredType: row.declaredType,
       createdAtMs: row.createdAtMs,
@@ -1447,75 +1550,12 @@ const envDefinitions = httpAction(async (ctx, request) => {
   }
 
   try {
-    const definitions: Array<
-      | {
-          name: string;
-          kind: "secret";
-          declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
-          value: string;
-        }
-      | {
-          name: string;
-          kind: "ab_roll";
-          declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
-          valueA: string;
-          valueB: string;
-          chance: number;
-        }
-      | {
-          name: string;
-          kind: "rollout";
-          declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
-          valueA: string;
-          valueB: string;
-          rolloutFunction: RolloutFunction;
-          rolloutMilestones: Array<RolloutMilestone>;
-        }
-    > = [];
-
-    for (const row of rows) {
-      const decrypted = (await ctx.runMutation(
-        internal.project_variables.decryptValueForOrgProjectStageInternal,
-        {
-          orgId: authContext.orgId,
-          projectSlug: parsed.projectSlug,
-          stageSlug: parsed.stageSlug,
-          variableId: row.id,
-        },
-      )) as DecryptedVariable;
-
-      if (decrypted.kind === "secret") {
-        definitions.push({
-          name: decrypted.name,
-          kind: "secret",
-          declaredType: decrypted.declaredType,
-          value: decrypted.value,
-        });
-        continue;
-      }
-
-      if (decrypted.kind === "ab_roll") {
-        definitions.push({
-          name: decrypted.name,
-          kind: "ab_roll",
-          declaredType: decrypted.declaredType,
-          valueA: decrypted.valueA,
-          valueB: decrypted.valueB,
-          chance: decrypted.chance,
-        });
-        continue;
-      }
-
-      definitions.push({
-        name: decrypted.name,
-        kind: "rollout",
-        declaredType: decrypted.declaredType,
-        valueA: decrypted.valueA,
-        valueB: decrypted.valueB,
-        rolloutFunction: decrypted.rolloutFunction,
-        rolloutMilestones: decrypted.rolloutMilestones,
-      });
-    }
+    const definitions = await resolveDefinitionsForRows(ctx, {
+      orgId: authContext.orgId,
+      projectSlug: parsed.projectSlug,
+      stageSlug: parsed.stageSlug,
+      rows,
+    });
 
     const billingLogResult = await ctx.runMutation(internal.payments.logBillingRequestInternal, {
       orgId: authContext.orgId,
@@ -1558,6 +1598,156 @@ const envDefinitions = httpAction(async (ctx, request) => {
       status: 500,
       code: "EVALUATION_FAILED",
       message: "Failed to resolve variable definitions.",
+      requestId,
+    });
+  }
+});
+
+const publicEnvDefinitions = httpAction(async (ctx, request) => {
+  const requestId = readRequestId(request);
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_JSON",
+      message: "Request body must be valid JSON.",
+      requestId,
+    });
+  }
+
+  const parsed = parseDefinitionsRequest(payload);
+  if (parsed === null || !parsed.orgSlug) {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_REQUEST",
+      message: "orgSlug, projectSlug, and stageSlug are required.",
+      requestId,
+    });
+  }
+
+  const resolved = await ctx.runQuery(
+    internal.project_variables.resolvePublicVariableRowsForOrgProjectStageInternal,
+    {
+      orgSlug: parsed.orgSlug,
+      projectSlug: parsed.projectSlug,
+      stageSlug: parsed.stageSlug,
+      ...(parsed.names === undefined ? {} : { names: parsed.names }),
+    },
+  );
+  if (resolved === null) {
+    return errorResponse({
+      status: 404,
+      code: "ENVIRONMENT_NOT_FOUND",
+      message: "Project or environment was not found.",
+      requestId,
+    });
+  }
+
+  if (parsed.names !== undefined && resolved.rows.length !== parsed.names.length) {
+    const returnedNames = new Set(resolved.rows.map((row) => row.name));
+    const missingName = parsed.names.find((name) => !returnedNames.has(name)) ?? parsed.names[0];
+    return errorResponse({
+      status: 404,
+      code: "VARIABLE_NOT_FOUND",
+      message: `Variable ${missingName ?? "unknown"} was not found in this stage.`,
+      requestId,
+    });
+  }
+
+  const units = parsed.names?.length ?? resolved.rows.length;
+  let reservedUnits = 0;
+  try {
+    if (units > 0) {
+      const reservation = await ctx.runAction(internal.payments.reserveFeatureUnitsForOrgInternal, {
+        orgId: resolved.orgId,
+        orgSlug: parsed.orgSlug,
+        featureId: "static_requests",
+        units,
+        reason: "http_public_env_definitions",
+      });
+      if (reservation.errorCode === "USAGE_LIMIT_EXCEEDED") {
+        return errorResponse({
+          status: 402,
+          code: "USAGE_LIMIT_EXCEEDED",
+          message: "Usage limit exceeded for this workspace plan.",
+          requestId,
+        });
+      }
+      if (reservation.errorCode === "BILLING_UNAVAILABLE") {
+        return errorResponse({
+          status: 503,
+          code: "BILLING_UNAVAILABLE",
+          message: "Billing service is temporarily unavailable.",
+          requestId,
+        });
+      }
+      reservedUnits = reservation.reservedUnits;
+    }
+  } catch (error: unknown) {
+    const classified = classifyReserveError(error);
+    return errorResponse({
+      status: classified.status,
+      code: classified.code,
+      message: classified.message,
+      requestId,
+    });
+  }
+
+  try {
+    const definitions = await resolveDefinitionsForRows(ctx, {
+      orgId: resolved.orgId,
+      projectSlug: parsed.projectSlug,
+      stageSlug: parsed.stageSlug,
+      rows: resolved.rows,
+    });
+
+    if (units > 0) {
+      const billingLogResult = await ctx.runMutation(internal.payments.logBillingRequestInternal, {
+        orgId: resolved.orgId,
+        requestKey: readBillingRequestKey(request, requestId, "public_env_definitions"),
+        featureId: "static_requests",
+        units,
+      });
+      if (!billingLogResult.inserted && reservedUnits > 0) {
+        const unitsToCompensate = reservedUnits;
+        reservedUnits = 0;
+        await ctx.runAction(internal.payments.compensateFeatureUnitsForOrgInternal, {
+          orgId: resolved.orgId,
+          orgSlug: parsed.orgSlug,
+          featureId: "static_requests",
+          units: unitsToCompensate,
+          reason: "http_public_env_definitions_duplicate_request",
+        });
+      }
+    }
+
+    return buildJsonResponse(200, {
+      definitions,
+      requestId,
+    });
+  } catch (error: unknown) {
+    if (reservedUnits > 0) {
+      try {
+        const unitsToCompensate = reservedUnits;
+        reservedUnits = 0;
+        await ctx.runAction(internal.payments.compensateFeatureUnitsForOrgInternal, {
+          orgId: resolved.orgId,
+          orgSlug: parsed.orgSlug,
+          featureId: "static_requests",
+          units: unitsToCompensate,
+          reason: "http_public_env_definitions_rollback",
+        });
+      } catch (rollbackError: unknown) {
+        console.error("HTTP public definitions rollback failed.", rollbackError);
+      }
+    }
+    console.error("HTTP public definitions failed.", error);
+    return errorResponse({
+      status: 500,
+      code: "EVALUATION_FAILED",
+      message: "Failed to resolve public variable definitions.",
       requestId,
     });
   }
@@ -2031,6 +2221,17 @@ http.route({
 });
 http.route({
   path: "/v1/env/definitions",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
+
+http.route({
+  path: "/v1/public/env/definitions",
+  method: "POST",
+  handler: publicEnvDefinitions,
+});
+http.route({
+  path: "/v1/public/env/definitions",
   method: "OPTIONS",
   handler: corsPreflight,
 });

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 import { declaredTypeValidator } from "./lib/declared_types";
 import { rolloutFunctionValidator, rolloutMilestoneValidator } from "./lib/rollout";
+import { variableVisibilityValidator } from "./lib/visibility";
 
 export default defineSchema({
   users: defineTable({
@@ -52,7 +53,8 @@ export default defineSchema({
   })
     .index("by_org_id", ["orgId"])
     .index("by_org_id_and_created_at_ms", ["orgId", "createdAtMs"])
-    .index("by_org_id_and_slug", ["orgId", "slug"]),
+    .index("by_org_id_and_slug", ["orgId", "slug"])
+    .index("by_org_slug_and_slug", ["orgSlug", "slug"]),
   projectStages: defineTable({
     projectId: v.id("projects"),
     orgId: v.string(),
@@ -81,6 +83,7 @@ export default defineSchema({
     orgId: v.string(),
     stageSlug: v.string(),
     name: v.string(),
+    visibility: v.optional(variableVisibilityValidator),
     kind: v.union(v.literal("secret"), v.literal("ab_roll"), v.literal("rollout")),
     declaredType: v.optional(declaredTypeValidator),
     encryptedValue: v.union(v.string(), v.null()),
@@ -95,6 +98,13 @@ export default defineSchema({
   })
     .index("by_project_id_and_stage_slug", ["projectId", "stageSlug"])
     .index("by_project_id_and_stage_slug_and_name", ["projectId", "stageSlug", "name"])
+    .index("by_project_id_and_stage_slug_and_visibility", ["projectId", "stageSlug", "visibility"])
+    .index("by_project_id_and_stage_slug_and_visibility_and_name", [
+      "projectId",
+      "stageSlug",
+      "visibility",
+      "name",
+    ])
     .index("by_org_id_and_project_id", ["orgId", "projectId"]),
   orgStorageUsage: defineTable({
     orgId: v.string(),

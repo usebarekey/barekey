@@ -16,6 +16,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_declared_types from "../lib/declared_types.js";
 import type * as lib_encryption from "../lib/encryption.js";
 import type * as lib_rollout from "../lib/rollout.js";
+import type * as lib_visibility from "../lib/visibility.js";
 import type * as orgs from "../orgs.js";
 import type * as payments from "../payments.js";
 import type * as project_stages from "../project_stages.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   "lib/declared_types": typeof lib_declared_types;
   "lib/encryption": typeof lib_encryption;
   "lib/rollout": typeof lib_rollout;
+  "lib/visibility": typeof lib_visibility;
   orgs: typeof orgs;
   payments: typeof payments;
   project_stages: typeof project_stages;

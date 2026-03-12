@@ -8,6 +8,14 @@ It manages encrypted environment variables (secrets) for developer teams.
 **Current state:** Early scaffold — signup, org creation, and project
 creation work. UI and core vault features are being built now.
 
+## Package Manager
+
+- This repo uses Bun.
+- Use `bun install` for dependency changes.
+- Use `bun run <script>` for repo scripts.
+- Use `bun test` for tests.
+- Do not use `npm` or commit `package-lock.json`.
+
 ## Stack
 
 | Layer        | Tool                                     |

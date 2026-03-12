@@ -56,15 +56,18 @@ import { cn } from "@/lib/utils";
 // ─── Types ──────────────────────────────────────────────────────────
 
 type DeclaredVariableType = "string" | "boolean" | "int64" | "float" | "date" | "json";
+type VariableVisibility = "private" | "public";
 
 type SecretDraftValue = {
 	kind: "secret";
+	visibility: VariableVisibility;
 	declaredType: DeclaredVariableType;
 	value: string;
 };
 
 type AbRollDraftValue = {
 	kind: "ab_roll";
+	visibility: VariableVisibility;
 	declaredType: DeclaredVariableType;
 	valueA: string;
 	valueB: string;
@@ -73,6 +76,7 @@ type AbRollDraftValue = {
 
 type RolloutDraftValue = {
 	kind: "rollout";
+	visibility: VariableVisibility;
 	declaredType: DeclaredVariableType;
 	valueA: string;
 	valueB: string;
@@ -118,6 +122,7 @@ type VariableDisplayRow =
 			type: "existing";
 			id: Id<"projectVariables">;
 			name: string;
+			visibility: VariableVisibility;
 			kind: "secret" | "ab_roll" | "rollout";
 			declaredType: DeclaredVariableType;
 			chance: number | null;
@@ -145,6 +150,7 @@ type DialogMode =
 type DialogSecretForm = {
 	name: string;
 	kind: "secret";
+	visibility: VariableVisibility;
 	declaredType: DeclaredVariableType;
 	value: string;
 };
@@ -152,6 +158,7 @@ type DialogSecretForm = {
 type DialogAbRollForm = {
 	name: string;
 	kind: "ab_roll";
+	visibility: VariableVisibility;
 	declaredType: DeclaredVariableType;
 	valueA: string;
 	valueB: string;
@@ -161,6 +168,7 @@ type DialogAbRollForm = {
 type DialogRolloutForm = {
 	name: string;
 	kind: "rollout";
+	visibility: VariableVisibility;
 	declaredType: DeclaredVariableType;
 	valueA: string;
 	valueB: string;
@@ -194,6 +202,11 @@ const VARIABLE_TYPE_LABELS: Record<DeclaredVariableType, string> = {
 	float: "Float",
 	date: "Date",
 	json: "JSON",
+};
+
+const VISIBILITY_LABELS: Record<VariableVisibility, string> = {
+	private: "Private",
+	public: "Public",
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -279,6 +292,7 @@ function createDefaultDialogForm(kind: VariableKind = "secret"): DialogForm {
 		return {
 			name: "",
 			kind: "ab_roll",
+			visibility: "private",
 			declaredType: "string",
 			valueA: "",
 			valueB: "",
@@ -290,6 +304,7 @@ function createDefaultDialogForm(kind: VariableKind = "secret"): DialogForm {
 		return {
 			name: "",
 			kind: "rollout",
+			visibility: "private",
 			declaredType: "string",
 			valueA: "",
 			valueB: "",
@@ -301,6 +316,7 @@ function createDefaultDialogForm(kind: VariableKind = "secret"): DialogForm {
 	return {
 		name: "",
 		kind: "secret",
+		visibility: "private",
 		declaredType: "string",
 		value: "",
 	};
@@ -330,6 +346,7 @@ function convertDialogFormKind(form: DialogForm, nextKind: VariableKind): Dialog
 		return {
 			name: form.name,
 			kind: "secret",
+			visibility: form.visibility,
 			declaredType: form.declaredType,
 			value: form.kind === "secret" ? form.value : form.valueA,
 		};
@@ -340,6 +357,7 @@ function convertDialogFormKind(form: DialogForm, nextKind: VariableKind): Dialog
 			return {
 				name: form.name,
 				kind: "ab_roll",
+				visibility: form.visibility,
 				declaredType: form.declaredType,
 				valueA: form.value,
 				valueB: "",
@@ -351,6 +369,7 @@ function convertDialogFormKind(form: DialogForm, nextKind: VariableKind): Dialog
 			return {
 				name: form.name,
 				kind: "ab_roll",
+				visibility: form.visibility,
 				declaredType: form.declaredType,
 				valueA: form.valueA,
 				valueB: form.valueB,
@@ -365,6 +384,7 @@ function convertDialogFormKind(form: DialogForm, nextKind: VariableKind): Dialog
 		return {
 			name: form.name,
 			kind: "rollout",
+			visibility: form.visibility,
 			declaredType: form.declaredType,
 			valueA: form.value,
 			valueB: "",
@@ -377,6 +397,7 @@ function convertDialogFormKind(form: DialogForm, nextKind: VariableKind): Dialog
 		return {
 			name: form.name,
 			kind: "rollout",
+			visibility: form.visibility,
 			declaredType: form.declaredType,
 			valueA: form.valueA,
 			valueB: form.valueB,
@@ -400,6 +421,7 @@ function toDialogFormFromDraftValue(name: string, value: VariableDraftValue): Di
 		return {
 			name,
 			kind: "secret",
+			visibility: value.visibility,
 			declaredType: value.declaredType,
 			value: value.value,
 		};
@@ -409,6 +431,7 @@ function toDialogFormFromDraftValue(name: string, value: VariableDraftValue): Di
 		return {
 			name,
 			kind: "ab_roll",
+			visibility: value.visibility,
 			declaredType: value.declaredType,
 			valueA: value.valueA,
 			valueB: value.valueB,
@@ -419,6 +442,7 @@ function toDialogFormFromDraftValue(name: string, value: VariableDraftValue): Di
 	return {
 		name,
 		kind: "rollout",
+		visibility: value.visibility,
 		declaredType: value.declaredType,
 		valueA: value.valueA,
 		valueB: value.valueB,
@@ -427,11 +451,16 @@ function toDialogFormFromDraftValue(name: string, value: VariableDraftValue): Di
 	};
 }
 
-function toDialogFormFromRevealedValue(name: string, value: RevealedVariableValue): DialogForm {
+function toDialogFormFromRevealedValue(
+	name: string,
+	value: RevealedVariableValue,
+	visibility: VariableVisibility,
+): DialogForm {
 	if (value.kind === "secret") {
 		return {
 			name,
 			kind: "secret",
+			visibility,
 			declaredType: value.declaredType,
 			value: value.value,
 		};
@@ -441,6 +470,7 @@ function toDialogFormFromRevealedValue(name: string, value: RevealedVariableValu
 		return {
 			name,
 			kind: "ab_roll",
+			visibility,
 			declaredType: value.declaredType,
 			valueA: value.valueA,
 			valueB: value.valueB,
@@ -451,6 +481,7 @@ function toDialogFormFromRevealedValue(name: string, value: RevealedVariableValu
 	return {
 		name,
 		kind: "rollout",
+		visibility,
 		declaredType: value.declaredType,
 		valueA: value.valueA,
 		valueB: value.valueB,
@@ -464,6 +495,7 @@ function createLoadingDialogForm(row: Extract<VariableDisplayRow, { type: "exist
 		return {
 			name: row.name,
 			kind: "secret",
+			visibility: row.visibility,
 			declaredType: row.declaredType,
 			value: "",
 		};
@@ -473,6 +505,7 @@ function createLoadingDialogForm(row: Extract<VariableDisplayRow, { type: "exist
 		return {
 			name: row.name,
 			kind: "ab_roll",
+			visibility: row.visibility,
 			declaredType: row.declaredType,
 			valueA: "",
 			valueB: "",
@@ -483,6 +516,7 @@ function createLoadingDialogForm(row: Extract<VariableDisplayRow, { type: "exist
 	return {
 		name: row.name,
 		kind: "rollout",
+		visibility: row.visibility,
 		declaredType: row.declaredType,
 		valueA: "",
 		valueB: "",
@@ -568,7 +602,7 @@ function VariableEditorDialog({
 						</div>
 
 						{/* Kind + Type row */}
-						<div className="grid grid-cols-2 gap-3">
+						<div className="grid grid-cols-3 gap-3">
 							<div className="space-y-1.5">
 								<Label>Kind</Label>
 								<Select
@@ -609,6 +643,26 @@ function VariableEditorDialog({
 												{opt.label}
 											</SelectItem>
 										))}
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="space-y-1.5">
+								<Label>Visibility</Label>
+								<Select
+									value={form.visibility}
+									onValueChange={(v) =>
+										setForm((current) => ({
+											...current,
+											visibility: v as VariableVisibility,
+										}))
+									}
+								>
+									<SelectTrigger className="w-full">
+										<SelectValue displayNameMap={VISIBILITY_LABELS} />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="private">Private</SelectItem>
+										<SelectItem value="public">Public</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
@@ -867,6 +921,7 @@ function VariableRow({
 }) {
 	const name = row.name || "(unnamed)";
 	const kind = row.type === "existing" ? row.kind : row.kind;
+	const visibility = row.visibility;
 	const declaredType = row.type === "existing" ? row.declaredType : row.declaredType;
 	const updatedAtMs = row.type === "existing" ? row.updatedAtMs : null;
 	const chance = row.type === "existing" && row.kind === "ab_roll" ? row.chance : null;
@@ -916,6 +971,8 @@ function VariableRow({
 					{isDeleted && <Badge variant="destructive" className="text-[10px]">deleted</Badge>}
 				</div>
 				<div className="flex items-center gap-2 text-xs text-muted-foreground">
+					<span>{VISIBILITY_LABELS[visibility]}</span>
+					<span>·</span>
 					<span>{KIND_LABELS[kind] ?? kind}</span>
 					<span>·</span>
 					<span>{declaredType}</span>
@@ -1050,6 +1107,7 @@ export function Page() {
 				type: "existing" as const,
 				id: r.id,
 				name: r.name,
+				visibility: r.visibility,
 				kind: r.kind,
 				declaredType: r.declaredType,
 				chance: r.chance,
@@ -1060,14 +1118,15 @@ export function Page() {
 			}));
 		const newRows: Array<VariableDisplayRow> = currentDraft.newRows.map((r) =>
 			r.kind === "secret"
-				? { key: `new-${r.localId}`, type: "new" as const, localId: r.localId, name: r.name, kind: "secret" as const, declaredType: r.declaredType, value: r.value }
+				? { key: `new-${r.localId}`, type: "new" as const, localId: r.localId, name: r.name, visibility: r.visibility, kind: "secret" as const, declaredType: r.declaredType, value: r.value }
 				: r.kind === "ab_roll"
-					? { key: `new-${r.localId}`, type: "new" as const, localId: r.localId, name: r.name, kind: "ab_roll" as const, declaredType: r.declaredType, valueA: r.valueA, valueB: r.valueB, chance: r.chance }
+					? { key: `new-${r.localId}`, type: "new" as const, localId: r.localId, name: r.name, visibility: r.visibility, kind: "ab_roll" as const, declaredType: r.declaredType, valueA: r.valueA, valueB: r.valueB, chance: r.chance }
 					: {
 							key: `new-${r.localId}`,
 							type: "new" as const,
 							localId: r.localId,
 							name: r.name,
+							visibility: r.visibility,
 							kind: "rollout" as const,
 							declaredType: r.declaredType,
 							valueA: r.valueA,
@@ -1147,7 +1206,7 @@ export function Page() {
 				return current;
 			});
 
-			setDialogForm(toDialogFormFromRevealedValue(row.name, decrypted));
+			setDialogForm(toDialogFormFromRevealedValue(row.name, decrypted, row.visibility));
 			setDialogState({ mode: "edit-existing", row, loading: false });
 		} catch (e: unknown) {
 			toast.error(e instanceof Error ? e.message : "Failed to decrypt variable.");
@@ -1173,13 +1232,14 @@ export function Page() {
 			}
 			const localId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 			const newRow: NewVariableDraft = dialogForm.kind === "secret"
-				? { localId, name: trimmedName, isRevealed: true, kind: "secret", declaredType: dialogForm.declaredType, value: dialogForm.value }
+				? { localId, name: trimmedName, isRevealed: true, kind: "secret", visibility: dialogForm.visibility, declaredType: dialogForm.declaredType, value: dialogForm.value }
 				: dialogForm.kind === "ab_roll"
 					? {
 							localId,
 							name: trimmedName,
 							isRevealed: true,
 							kind: "ab_roll",
+							visibility: dialogForm.visibility,
 							declaredType: dialogForm.declaredType,
 							valueA: dialogForm.valueA,
 							valueB: dialogForm.valueB,
@@ -1190,6 +1250,7 @@ export function Page() {
 							name: trimmedName,
 							isRevealed: true,
 							kind: "rollout",
+							visibility: dialogForm.visibility,
 							declaredType: dialogForm.declaredType,
 							valueA: dialogForm.valueA,
 							valueB: dialogForm.valueB,
@@ -1204,11 +1265,12 @@ export function Page() {
 		} else if (dialogState.mode === "edit-existing") {
 			const row = dialogState.row;
 			const draftValue: VariableDraftValue = dialogForm.kind === "secret"
-				? { kind: "secret", declaredType: dialogForm.declaredType, value: dialogForm.value }
+				? { kind: "secret", visibility: dialogForm.visibility, declaredType: dialogForm.declaredType, value: dialogForm.value }
 				: dialogForm.kind === "ab_roll"
-					? { kind: "ab_roll", declaredType: dialogForm.declaredType, valueA: dialogForm.valueA, valueB: dialogForm.valueB, chance: String(dialogForm.chance) }
+					? { kind: "ab_roll", visibility: dialogForm.visibility, declaredType: dialogForm.declaredType, valueA: dialogForm.valueA, valueB: dialogForm.valueB, chance: String(dialogForm.chance) }
 					: {
 							kind: "rollout",
+							visibility: dialogForm.visibility,
 							declaredType: dialogForm.declaredType,
 							valueA: dialogForm.valueA,
 							valueB: dialogForm.valueB,
@@ -1226,13 +1288,14 @@ export function Page() {
 				const idx = current.newRows.findIndex((r) => r.localId === localId);
 				if (idx < 0) return current;
 				current.newRows[idx] = dialogForm.kind === "secret"
-					? { ...current.newRows[idx], name: dialogForm.name.trim(), kind: "secret", declaredType: dialogForm.declaredType, value: dialogForm.value }
+					? { ...current.newRows[idx], name: dialogForm.name.trim(), kind: "secret", visibility: dialogForm.visibility, declaredType: dialogForm.declaredType, value: dialogForm.value }
 					: dialogForm.kind === "ab_roll"
-						? { ...current.newRows[idx], name: dialogForm.name.trim(), kind: "ab_roll", declaredType: dialogForm.declaredType, valueA: dialogForm.valueA, valueB: dialogForm.valueB, chance: String(dialogForm.chance) }
+						? { ...current.newRows[idx], name: dialogForm.name.trim(), kind: "ab_roll", visibility: dialogForm.visibility, declaredType: dialogForm.declaredType, valueA: dialogForm.valueA, valueB: dialogForm.valueB, chance: String(dialogForm.chance) }
 						: {
 								...current.newRows[idx],
 								name: dialogForm.name.trim(),
 								kind: "rollout",
+								visibility: dialogForm.visibility,
 								declaredType: dialogForm.declaredType,
 								valueA: dialogForm.valueA,
 								valueB: dialogForm.valueB,
@@ -1282,7 +1345,12 @@ export function Page() {
 				if (existing) {
 					if (current.deletedIds[existing.id]) delete current.deletedIds[existing.id];
 					if (current.updatedValues[existing.id] !== undefined) overwrittenCount += 1;
-					current.updatedValues[existing.id] = { kind: "secret", declaredType: existing.declaredType, value: entry.value };
+					current.updatedValues[existing.id] = {
+						kind: "secret",
+						visibility: existing.visibility,
+						declaredType: existing.declaredType,
+						value: entry.value,
+					};
 					continue;
 				}
 				const newIdx = current.newRows.findIndex((r) => r.name === entry.name);
@@ -1292,6 +1360,7 @@ export function Page() {
 						name: current.newRows[newIdx].name,
 						isRevealed: current.newRows[newIdx].isRevealed,
 						kind: "secret",
+						visibility: current.newRows[newIdx].visibility,
 						declaredType: current.newRows[newIdx].declaredType,
 						value: entry.value,
 					};
@@ -1303,6 +1372,7 @@ export function Page() {
 					name: entry.name,
 					isRevealed: false,
 					kind: "secret",
+					visibility: "private",
 					declaredType: "string",
 					value: entry.value,
 				});
@@ -1345,24 +1415,25 @@ export function Page() {
 		}
 
 		let creates: Array<
-			| { name: string; kind: "secret"; declaredType: DeclaredVariableType; value: string }
-			| { name: string; kind: "ab_roll"; declaredType: DeclaredVariableType; valueA: string; valueB: string; chance: number }
-			| { name: string; kind: "rollout"; declaredType: DeclaredVariableType; valueA: string; valueB: string; rolloutFunction: RolloutFunction; rolloutMilestones: Array<RolloutMilestone> }
+			| { name: string; visibility: VariableVisibility; kind: "secret"; declaredType: DeclaredVariableType; value: string }
+			| { name: string; visibility: VariableVisibility; kind: "ab_roll"; declaredType: DeclaredVariableType; valueA: string; valueB: string; chance: number }
+			| { name: string; visibility: VariableVisibility; kind: "rollout"; declaredType: DeclaredVariableType; valueA: string; valueB: string; rolloutFunction: RolloutFunction; rolloutMilestones: Array<RolloutMilestone> }
 		> = [];
 		let updates: Array<
-			| { id: Id<"projectVariables">; kind: "secret"; declaredType: DeclaredVariableType; value: string }
-			| { id: Id<"projectVariables">; kind: "ab_roll"; declaredType: DeclaredVariableType; valueA: string; valueB: string; chance: number }
-			| { id: Id<"projectVariables">; kind: "rollout"; declaredType: DeclaredVariableType; valueA: string; valueB: string; rolloutFunction: RolloutFunction; rolloutMilestones: Array<RolloutMilestone> }
+			| { id: Id<"projectVariables">; visibility: VariableVisibility; kind: "secret"; declaredType: DeclaredVariableType; value: string }
+			| { id: Id<"projectVariables">; visibility: VariableVisibility; kind: "ab_roll"; declaredType: DeclaredVariableType; valueA: string; valueB: string; chance: number }
+			| { id: Id<"projectVariables">; visibility: VariableVisibility; kind: "rollout"; declaredType: DeclaredVariableType; valueA: string; valueB: string; rolloutFunction: RolloutFunction; rolloutMilestones: Array<RolloutMilestone> }
 		> = [];
 
 		try {
 			creates = currentDraft.newRows.map((row) => {
 				if (row.kind === "secret") {
-					return { name: row.name.trim(), kind: "secret" as const, declaredType: row.declaredType, value: normalizeDraftValue(row.declaredType, row.value) };
+					return { name: row.name.trim(), visibility: row.visibility, kind: "secret" as const, declaredType: row.declaredType, value: normalizeDraftValue(row.declaredType, row.value) };
 				}
 				if (row.kind === "ab_roll") {
 					return {
 						name: row.name.trim(),
+						visibility: row.visibility,
 						kind: "ab_roll" as const,
 						declaredType: row.declaredType,
 						valueA: normalizeDraftValue(row.declaredType, row.valueA),
@@ -1372,6 +1443,7 @@ export function Page() {
 				}
 				return {
 					name: row.name.trim(),
+					visibility: row.visibility,
 					kind: "rollout" as const,
 					declaredType: row.declaredType,
 					valueA: normalizeDraftValue(row.declaredType, row.valueA),
@@ -1385,11 +1457,12 @@ export function Page() {
 				.map((r) => {
 					const dv = currentDraft.updatedValues[r.id]!;
 					if (dv.kind === "secret") {
-						return { id: r.id, kind: "secret" as const, declaredType: dv.declaredType, value: normalizeDraftValue(dv.declaredType, dv.value) };
+						return { id: r.id, visibility: dv.visibility, kind: "secret" as const, declaredType: dv.declaredType, value: normalizeDraftValue(dv.declaredType, dv.value) };
 					}
 					if (dv.kind === "ab_roll") {
 						return {
 							id: r.id,
+							visibility: dv.visibility,
 							kind: "ab_roll" as const,
 							declaredType: dv.declaredType,
 							valueA: normalizeDraftValue(dv.declaredType, dv.valueA),
@@ -1399,6 +1472,7 @@ export function Page() {
 					}
 					return {
 						id: r.id,
+						visibility: dv.visibility,
 						kind: "rollout" as const,
 						declaredType: dv.declaredType,
 						valueA: normalizeDraftValue(dv.declaredType, dv.valueA),

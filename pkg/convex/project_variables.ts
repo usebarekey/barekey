@@ -31,6 +31,11 @@ import {
   type RolloutMilestone,
   validateRolloutMilestones,
 } from "./lib/rollout";
+import {
+  getVariableVisibility,
+  type VariableVisibility,
+  variableVisibilityValidator,
+} from "./lib/visibility";
 
 function validateVariableName(value: string): string {
   const trimmed = value.trim();
@@ -61,6 +66,7 @@ const secretVariableMetadataValidator = v.object({
   orgId: v.string(),
   stageSlug: v.string(),
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("secret"),
   declaredType: declaredTypeValidator,
   createdAtMs: v.number(),
@@ -76,6 +82,7 @@ const abRollVariableMetadataValidator = v.object({
   orgId: v.string(),
   stageSlug: v.string(),
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("ab_roll"),
   declaredType: declaredTypeValidator,
   createdAtMs: v.number(),
@@ -91,6 +98,7 @@ const rolloutVariableMetadataValidator = v.object({
   orgId: v.string(),
   stageSlug: v.string(),
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("rollout"),
   declaredType: declaredTypeValidator,
   createdAtMs: v.number(),
@@ -108,6 +116,7 @@ const variableMetadataValidator = v.union(
 
 const preparedCreateValidator = v.object({
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("secret"),
   declaredType: declaredTypeValidator,
   encryptedValue: v.string(),
@@ -115,6 +124,7 @@ const preparedCreateValidator = v.object({
 
 const preparedUpdateValidator = v.object({
   id: v.id("projectVariables"),
+  visibility: variableVisibilityValidator,
   kind: v.literal("secret"),
   declaredType: declaredTypeValidator,
   encryptedValue: v.string(),
@@ -122,6 +132,7 @@ const preparedUpdateValidator = v.object({
 
 const preparedWriteCreateSecretValidator = v.object({
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("secret"),
   declaredType: declaredTypeValidator,
   encryptedValue: v.string(),
@@ -134,6 +145,7 @@ const preparedWriteCreateSecretValidator = v.object({
 
 const preparedWriteCreateAbRollValidator = v.object({
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("ab_roll"),
   declaredType: declaredTypeValidator,
   encryptedValue: v.null(),
@@ -146,6 +158,7 @@ const preparedWriteCreateAbRollValidator = v.object({
 
 const preparedWriteCreateRolloutValidator = v.object({
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("rollout"),
   declaredType: declaredTypeValidator,
   encryptedValue: v.null(),
@@ -164,6 +177,7 @@ const preparedWriteCreateValidator = v.union(
 
 const preparedWriteUpdateSecretValidator = v.object({
   id: v.id("projectVariables"),
+  visibility: variableVisibilityValidator,
   kind: v.literal("secret"),
   declaredType: declaredTypeValidator,
   encryptedValue: v.string(),
@@ -176,6 +190,7 @@ const preparedWriteUpdateSecretValidator = v.object({
 
 const preparedWriteUpdateAbRollValidator = v.object({
   id: v.id("projectVariables"),
+  visibility: variableVisibilityValidator,
   kind: v.literal("ab_roll"),
   declaredType: declaredTypeValidator,
   encryptedValue: v.null(),
@@ -188,6 +203,7 @@ const preparedWriteUpdateAbRollValidator = v.object({
 
 const preparedWriteUpdateRolloutValidator = v.object({
   id: v.id("projectVariables"),
+  visibility: variableVisibilityValidator,
   kind: v.literal("rollout"),
   declaredType: declaredTypeValidator,
   encryptedValue: v.null(),
@@ -216,8 +232,9 @@ type PreparedWriteMutationResult = {
   deletedCount: number;
   storageDeltaBytes: number;
   creates: Array<
-    | {
+      | {
         name: string;
+        visibility: VariableVisibility;
         kind: "secret";
         declaredType: DeclaredVariableType;
         encryptedValue: string;
@@ -227,8 +244,9 @@ type PreparedWriteMutationResult = {
         rolloutFunction: null;
         rolloutMilestones: null;
       }
-    | {
+      | {
         name: string;
+        visibility: VariableVisibility;
         kind: "ab_roll";
         declaredType: DeclaredVariableType;
         encryptedValue: null;
@@ -238,8 +256,9 @@ type PreparedWriteMutationResult = {
         rolloutFunction: null;
         rolloutMilestones: null;
       }
-    | {
+      | {
         name: string;
+        visibility: VariableVisibility;
         kind: "rollout";
         declaredType: DeclaredVariableType;
         encryptedValue: null;
@@ -251,8 +270,9 @@ type PreparedWriteMutationResult = {
       }
   >;
   updates: Array<
-    | {
+      | {
         id: Id<"projectVariables">;
+        visibility: VariableVisibility;
         kind: "secret";
         declaredType: DeclaredVariableType;
         encryptedValue: string;
@@ -262,8 +282,9 @@ type PreparedWriteMutationResult = {
         rolloutFunction: null;
         rolloutMilestones: null;
       }
-    | {
+      | {
         id: Id<"projectVariables">;
+        visibility: VariableVisibility;
         kind: "ab_roll";
         declaredType: DeclaredVariableType;
         encryptedValue: null;
@@ -273,8 +294,9 @@ type PreparedWriteMutationResult = {
         rolloutFunction: null;
         rolloutMilestones: null;
       }
-    | {
+      | {
         id: Id<"projectVariables">;
+        visibility: VariableVisibility;
         kind: "rollout";
         declaredType: DeclaredVariableType;
         encryptedValue: null;
@@ -299,12 +321,14 @@ type PreparedDraft = {
   storageDeltaBytes: number;
   creates: Array<{
     name: string;
+    visibility: VariableVisibility;
     kind: "secret";
     declaredType: DeclaredVariableType;
     encryptedValue: string;
   }>;
   updates: Array<{
     id: Id<"projectVariables">;
+    visibility: VariableVisibility;
     kind: "secret";
     declaredType: DeclaredVariableType;
     encryptedValue: string;
@@ -319,6 +343,7 @@ const writeModeValidator = v.union(v.literal("create_only"), v.literal("upsert")
 
 const writeSecretEntryValidator = v.object({
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("secret"),
   declaredType: declaredTypeValidator,
   value: v.string(),
@@ -326,6 +351,7 @@ const writeSecretEntryValidator = v.object({
 
 const writeAbRollEntryValidator = v.object({
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("ab_roll"),
   declaredType: declaredTypeValidator,
   valueA: v.string(),
@@ -335,6 +361,7 @@ const writeAbRollEntryValidator = v.object({
 
 const writeRolloutEntryValidator = v.object({
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.literal("rollout"),
   declaredType: declaredTypeValidator,
   valueA: v.string(),
@@ -351,6 +378,7 @@ const writeEntryValidator = v.union(
 
 const draftUpdateSecretValidator = v.object({
   id: v.id("projectVariables"),
+  visibility: variableVisibilityValidator,
   kind: v.literal("secret"),
   declaredType: declaredTypeValidator,
   value: v.string(),
@@ -358,6 +386,7 @@ const draftUpdateSecretValidator = v.object({
 
 const draftUpdateAbRollValidator = v.object({
   id: v.id("projectVariables"),
+  visibility: variableVisibilityValidator,
   kind: v.literal("ab_roll"),
   declaredType: declaredTypeValidator,
   valueA: v.string(),
@@ -367,6 +396,7 @@ const draftUpdateAbRollValidator = v.object({
 
 const draftUpdateRolloutValidator = v.object({
   id: v.id("projectVariables"),
+  visibility: variableVisibilityValidator,
   kind: v.literal("rollout"),
   declaredType: declaredTypeValidator,
   valueA: v.string(),
@@ -408,6 +438,77 @@ function encryptedPayloadByteLength(input: {
 
 function getRowDeclaredType(input: { declaredType?: string | null }): DeclaredVariableType {
   return fallbackDeclaredType(input.declaredType);
+}
+
+type VariableStorageRow = {
+  _id: Id<"projectVariables">;
+  projectId: Id<"projects">;
+  orgId: string;
+  stageSlug: string;
+  name: string;
+  visibility?: VariableVisibility | null;
+  kind: "secret" | "ab_roll" | "rollout";
+  declaredType?: string | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+  chance?: number | null;
+  rolloutFunction?: RolloutFunction | null;
+  rolloutMilestones?: Array<RolloutMilestone> | null;
+};
+
+function mapVariableMetadataRow(row: VariableStorageRow) {
+  const visibility = getVariableVisibility(row);
+  if (row.kind === "secret") {
+    return {
+      id: row._id,
+      projectId: row.projectId,
+      orgId: row.orgId,
+      stageSlug: row.stageSlug,
+      name: row.name,
+      visibility,
+      kind: "secret" as const,
+      declaredType: getRowDeclaredType(row),
+      createdAtMs: row.createdAtMs,
+      updatedAtMs: row.updatedAtMs,
+      chance: null,
+      rolloutFunction: null,
+      rolloutMilestones: null,
+    };
+  }
+
+  if (row.kind === "ab_roll") {
+    return {
+      id: row._id,
+      projectId: row.projectId,
+      orgId: row.orgId,
+      stageSlug: row.stageSlug,
+      name: row.name,
+      visibility,
+      kind: "ab_roll" as const,
+      declaredType: getRowDeclaredType(row),
+      createdAtMs: row.createdAtMs,
+      updatedAtMs: row.updatedAtMs,
+      chance: validateChance(row.chance ?? 0),
+      rolloutFunction: null,
+      rolloutMilestones: null,
+    };
+  }
+
+  return {
+    id: row._id,
+    projectId: row.projectId,
+    orgId: row.orgId,
+    stageSlug: row.stageSlug,
+    name: row.name,
+    visibility,
+    kind: "rollout" as const,
+    declaredType: getRowDeclaredType(row),
+    createdAtMs: row.createdAtMs,
+    updatedAtMs: row.updatedAtMs,
+    chance: null,
+    rolloutFunction: row.rolloutFunction ?? "linear",
+    rolloutMilestones: validateRolloutMilestones(row.rolloutMilestones ?? []),
+  };
 }
 
 /**
@@ -465,54 +566,7 @@ export const listForCurrentOrgProjectStage = query({
       )
       .collect();
 
-    return rows
-      .map((row) =>
-        row.kind === "secret"
-          ? {
-              id: row._id,
-              projectId: row.projectId,
-              orgId: row.orgId,
-              stageSlug: row.stageSlug,
-              name: row.name,
-              kind: "secret" as const,
-              declaredType: getRowDeclaredType(row),
-              createdAtMs: row.createdAtMs,
-              updatedAtMs: row.updatedAtMs,
-              chance: null,
-              rolloutFunction: null,
-              rolloutMilestones: null,
-            }
-          : row.kind === "ab_roll"
-            ? {
-                id: row._id,
-                projectId: row.projectId,
-                orgId: row.orgId,
-                stageSlug: row.stageSlug,
-                name: row.name,
-                kind: "ab_roll" as const,
-                declaredType: getRowDeclaredType(row),
-                createdAtMs: row.createdAtMs,
-                updatedAtMs: row.updatedAtMs,
-                chance: validateChance(row.chance ?? 0),
-                rolloutFunction: null,
-                rolloutMilestones: null,
-              }
-            : {
-                id: row._id,
-                projectId: row.projectId,
-                orgId: row.orgId,
-                stageSlug: row.stageSlug,
-                name: row.name,
-                kind: "rollout" as const,
-                declaredType: getRowDeclaredType(row),
-                createdAtMs: row.createdAtMs,
-                updatedAtMs: row.updatedAtMs,
-                chance: null,
-                rolloutFunction: row.rolloutFunction ?? "linear",
-                rolloutMilestones: validateRolloutMilestones(row.rolloutMilestones ?? []),
-              },
-      )
-      .sort((left, right) => left.name.localeCompare(right.name));
+    return rows.map(mapVariableMetadataRow).sort((left, right) => left.name.localeCompare(right.name));
   },
 });
 
@@ -522,6 +576,7 @@ const variableResolverRowValidator = v.object({
   orgId: v.string(),
   stageSlug: v.string(),
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: variableKindValidator,
   declaredType: declaredTypeValidator,
 });
@@ -567,6 +622,7 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
         orgId: string;
         stageSlug: string;
         name: string;
+        visibility: VariableVisibility;
         kind: "secret" | "ab_roll" | "rollout";
         declaredType: DeclaredVariableType;
       }
@@ -588,6 +644,7 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
           orgId: row.orgId,
           stageSlug: row.stageSlug,
           name: row.name,
+          visibility: getVariableVisibility(row),
           kind: row.kind,
           declaredType: getRowDeclaredType(row),
         });
@@ -600,6 +657,7 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
       orgId: string;
       stageSlug: string;
       name: string;
+      visibility: VariableVisibility;
       kind: "secret" | "ab_roll" | "rollout";
       declaredType: DeclaredVariableType;
     }> = [];
@@ -610,6 +668,92 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
       }
     }
     return ordered;
+  },
+});
+
+export const resolvePublicVariableRowsForOrgProjectStageInternal = internalQuery({
+  args: {
+    orgSlug: v.string(),
+    projectSlug: v.string(),
+    stageSlug: v.string(),
+    names: v.optional(v.array(v.string())),
+  },
+  returns: v.union(
+    v.object({
+      orgId: v.string(),
+      rows: v.array(variableResolverRowValidator),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_org_slug_and_slug", (q) =>
+        q.eq("orgSlug", args.orgSlug).eq("slug", args.projectSlug),
+      )
+      .unique();
+    if (project === null) {
+      return null;
+    }
+
+    const stage = await ctx.db
+      .query("projectStages")
+      .withIndex("by_project_id_and_slug", (q) =>
+        q.eq("projectId", project._id).eq("slug", args.stageSlug),
+      )
+      .unique();
+    if (stage === null) {
+      return null;
+    }
+
+    const normalizedNames = args.names?.map((name) => validateVariableName(name));
+    const rows =
+      normalizedNames === undefined
+        ? await ctx.db
+            .query("projectVariables")
+            .withIndex("by_project_id_and_stage_slug_and_visibility", (q) =>
+              q
+                .eq("projectId", project._id)
+                .eq("stageSlug", stage.slug)
+                .eq("visibility", "public"),
+            )
+            .collect()
+        : await Promise.all(
+            normalizedNames.map(async (name) => {
+              return await ctx.db
+                .query("projectVariables")
+                .withIndex("by_project_id_and_stage_slug_and_visibility_and_name", (q) =>
+                  q
+                    .eq("projectId", project._id)
+                    .eq("stageSlug", stage.slug)
+                    .eq("visibility", "public")
+                    .eq("name", name),
+                )
+                .unique();
+            }),
+          );
+
+    const resolvedRows = rows
+      .filter((row): row is NonNullable<(typeof rows)[number]> => row !== null)
+      .map((row) => ({
+        id: row._id,
+        projectId: row.projectId,
+        orgId: row.orgId,
+        stageSlug: row.stageSlug,
+        name: row.name,
+        visibility: "public" as const,
+        kind: row.kind,
+        declaredType: getRowDeclaredType(row),
+      }));
+
+    return {
+      orgId: project.orgId,
+      rows: normalizedNames === undefined
+        ? resolvedRows.sort((left, right) => left.name.localeCompare(right.name))
+        : normalizedNames
+            .map((name) => resolvedRows.find((row) => row.name === name) ?? null)
+            .filter((row): row is (typeof resolvedRows)[number] => row !== null),
+    };
   },
 });
 
@@ -651,54 +795,7 @@ export const listVariableMetadataForOrgProjectStageInternal = internalQuery({
       )
       .collect();
 
-    return rows
-      .map((row) =>
-        row.kind === "secret"
-          ? {
-              id: row._id,
-              projectId: row.projectId,
-              orgId: row.orgId,
-              stageSlug: row.stageSlug,
-              name: row.name,
-              kind: "secret" as const,
-              declaredType: getRowDeclaredType(row),
-              createdAtMs: row.createdAtMs,
-              updatedAtMs: row.updatedAtMs,
-              chance: null,
-              rolloutFunction: null,
-              rolloutMilestones: null,
-            }
-          : row.kind === "ab_roll"
-            ? {
-                id: row._id,
-                projectId: row.projectId,
-                orgId: row.orgId,
-                stageSlug: row.stageSlug,
-                name: row.name,
-                kind: "ab_roll" as const,
-                declaredType: getRowDeclaredType(row),
-                createdAtMs: row.createdAtMs,
-                updatedAtMs: row.updatedAtMs,
-                chance: validateChance(row.chance ?? 0),
-                rolloutFunction: null,
-                rolloutMilestones: null,
-              }
-            : {
-                id: row._id,
-                projectId: row.projectId,
-                orgId: row.orgId,
-                stageSlug: row.stageSlug,
-                name: row.name,
-                kind: "rollout" as const,
-                declaredType: getRowDeclaredType(row),
-                createdAtMs: row.createdAtMs,
-                updatedAtMs: row.updatedAtMs,
-                chance: null,
-                rolloutFunction: row.rolloutFunction ?? "linear",
-                rolloutMilestones: validateRolloutMilestones(row.rolloutMilestones ?? []),
-              },
-      )
-      .sort((left, right) => left.name.localeCompare(right.name));
+    return rows.map(mapVariableMetadataRow).sort((left, right) => left.name.localeCompare(right.name));
   },
 });
 
@@ -804,6 +901,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
         if (existing === null) {
           creates.push({
             name,
+            visibility: entry.visibility,
             kind: "secret",
             declaredType,
             encryptedValue,
@@ -825,6 +923,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
         });
         updates.push({
           id: existing._id,
+          visibility: entry.visibility,
           kind: "secret",
           declaredType,
           encryptedValue,
@@ -867,6 +966,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
         if (existing === null) {
           creates.push({
             name,
+            visibility: entry.visibility,
             kind: "ab_roll",
             declaredType,
             encryptedValue: null,
@@ -888,6 +988,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
         });
         updates.push({
           id: existing._id,
+          visibility: entry.visibility,
           kind: "ab_roll",
           declaredType,
           encryptedValue: null,
@@ -907,6 +1008,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
       if (existing === null) {
         creates.push({
           name,
+          visibility: entry.visibility,
           kind: "rollout",
           declaredType,
           encryptedValue: null,
@@ -928,6 +1030,7 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
       });
       updates.push({
         id: existing._id,
+        visibility: entry.visibility,
         kind: "rollout",
         declaredType,
         encryptedValue: null,
@@ -1035,6 +1138,7 @@ export const applyPreparedVariableWritesForOrgProjectStageInternal = internalMut
       }
 
       await ctx.db.patch(update.id, {
+        visibility: update.visibility,
         kind: update.kind,
         declaredType: update.declaredType,
         encryptedValue: update.encryptedValue,
@@ -1057,6 +1161,7 @@ export const applyPreparedVariableWritesForOrgProjectStageInternal = internalMut
         orgId: project.orgId,
         stageSlug: stage.slug,
         name: create.name,
+        visibility: create.visibility,
         kind: create.kind,
         declaredType: create.declaredType,
         encryptedValue: create.encryptedValue,
@@ -1222,6 +1327,7 @@ export const applyDraftForCurrentOrgProjectStage = action({
       | {
           id: Id<"projectVariables">;
           name: string;
+          visibility: VariableVisibility;
           kind: "secret";
           declaredType: DeclaredVariableType;
           chance: null;
@@ -1231,6 +1337,7 @@ export const applyDraftForCurrentOrgProjectStage = action({
       | {
           id: Id<"projectVariables">;
           name: string;
+          visibility: VariableVisibility;
           kind: "ab_roll";
           declaredType: DeclaredVariableType;
           chance: number;
@@ -1240,6 +1347,7 @@ export const applyDraftForCurrentOrgProjectStage = action({
       | {
           id: Id<"projectVariables">;
           name: string;
+          visibility: VariableVisibility;
           kind: "rollout";
           declaredType: DeclaredVariableType;
           chance: null;
@@ -1258,14 +1366,15 @@ export const applyDraftForCurrentOrgProjectStage = action({
 
     const entries = [...args.creates];
     for (const update of args.updates) {
-      const existing = existingById.get(update.id);
-      if (existing === undefined) {
-        throw new Error("Variable update target does not exist.");
-      }
+          const existing = existingById.get(update.id);
+          if (existing === undefined) {
+            throw new Error("Variable update target does not exist.");
+          }
 
       if (update.kind === "secret") {
         entries.push({
           name: existing.name,
+          visibility: update.visibility,
           kind: "secret",
           declaredType: update.declaredType,
           value: update.value,
@@ -1276,6 +1385,7 @@ export const applyDraftForCurrentOrgProjectStage = action({
       if (update.kind === "ab_roll") {
         entries.push({
           name: existing.name,
+          visibility: update.visibility,
           kind: "ab_roll",
           declaredType: update.declaredType,
           valueA: update.valueA,
@@ -1287,6 +1397,7 @@ export const applyDraftForCurrentOrgProjectStage = action({
 
       entries.push({
         name: existing.name,
+        visibility: update.visibility,
         kind: "rollout",
         declaredType: update.declaredType,
         valueA: update.valueA,
@@ -1408,6 +1519,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
 
     const preparedUpdates: Array<{
       id: (typeof args.updates)[number]["id"];
+      visibility: VariableVisibility;
       kind: "secret";
       declaredType: DeclaredVariableType;
       encryptedValue: string;
@@ -1436,6 +1548,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
         });
       preparedUpdates.push({
         id: update.id,
+        visibility: getVariableVisibility(existing),
         kind: update.kind,
         declaredType: "string",
         encryptedValue,
@@ -1444,6 +1557,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
 
     const preparedCreates: Array<{
       name: string;
+      visibility: VariableVisibility;
       kind: "secret";
       declaredType: DeclaredVariableType;
       encryptedValue: string;
@@ -1462,6 +1576,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
       storageDeltaBytes += utf8ByteLength(encryptedValue);
       preparedCreates.push({
         name,
+        visibility: "private",
         kind: create.kind,
         declaredType: "string",
         encryptedValue,
@@ -1555,6 +1670,7 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
       }
 
       await ctx.db.patch(update.id, {
+        visibility: update.visibility,
         kind: update.kind,
         declaredType: update.declaredType,
         encryptedValue: update.encryptedValue,
@@ -1577,6 +1693,7 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
         orgId: project.orgId,
         stageSlug: args.stageSlug,
         name: create.name,
+        visibility: create.visibility,
         kind: create.kind,
         declaredType: create.declaredType,
         encryptedValue: create.encryptedValue,

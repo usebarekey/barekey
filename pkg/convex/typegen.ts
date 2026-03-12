@@ -9,9 +9,11 @@ import {
 } from "./lib/declared_types";
 import { decryptSecretValueForProject } from "./lib/encryption";
 import { rolloutFunctionValidator, rolloutMilestoneValidator } from "./lib/rollout";
+import { getVariableVisibility, variableVisibilityValidator } from "./lib/visibility";
 
 const typegenVariableValidator = v.object({
   name: v.string(),
+  visibility: variableVisibilityValidator,
   kind: v.union(v.literal("secret"), v.literal("ab_roll"), v.literal("rollout")),
   declaredType: v.union(
     v.literal("string"),
@@ -110,6 +112,7 @@ export const buildManifestForOrgProjectStageInternal = internalMutation({
 
           return {
             name: row.name,
+            visibility: getVariableVisibility(row),
             kind: row.kind,
             declaredType,
             required: true,
@@ -162,6 +165,7 @@ export const buildManifestForOrgProjectStageInternal = internalMutation({
 
         return {
           name: row.name,
+          visibility: getVariableVisibility(row),
           kind: row.kind,
           declaredType,
           required: true,
