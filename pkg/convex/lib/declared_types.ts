@@ -264,3 +264,25 @@ export function toTypeScriptTypeForDeclaredType(input: {
   }
   return inferTypeScriptTypeFromNormalizedJson(input.normalizedJsonValue);
 }
+
+export function toExactTypeScriptTypeForNormalizedValue(input: {
+  declaredType: DeclaredVariableType;
+  normalizedValue: string;
+}): string {
+  if (input.declaredType === "string") {
+    return JSON.stringify(input.normalizedValue);
+  }
+  if (input.declaredType === "boolean") {
+    return input.normalizedValue === "true" ? "true" : "false";
+  }
+  if (input.declaredType === "int64") {
+    return `${input.normalizedValue}n`;
+  }
+  if (input.declaredType === "float") {
+    return input.normalizedValue;
+  }
+  if (input.declaredType === "date") {
+    return "BarekeyTemporalInstant";
+  }
+  return inferTypeScriptTypeFromNormalizedJson(input.normalizedValue);
+}

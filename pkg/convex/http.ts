@@ -6,7 +6,10 @@ import { httpAction } from "./_generated/server";
 import { getOrgClaimsFromIdentity } from "./lib/auth";
 import { normalizeDeclaredType } from "./lib/declared_types";
 import {
-  resolveLinearRolloutChance,
+  isRolloutFunction,
+  resolveRolloutChance,
+  type RolloutFunction,
+  type RolloutMatchedRule,
   type RolloutMilestone,
   validateRolloutMilestones,
 } from "./lib/rollout";
@@ -70,7 +73,7 @@ type EnvWriteRequest = {
         declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
         valueA: string;
         valueB: string;
-        rolloutFunction: "linear";
+        rolloutFunction: RolloutFunction;
         rolloutMilestones: Array<RolloutMilestone>;
       }
   >;
@@ -111,7 +114,7 @@ type DecryptedVariable =
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       valueA: string;
       valueB: string;
-      rolloutFunction: "linear";
+      rolloutFunction: RolloutFunction;
       rolloutMilestones: Array<RolloutMilestone>;
     };
 
@@ -412,7 +415,8 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
       if (
         typeof entry.valueA !== "string" ||
         typeof entry.valueB !== "string" ||
-        entry.rolloutFunction !== "linear" ||
+        typeof entry.rolloutFunction !== "string" ||
+        !isRolloutFunction(entry.rolloutFunction) ||
         !Array.isArray(entry.rolloutMilestones)
       ) {
         return null;
@@ -446,7 +450,7 @@ function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
           declaredType,
           valueA: entry.valueA,
           valueB: entry.valueB,
-          rolloutFunction: "linear",
+          rolloutFunction: entry.rolloutFunction,
           rolloutMilestones: validateRolloutMilestones(rolloutMilestones),
         });
       } catch {
@@ -611,6 +615,16 @@ function classifyReserveError(error: unknown): {
   };
 }
 
+function readBillingRequestKey(
+  request: Request,
+  requestId: string,
+  scope: string,
+): string {
+  const headerValue = request.headers.get("x-barekey-request-key")?.trim();
+  const suffix = headerValue && headerValue.length > 0 ? headerValue : requestId;
+  return `${scope}:${suffix}`;
+}
+
 function readOptionalString(input: Record<string, unknown>, key: string): string | null {
   const value = input[key];
   if (typeof value !== "string") {
@@ -621,14 +635,41 @@ function readOptionalString(input: Record<string, unknown>, key: string): string
 }
 
 function getCliUiOrigin(request: Request): string {
+  const defaultPublicUiOrigin = "https://barekey.dev";
   const configured = process.env.BAREKEY_UI_ORIGIN;
   if (configured && configured.trim().length > 0) {
-    return configured.trim().replace(/\/$/, "");
+    const normalizedConfigured = configured.trim().replace(/\/$/, "");
+    try {
+      const configuredUrl = new URL(normalizedConfigured);
+      if (
+        configuredUrl.host.endsWith(".convex.site") ||
+        configuredUrl.host.endsWith(".convex.cloud")
+      ) {
+        return defaultPublicUiOrigin;
+      }
+    } catch {
+      return defaultPublicUiOrigin;
+    }
+    return normalizedConfigured;
+  }
+  const forwardedHost = request.headers.get("x-forwarded-host")?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.trim();
+  if (forwardedHost && forwardedHost.length > 0) {
+    const derivedHost = forwardedHost.replace(/^api\./, "");
+    const protocol =
+      forwardedProto && forwardedProto.length > 0 ? forwardedProto.replace(/:$/, "") : "https";
+    return `${protocol}://${derivedHost}`;
   }
   const requestUrl = new URL(request.url);
   const derivedHost = requestUrl.host.replace(/^api\./, "");
   if (derivedHost !== requestUrl.host) {
     return `${requestUrl.protocol}//${derivedHost}`;
+  }
+  if (
+    requestUrl.host === "chatty-sparrow-921.convex.site" ||
+    requestUrl.host === "chatty-sparrow-921.convex.cloud"
+  ) {
+    return defaultPublicUiOrigin;
   }
   return requestUrl.origin;
 }
@@ -662,7 +703,7 @@ async function resolveVariableValue(input: {
     chance: number;
     seed?: string;
     key?: string;
-    matchedRule: "ab_roll" | "linear_rollout";
+    matchedRule: "ab_roll" | RolloutMatchedRule;
   };
 }> {
   if (input.variable.kind === "secret") {
@@ -698,7 +739,8 @@ async function resolveVariableValue(input: {
     };
   }
 
-  const chance = resolveLinearRolloutChance({
+  const { chance, matchedRule } = resolveRolloutChance({
+    function: input.variable.rolloutFunction,
     milestones: input.variable.rolloutMilestones,
     nowMs: Date.now(),
   });
@@ -712,7 +754,7 @@ async function resolveVariableValue(input: {
       chance,
       seed: seed.length > 0 ? seed : undefined,
       key: key.length > 0 ? key : undefined,
-      matchedRule: "linear_rollout",
+      matchedRule,
     },
   };
 }
@@ -776,7 +818,7 @@ const evaluateOne = httpAction(async (ctx, request) => {
       internal.payments.reserveFeatureUnitsForCurrentOrgInternal,
       {
         expectedOrgSlug: authContext.orgSlug,
-        featureId: "static_requests",
+        featureId: "dynamic_requests",
         units: 1,
         reason: "http_evaluate_single",
       },
@@ -812,15 +854,10 @@ const evaluateOne = httpAction(async (ctx, request) => {
       key: parsed.key,
     });
 
-    const requestKeyHeader = request.headers.get("x-barekey-request-key");
-    const requestKey =
-      requestKeyHeader && requestKeyHeader.trim().length > 0
-        ? requestKeyHeader.trim()
-        : `single-${requestId}`;
     const billingLogResult = await ctx.runMutation(internal.payments.logBillingRequestInternal, {
       orgId: authContext.orgId,
-      requestKey,
-      featureId: "static_requests",
+      requestKey: readBillingRequestKey(request, requestId, "env_evaluate_single"),
+      featureId: "dynamic_requests",
       units: 1,
     });
     if (!billingLogResult.inserted && reservedUnits > 0) {
@@ -828,7 +865,7 @@ const evaluateOne = httpAction(async (ctx, request) => {
       reservedUnits = 0;
       await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
         expectedOrgSlug: authContext.orgSlug,
-        featureId: "static_requests",
+        featureId: "dynamic_requests",
         units: unitsToCompensate,
         reason: "http_evaluate_single_duplicate_request",
       });
@@ -848,7 +885,7 @@ const evaluateOne = httpAction(async (ctx, request) => {
         reservedUnits = 0;
         await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
           expectedOrgSlug: authContext.orgSlug,
-          featureId: "static_requests",
+          featureId: "dynamic_requests",
           units: unitsToCompensate,
           reason: "http_evaluate_single_rollback",
         });
@@ -926,7 +963,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       internal.payments.reserveFeatureUnitsForCurrentOrgInternal,
       {
         expectedOrgSlug: authContext.orgSlug,
-        featureId: "static_requests",
+        featureId: "dynamic_requests",
         units: parsed.names.length,
         reason: "http_evaluate_batch",
       },
@@ -954,7 +991,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
         chance: number;
         seed?: string;
         key?: string;
-        matchedRule: "ab_roll" | "linear_rollout";
+        matchedRule: "ab_roll" | RolloutMatchedRule;
       };
     }> = [];
 
@@ -986,15 +1023,10 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       });
     }
 
-    const requestKeyHeader = request.headers.get("x-barekey-request-key");
-    const requestKey =
-      requestKeyHeader && requestKeyHeader.trim().length > 0
-        ? requestKeyHeader.trim()
-        : `batch-${requestId}`;
     const billingLogResult = await ctx.runMutation(internal.payments.logBillingRequestInternal, {
       orgId: authContext.orgId,
-      requestKey,
-      featureId: "static_requests",
+      requestKey: readBillingRequestKey(request, requestId, "env_evaluate_batch"),
+      featureId: "dynamic_requests",
       units: parsed.names.length,
     });
     if (!billingLogResult.inserted && reservedUnits > 0) {
@@ -1002,7 +1034,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       reservedUnits = 0;
       await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
         expectedOrgSlug: authContext.orgSlug,
-        featureId: "static_requests",
+        featureId: "dynamic_requests",
         units: unitsToCompensate,
         reason: "http_evaluate_batch_duplicate_request",
       });
@@ -1018,7 +1050,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
         reservedUnits = 0;
         await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
           expectedOrgSlug: authContext.orgSlug,
-          featureId: "static_requests",
+          featureId: "dynamic_requests",
           units: unitsToCompensate,
           reason: "http_evaluate_batch_rollback",
         });
@@ -1078,7 +1110,7 @@ const envList = httpAction(async (ctx, request) => {
     createdAtMs: number;
     updatedAtMs: number;
     chance: number | null;
-    rolloutFunction: "linear" | null;
+    rolloutFunction: RolloutFunction | null;
     rolloutMilestones: Array<RolloutMilestone> | null;
   }> = await ctx.runQuery(
     internal.project_variables.listVariableMetadataForOrgProjectStageInternal,
@@ -1223,43 +1255,106 @@ const envPull = httpAction(async (ctx, request) => {
     },
   );
 
-  const values: Array<{
-    name: string;
-    kind: "secret" | "ab_roll" | "rollout";
-    declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
-    value: string;
-    decision?: {
-      bucket: number;
-      chance: number;
-      seed?: string;
-      key?: string;
-      matchedRule: "ab_roll" | "linear_rollout";
-    };
-  }> = [];
-  for (const row of rows) {
-    const decrypted = (await ctx.runMutation(
-      internal.project_variables.decryptValueForOrgProjectStageInternal,
+  let reservedUnits = 0;
+  try {
+    const reservation = await ctx.runAction(
+      internal.payments.reserveFeatureUnitsForCurrentOrgInternal,
       {
-        orgId: authContext.orgId,
-        projectSlug: parsed.projectSlug,
-        stageSlug: parsed.stageSlug,
-        variableId: row.id,
+        expectedOrgSlug: authContext.orgSlug,
+        featureId: "dynamic_requests",
+        units: rows.length,
+        reason: "http_env_pull",
       },
-    )) as DecryptedVariable;
-    const resolved = await resolveVariableValue({
-      variable: decrypted,
-      seed,
-      key,
+    );
+    reservedUnits = reservation.reservedUnits;
+  } catch (error: unknown) {
+    const classified = classifyReserveError(error);
+    return errorResponse({
+      status: classified.status,
+      code: classified.code,
+      message: classified.message,
+      requestId,
     });
-    values.push(resolved);
   }
 
-  const byName = Object.fromEntries(values.map((row) => [row.name, row.value]));
-  return buildJsonResponse(200, {
-    values,
-    byName,
-    requestId,
-  });
+  try {
+    const values: Array<{
+      name: string;
+      kind: "secret" | "ab_roll" | "rollout";
+      declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      value: string;
+      decision?: {
+        bucket: number;
+        chance: number;
+        seed?: string;
+        key?: string;
+        matchedRule: "ab_roll" | RolloutMatchedRule;
+      };
+    }> = [];
+    for (const row of rows) {
+      const decrypted = (await ctx.runMutation(
+        internal.project_variables.decryptValueForOrgProjectStageInternal,
+        {
+          orgId: authContext.orgId,
+          projectSlug: parsed.projectSlug,
+          stageSlug: parsed.stageSlug,
+          variableId: row.id,
+        },
+      )) as DecryptedVariable;
+      const resolved = await resolveVariableValue({
+        variable: decrypted,
+        seed,
+        key,
+      });
+      values.push(resolved);
+    }
+
+    const billingLogResult = await ctx.runMutation(internal.payments.logBillingRequestInternal, {
+      orgId: authContext.orgId,
+      requestKey: readBillingRequestKey(request, requestId, "env_pull"),
+      featureId: "dynamic_requests",
+      units: rows.length,
+    });
+    if (!billingLogResult.inserted && reservedUnits > 0) {
+      const unitsToCompensate = reservedUnits;
+      reservedUnits = 0;
+      await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
+        expectedOrgSlug: authContext.orgSlug,
+        featureId: "dynamic_requests",
+        units: unitsToCompensate,
+        reason: "http_env_pull_duplicate_request",
+      });
+    }
+
+    const byName = Object.fromEntries(values.map((row) => [row.name, row.value]));
+    return buildJsonResponse(200, {
+      values,
+      byName,
+      requestId,
+    });
+  } catch (error: unknown) {
+    if (reservedUnits > 0) {
+      try {
+        const unitsToCompensate = reservedUnits;
+        reservedUnits = 0;
+        await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
+          expectedOrgSlug: authContext.orgSlug,
+          featureId: "dynamic_requests",
+          units: unitsToCompensate,
+          reason: "http_env_pull_rollback",
+        });
+      } catch (rollbackError: unknown) {
+        console.error("HTTP env pull rollback failed.", rollbackError);
+      }
+    }
+    console.error("HTTP env pull failed.", error);
+    return errorResponse({
+      status: 500,
+      code: "EVALUATION_FAILED",
+      message: "Failed to resolve this environment.",
+      requestId,
+    });
+  }
 });
 
 const envDefinitions = httpAction(async (ctx, request) => {
@@ -1328,80 +1423,144 @@ const envDefinitions = httpAction(async (ctx, request) => {
     });
   }
 
-  const definitions: Array<
-    | {
-        name: string;
-        kind: "secret";
-        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
-        value: string;
-      }
-    | {
-        name: string;
-        kind: "ab_roll";
-        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
-        valueA: string;
-        valueB: string;
-        chance: number;
-      }
-    | {
-        name: string;
-        kind: "rollout";
-        declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
-        valueA: string;
-        valueB: string;
-        rolloutFunction: "linear";
-        rolloutMilestones: Array<RolloutMilestone>;
-      }
-  > = [];
-
-  for (const row of rows) {
-    const decrypted = (await ctx.runMutation(
-      internal.project_variables.decryptValueForOrgProjectStageInternal,
+  const units = parsed.names?.length ?? rows.length;
+  let reservedUnits = 0;
+  try {
+    const reservation = await ctx.runAction(
+      internal.payments.reserveFeatureUnitsForCurrentOrgInternal,
       {
-        orgId: authContext.orgId,
-        projectSlug: parsed.projectSlug,
-        stageSlug: parsed.stageSlug,
-        variableId: row.id,
+        expectedOrgSlug: authContext.orgSlug,
+        featureId: "static_requests",
+        units,
+        reason: "http_env_definitions",
       },
-    )) as DecryptedVariable;
-
-    if (decrypted.kind === "secret") {
-      definitions.push({
-        name: decrypted.name,
-        kind: "secret",
-        declaredType: decrypted.declaredType,
-        value: decrypted.value,
-      });
-      continue;
-    }
-
-    if (decrypted.kind === "ab_roll") {
-      definitions.push({
-        name: decrypted.name,
-        kind: "ab_roll",
-        declaredType: decrypted.declaredType,
-        valueA: decrypted.valueA,
-        valueB: decrypted.valueB,
-        chance: decrypted.chance,
-      });
-      continue;
-    }
-
-    definitions.push({
-      name: decrypted.name,
-      kind: "rollout",
-      declaredType: decrypted.declaredType,
-      valueA: decrypted.valueA,
-      valueB: decrypted.valueB,
-      rolloutFunction: decrypted.rolloutFunction,
-      rolloutMilestones: decrypted.rolloutMilestones,
+    );
+    reservedUnits = reservation.reservedUnits;
+  } catch (error: unknown) {
+    const classified = classifyReserveError(error);
+    return errorResponse({
+      status: classified.status,
+      code: classified.code,
+      message: classified.message,
+      requestId,
     });
   }
 
-  return buildJsonResponse(200, {
-    definitions,
-    requestId,
-  });
+  try {
+    const definitions: Array<
+      | {
+          name: string;
+          kind: "secret";
+          declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+          value: string;
+        }
+      | {
+          name: string;
+          kind: "ab_roll";
+          declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+          valueA: string;
+          valueB: string;
+          chance: number;
+        }
+      | {
+          name: string;
+          kind: "rollout";
+          declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+          valueA: string;
+          valueB: string;
+          rolloutFunction: RolloutFunction;
+          rolloutMilestones: Array<RolloutMilestone>;
+        }
+    > = [];
+
+    for (const row of rows) {
+      const decrypted = (await ctx.runMutation(
+        internal.project_variables.decryptValueForOrgProjectStageInternal,
+        {
+          orgId: authContext.orgId,
+          projectSlug: parsed.projectSlug,
+          stageSlug: parsed.stageSlug,
+          variableId: row.id,
+        },
+      )) as DecryptedVariable;
+
+      if (decrypted.kind === "secret") {
+        definitions.push({
+          name: decrypted.name,
+          kind: "secret",
+          declaredType: decrypted.declaredType,
+          value: decrypted.value,
+        });
+        continue;
+      }
+
+      if (decrypted.kind === "ab_roll") {
+        definitions.push({
+          name: decrypted.name,
+          kind: "ab_roll",
+          declaredType: decrypted.declaredType,
+          valueA: decrypted.valueA,
+          valueB: decrypted.valueB,
+          chance: decrypted.chance,
+        });
+        continue;
+      }
+
+      definitions.push({
+        name: decrypted.name,
+        kind: "rollout",
+        declaredType: decrypted.declaredType,
+        valueA: decrypted.valueA,
+        valueB: decrypted.valueB,
+        rolloutFunction: decrypted.rolloutFunction,
+        rolloutMilestones: decrypted.rolloutMilestones,
+      });
+    }
+
+    const billingLogResult = await ctx.runMutation(internal.payments.logBillingRequestInternal, {
+      orgId: authContext.orgId,
+      requestKey: readBillingRequestKey(request, requestId, "env_definitions"),
+      featureId: "static_requests",
+      units,
+    });
+    if (!billingLogResult.inserted && reservedUnits > 0) {
+      const unitsToCompensate = reservedUnits;
+      reservedUnits = 0;
+      await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
+        expectedOrgSlug: authContext.orgSlug,
+        featureId: "static_requests",
+        units: unitsToCompensate,
+        reason: "http_env_definitions_duplicate_request",
+      });
+    }
+
+    return buildJsonResponse(200, {
+      definitions,
+      requestId,
+    });
+  } catch (error: unknown) {
+    if (reservedUnits > 0) {
+      try {
+        const unitsToCompensate = reservedUnits;
+        reservedUnits = 0;
+        await ctx.runAction(internal.payments.compensateFeatureUnitsForCurrentOrgInternal, {
+          expectedOrgSlug: authContext.orgSlug,
+          featureId: "static_requests",
+          units: unitsToCompensate,
+          reason: "http_env_definitions_rollback",
+        });
+      } catch (rollbackError: unknown) {
+        console.error("HTTP definitions rollback failed.", rollbackError);
+      }
+    }
+    console.error("HTTP definitions failed.", error);
+    return errorResponse({
+      status: 500,
+      code: "EVALUATION_FAILED",
+      message: "Failed to resolve variable definitions.",
+      requestId,
+    });
+  }
 });
 
 const cliDeviceStart = httpAction(async (ctx, request) => {
@@ -1789,7 +1948,15 @@ const typegenManifest = httpAction(async (ctx, request) => {
     });
   }
 
-  const manifestVersion = await sha256Base64Url(JSON.stringify(manifest));
+  const manifestVersion = await sha256Base64Url(
+    JSON.stringify({
+      orgId: manifest.orgId,
+      orgSlug: manifest.orgSlug,
+      projectSlug: manifest.projectSlug,
+      stageSlug: manifest.stageSlug,
+      variables: manifest.variables,
+    }),
+  );
 
   return buildJsonResponse(200, {
     ...manifest,

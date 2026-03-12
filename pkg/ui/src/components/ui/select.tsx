@@ -8,6 +8,10 @@ import { IconSelector, IconCheck, IconChevronUp, IconChevronDown } from "@tabler
 
 const Select = SelectPrimitive.Root;
 
+type SelectValueProps = SelectPrimitive.Value.Props & {
+  displayNameMap?: Partial<Record<string, React.ReactNode>>;
+};
+
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
     <SelectPrimitive.Group
@@ -18,13 +22,31 @@ function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   );
 }
 
-function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
+function SelectValue({
+  className,
+  children,
+  displayNameMap,
+  ...props
+}: SelectValueProps) {
+  const resolvedChildren =
+    children ??
+    (displayNameMap
+      ? (value: unknown) => {
+          if (value === null || value === undefined) {
+            return null;
+          }
+          return displayNameMap[String(value)] ?? String(value);
+        }
+      : undefined);
+
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
       className={cn("flex flex-1 text-left", className)}
       {...props}
-    />
+    >
+      {resolvedChildren}
+    </SelectPrimitive.Value>
   );
 }
 
