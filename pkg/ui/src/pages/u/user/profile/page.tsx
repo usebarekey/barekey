@@ -1,16 +1,15 @@
 import { useOrganizationList } from "@clerk/react-router";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import {
   IconBuildingSkyscraper,
-  IconCircleCheckFilled,
-  IconCircleDashed,
   IconPalette,
-  IconSettings,
+  IconTrash,
   IconUserCircle,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "theme-watcher";
 
+import { FloatingDraftToolbar } from "@/components/custom/floating-draft-toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,13 +19,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
-  getCurrentUserAccountRef,
-  getCurrentUserFreePlanCreditRef,
-  getCurrentUserPreferencesRef,
-  upsertCurrentUserPreferencesRef,
-} from "@/lib/convex-refs";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -34,7 +34,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
+import {
+  getCurrentUserAccountRef,
+  getCurrentUserFreePlanCreditRef,
+  getCurrentUserPreferencesRef,
+  revokeCurrentUserFreePlanCreditRef,
+  upsertCurrentUserPreferencesRef,
+} from "@/lib/convex-refs";
 import { LandingPreference, PreferredTheme } from "@/lib/user-preferences";
+
+const THEME_LABELS: Record<string, string> = {
+  [PreferredTheme.System]: "System",
+  [PreferredTheme.Light]: "Light",
+  [PreferredTheme.Dark]: "Dark",
+};
 
 export function Page() {
   const { setTheme } = useTheme();
@@ -42,6 +57,7 @@ export function Page() {
   const currentUser = useQuery(getCurrentUserAccountRef, {});
   const freePlanCredit = useQuery(getCurrentUserFreePlanCreditRef, {});
   const preferences = useQuery(getCurrentUserPreferencesRef, {});
+  const revokeFreePlanCredit = useAction(revokeCurrentUserFreePlanCreditRef);
   const upsertPreferences = useMutation(upsertCurrentUserPreferencesRef);
 
   const [preferredTheme, setPreferredTheme] = useState<string>(
@@ -49,8 +65,12 @@ export function Page() {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [isRevokeDialogOpen, setIsRevokeDialogOpen] = useState(false);
+  const [revokeCountdown, setRevokeCountdown] = useState(5);
+  const [isRevokingCredit, setIsRevokingCredit] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
+  const draftToolbarRef = useRef<HTMLDivElement | null>(null);
 
   const memberships = userMemberships.data ?? [];
   const selectableMemberships = memberships.filter((membership) =>
@@ -66,11 +86,52 @@ export function Page() {
     setPreferredTheme(preferences?.preferredTheme ?? PreferredTheme.System);
   }, [preferences]);
 
+  useEffect(() => {
+    if (!isRevokeDialogOpen) {
+      setRevokeCountdown(5);
+      return;
+    }
+
+    if (revokeCountdown <= 0) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setRevokeCountdown((previous) => Math.max(0, previous - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timeout);
+  }, [isRevokeDialogOpen, revokeCountdown]);
+
   const isPreferencesLoading = preferences === undefined;
   const isDisabled = isSaving || isPreferencesLoading;
   const savedPreferredTheme =
     preferences?.preferredTheme ?? PreferredTheme.System;
   const isDirty = !isPreferencesLoading && savedPreferredTheme !== preferredTheme;
+  const isFreePlanCreditInUse = Boolean(freePlanCredit?.assignedOrgId);
+
+  function shakeDraftToolbar() {
+    draftToolbarRef.current?.animate(
+      [
+        { transform: "translateX(0px)" },
+        { transform: "translateX(-10px)" },
+        { transform: "translateX(10px)" },
+        { transform: "translateX(-8px)" },
+        { transform: "translateX(8px)" },
+        { transform: "translateX(0px)" },
+      ],
+      {
+        duration: 260,
+        iterations: 2,
+        easing: "ease-in-out",
+      },
+    );
+  }
+
+  useUnsavedChangesGuard({
+    hasUnsavedChanges: isDirty,
+    onBlockedAttempt: shakeDraftToolbar,
+  });
 
   const assignedWorkspaceName = (() => {
     if (!freePlanCredit || !freePlanCredit.assignedOrgSlug) {
@@ -82,6 +143,9 @@ export function Page() {
     );
     return matched?.organization.name ?? null;
   })();
+  const assignedWorkspaceLabel = freePlanCredit?.assignedOrgSlug
+    ? assignedWorkspaceName ?? freePlanCredit.assignedOrgSlug
+    : "Not assigned to any workspace";
 
   async function handleSavePreferences() {
     if (isDisabled || !isDirty) {
@@ -99,7 +163,6 @@ export function Page() {
 
     setIsSaving(true);
     setSaveError(null);
-    setSaveSuccess(null);
 
     try {
       await upsertPreferences({
@@ -109,7 +172,6 @@ export function Page() {
           preferences?.landingPreference ?? LandingPreference.AccountOverview,
       });
       setTheme(preferredTheme);
-      setSaveSuccess("Preferences updated.");
     } catch (error: unknown) {
       setSaveError(
         error instanceof Error
@@ -118,6 +180,53 @@ export function Page() {
       );
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  function handleDiscardPreferences() {
+    setPreferredTheme(savedPreferredTheme);
+    setSaveError(null);
+  }
+
+  function handleOpenRevokeDialog() {
+    if (!isFreePlanCreditInUse || isRevokingCredit) {
+      return;
+    }
+
+    setRevokeError(null);
+    setRevokeCountdown(5);
+    setIsRevokeDialogOpen(true);
+  }
+
+  async function handleRevokeFreeCredit() {
+    if (!freePlanCredit || freePlanCredit.assignedOrgId === null || isRevokingCredit) {
+      return;
+    }
+
+    setIsRevokingCredit(true);
+    setRevokeError(null);
+
+    try {
+      const result = await revokeFreePlanCredit({
+        expectedAssignedOrgId: freePlanCredit.assignedOrgId,
+        reason: "manual_revoke",
+      });
+
+      if (result.reason === "mismatch") {
+        setRevokeError("This credit assignment changed. Refresh and try again.");
+        return;
+      }
+
+      setIsRevokeDialogOpen(false);
+      setRevokeCountdown(5);
+    } catch (error: unknown) {
+      setRevokeError(
+        error instanceof Error
+          ? error.message
+          : "Failed to revoke free workspace credit.",
+      );
+    } finally {
+      setIsRevokingCredit(false);
     }
   }
 
@@ -144,15 +253,21 @@ export function Page() {
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-lg border p-3">
+                <div
+                  aria-disabled="true"
+                  className="rounded-lg border border-border/70 bg-muted/20 p-3 shadow-inner"
+                >
                   <p className="text-xs text-muted-foreground">Display name</p>
-                  <p className="mt-1 text-sm font-medium">
+                  <p className="mt-2 text-sm font-medium text-foreground/85">
                     {currentUser?.displayName ?? "Not set"}
                   </p>
                 </div>
-                <div className="rounded-lg border p-3">
+                <div
+                  aria-disabled="true"
+                  className="rounded-lg border border-border/70 bg-muted/20 p-3 shadow-inner"
+                >
                   <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="mt-1 text-sm font-medium">
+                  <p className="mt-2 text-sm font-medium text-foreground/85">
                     {currentUser?.email ?? "Not set"}
                   </p>
                 </div>
@@ -188,17 +303,6 @@ export function Page() {
             ) : (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  {freePlanCredit.remainingCredits > 0 ? (
-                    <Badge variant="outline" className="gap-1.5">
-                      <IconCircleCheckFilled className="size-3.5" />
-                      Available
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="gap-1.5">
-                      <IconCircleDashed className="size-3.5" />
-                      In use
-                    </Badge>
-                  )}
                   <span className="text-sm text-muted-foreground">
                     {freePlanCredit.remainingCredits}/
                     {freePlanCredit.totalCredits} credit remaining
@@ -209,15 +313,31 @@ export function Page() {
                     Assigned workspace
                   </p>
                   <p className="mt-1 text-sm font-medium">
-                    {freePlanCredit.assignedOrgSlug
-                      ? (assignedWorkspaceName ?? "Assigned workspace")
-                      : "Not assigned to any workspace"}
+                    {assignedWorkspaceLabel}
                   </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  A used credit can be revoked later through workspace billing
-                  actions.
-                </p>
+                {isFreePlanCreditInUse ? (
+                  <div className="space-y-3">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      <p className="text-sm font-medium">
+                        Revoking this credit leaves the assigned workspace without a plan.
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        The workspace will be disabled until a paid plan or another free credit is applied.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="destructive"
+                        onClick={handleOpenRevokeDialog}
+                        disabled={isRevokingCredit}
+                      >
+                        <IconTrash className="size-4" />
+                        {isRevokingCredit ? "Revoking..." : "Revoke free credit"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </>
             )}
           </CardContent>
@@ -237,19 +357,22 @@ export function Page() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <div className="max-w-sm space-y-2">
               <label className="text-xs text-muted-foreground">Theme</label>
               <Select
                 value={preferredTheme}
                 onValueChange={(value) => {
                   if (value !== null) {
+                    setSaveError(null);
                     setPreferredTheme(value);
                   }
                 }}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {THEME_LABELS[preferredTheme] ?? preferredTheme}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent align="start">
                   <SelectItem value={PreferredTheme.System}>System</SelectItem>
@@ -258,42 +381,81 @@ export function Page() {
                 </SelectContent>
               </Select>
             </div>
+            {saveError ? (
+              <p className="text-sm text-destructive">{saveError}</p>
+            ) : null}
           </CardContent>
         </Card>
       </section>
 
-      <section id="save-changes" className="scroll-mt-24">
-        <Card>
-          <CardHeader>
-            <CardTitle>Save Changes</CardTitle>
-            <CardDescription>
-              Apply all selected preference changes in one step.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                onClick={handleSavePreferences}
-                disabled={!isDirty || isDisabled}
-              >
-                <IconSettings className="size-4" />
-                {isSaving ? "Saving..." : "Save preferences"}
-              </Button>
-              {isDirty ? (
-                <Badge variant="outline">Unsaved changes</Badge>
-              ) : (
-                <Badge variant="secondary">All changes saved</Badge>
-              )}
-            </div>
-            {saveError ? (
-              <p className="text-sm text-destructive">{saveError}</p>
+      <Dialog
+        open={isRevokeDialogOpen}
+        onOpenChange={(open) => {
+          if (isRevokingCredit) {
+            return;
+          }
+          setIsRevokeDialogOpen(open);
+          if (!open) {
+            setRevokeCountdown(5);
+            setRevokeError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revoke free workspace credit?</DialogTitle>
+            <DialogDescription>
+              This removes your free credit from the assigned workspace.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Are you sure? Revoking this credit will leave{" "}
+              <span className="font-semibold text-foreground">{assignedWorkspaceLabel}</span>{" "}
+              without a plan and disabled.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {revokeCountdown > 0
+                ? `Revoke unlocks in ${revokeCountdown} ${revokeCountdown === 1 ? "second" : "seconds"}.`
+                : "Revoke is unlocked now."}
+            </p>
+            {revokeError ? (
+              <p className="text-sm text-destructive">{revokeError}</p>
             ) : null}
-            {saveSuccess ? (
-              <p className="text-sm text-muted-foreground">{saveSuccess}</p>
-            ) : null}
-          </CardContent>
-        </Card>
-      </section>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRevokeDialogOpen(false)}
+              disabled={isRevokingCredit}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                void handleRevokeFreeCredit();
+              }}
+              disabled={isRevokingCredit || revokeCountdown > 0 || !isFreePlanCreditInUse}
+            >
+              <IconTrash className="size-4" />
+              {isRevokingCredit ? "Revoking..." : "Revoke free credit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <FloatingDraftToolbar
+        isVisible={isDirty}
+        message="You have unsaved preference changes."
+        isSaving={isSaving}
+        saveDisabled={isDisabled}
+        onSave={() => {
+          void handleSavePreferences();
+        }}
+        onDiscard={handleDiscardPreferences}
+        toolbarRef={draftToolbarRef}
+      />
     </div>
   );
 }

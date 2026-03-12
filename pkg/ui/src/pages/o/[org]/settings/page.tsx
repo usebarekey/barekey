@@ -1,6 +1,6 @@
 import { useAction, useQuery } from "convex/react";
 import { IconDoorEnter, IconTrash, IconUsers } from "@tabler/icons-react";
-import { useOrganization } from "@clerk/react-router";
+import { useOrganization, useOrganizationList } from "@clerk/react-router";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import slugify from "slugify";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
+import { revokeCurrentUserFreePlanCreditRef } from "@/lib/convex-refs";
 import { initials } from "@/lib/org-utils";
 import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
@@ -71,6 +72,9 @@ export function Page() {
   const orgClaims = useQuery(api.orgs.getCurrentOrgClaims, {
     expectedOrgSlug: orgSlug,
   });
+  const { setActive, userMemberships } = useOrganizationList({
+    userMemberships: true,
+  });
   const { organization, membership, memberships, invitations } = useOrganization({
     memberships: {
       pageSize: 50,
@@ -82,6 +86,7 @@ export function Page() {
     },
   });
   const assertCanDeleteCurrentOrg = useAction(api.orgs.assertCanDeleteCurrentOrg);
+  const revokeFreePlanCredit = useAction(revokeCurrentUserFreePlanCreditRef);
   const orgDeletionReadiness = useQuery(api.orgs.getCurrentOrgDeletionReadiness, {
     expectedOrgSlug: orgSlug,
   });
@@ -255,10 +260,49 @@ export function Page() {
     setIsDeletingOrganization(true);
     setDeleteOrganizationError(null);
     try {
-      await assertCanDeleteCurrentOrg({
+      const deleteContext = await assertCanDeleteCurrentOrg({
         expectedOrgSlug: orgSlug,
       });
+      const fallbackMembership =
+        (userMemberships.data ?? []).find(
+          (row) => row.organization.id !== deleteContext.orgId,
+        ) ?? null;
       await organization.destroy();
+      try {
+        await revokeFreePlanCredit({
+          expectedAssignedOrgId: deleteContext.orgId,
+          reason: "org_deleted",
+        });
+      } catch {
+        // The profile page now exposes manual recovery if this best-effort cleanup fails.
+      }
+
+      try {
+        if (fallbackMembership?.organization.id && setActive) {
+          await setActive({ organization: fallbackMembership.organization.id });
+          if (fallbackMembership.organization.slug) {
+            void navigate(`/o/${fallbackMembership.organization.slug}/overview`, {
+              replace: true,
+            });
+          } else {
+            void navigate("/o/select", { replace: true });
+          }
+          return;
+        }
+
+        if (setActive) {
+          await setActive({ organization: null });
+        }
+      } catch {
+        if (setActive) {
+          try {
+            await setActive({ organization: null });
+          } catch {
+            // Ignore cleanup fallback errors and continue routing to the selector.
+          }
+        }
+      }
+
       void navigate("/o/select", { replace: true });
     } catch (error: unknown) {
       const requestId = extractRequestId(error);

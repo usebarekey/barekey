@@ -1052,6 +1052,7 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
   handler: async (ctx, args): Promise<FreePlanCreditState> => {
     const now = Date.now();
     let row = await getCanonicalFreePlanCreditForClerkUserId(ctx, args.clerkUserId);
+    let createdCredit = false;
 
     if (row === null) {
       const rowId = await ctx.db.insert("userFreePlanCredits", {
@@ -1079,6 +1080,7 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
         createdAtMs: now,
         updatedAtMs: now,
       };
+      createdCredit = true;
     }
     if (row === null) {
       throw new Error("Unable to create a free organization credit.");
@@ -1088,6 +1090,7 @@ export const ensureFreePlanCreditForClerkUserInternal = internalMutation({
 
     if (
       args.consumeForOrgIfAvailable &&
+      createdCredit &&
       args.orgId !== null &&
       currentRow.assignedOrgId === null &&
       currentRow.remainingCredits > 0
@@ -1986,6 +1989,22 @@ export const changePlanForCurrentOrg = action({
       }
     }
 
+    // If the workspace is already on the Autumn free product, re-activating free
+    // only needs to restore the credit assignment and should not start another attach flow.
+    if (
+      args.tier === BillingTier.Free &&
+      currentProductId === productId &&
+      currentVariant?.tier === BillingTier.Free
+    ) {
+      return {
+        attachedProductId: productId,
+        checkoutRequired: false,
+        checkoutUrl: null,
+        changeOutcome: "applied",
+        effectiveProductId: currentProductId,
+      };
+    }
+
     const shouldForceCheckout =
       args.tier !== BillingTier.Free &&
       (currentVariant === null || currentVariant.tier === BillingTier.Free);
@@ -2013,7 +2032,9 @@ export const changePlanForCurrentOrg = action({
           reason: "attach_failed",
         });
       }
-      throw new Error("Unable to start checkout for this billing change.");
+      const attachFailureMessage =
+        attachResult.error?.message ?? "Unable to start checkout for this billing change.";
+      throw new Error(attachFailureMessage);
     }
 
     if (
@@ -2090,6 +2111,88 @@ export const revokeFreePlanCreditForCurrentOrg = action({
 
     return {
       revoked: revokeResult.revoked,
+    };
+  },
+});
+
+export const revokeCurrentUserFreePlanCredit = action({
+  args: {
+    expectedAssignedOrgId: v.union(v.string(), v.null()),
+    reason: v.union(v.string(), v.null()),
+  },
+  returns: v.object({
+    revoked: v.boolean(),
+    reason: v.union(
+      v.literal("revoked"),
+      v.literal("already_available"),
+      v.literal("mismatch"),
+    ),
+    previousAssignedOrgId: v.union(v.string(), v.null()),
+    previousAssignedOrgSlug: v.union(v.string(), v.null()),
+  }),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    revoked: boolean;
+    reason: "revoked" | "already_available" | "mismatch";
+    previousAssignedOrgId: string | null;
+    previousAssignedOrgSlug: string | null;
+  }> => {
+    const identity = await requireIdentity(ctx);
+    const currentCredit: FreePlanCreditState | null = await ctx.runQuery(
+      internal.payments.getFreePlanCreditForClerkUserIdInternal,
+      {
+        clerkUserId: identity.subject,
+      },
+    );
+    const previousAssignedOrgId = currentCredit?.assignedOrgId ?? null;
+    const previousAssignedOrgSlug = currentCredit?.assignedOrgSlug ?? null;
+
+    if (previousAssignedOrgId === null) {
+      return {
+        revoked: false,
+        reason: "already_available" as const,
+        previousAssignedOrgId,
+        previousAssignedOrgSlug,
+      };
+    }
+
+    if (
+      args.expectedAssignedOrgId !== null &&
+      previousAssignedOrgId !== args.expectedAssignedOrgId
+    ) {
+      return {
+        revoked: false,
+        reason: "mismatch" as const,
+        previousAssignedOrgId,
+        previousAssignedOrgSlug,
+      };
+    }
+
+    const revokeResult: {
+      revoked: boolean;
+      reason: "revoked" | "already_available" | "not_assigned_to_org";
+      credit: FreePlanCreditState;
+    } = await ctx.runMutation(
+      internal.payments.revokeFreePlanCreditForCurrentOrgInternal,
+      {
+        clerkUserId: identity.subject,
+        orgId: previousAssignedOrgId,
+        reason: args.reason ?? "manual_revoke",
+      },
+    );
+
+    return {
+      revoked: revokeResult.revoked,
+      reason:
+        revokeResult.reason === "revoked"
+          ? ("revoked" as const)
+          : revokeResult.reason === "not_assigned_to_org"
+            ? ("mismatch" as const)
+            : ("already_available" as const),
+      previousAssignedOrgId,
+      previousAssignedOrgSlug,
     };
   },
 });

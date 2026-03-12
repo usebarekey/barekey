@@ -10,12 +10,19 @@ import {
   IconTrash,
   IconUnlink,
 } from "@tabler/icons-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function formatDateTime(timestampMs: number | null): string {
   if (timestampMs === null) {
@@ -74,13 +81,13 @@ export function Page() {
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
   const [isRevokingOtherSessions, setIsRevokingOtherSessions] = useState(false);
   const [sessionActionError, setSessionActionError] = useState<string | null>(null);
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteCountdown, setDeleteCountdown] = useState(5);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const externalAccounts = user?.externalAccounts ?? [];
   const availableSessions = sessions ?? [];
-  const passkeys = user?.passkeys ?? [];
   const linkedProviderLabels = externalAccounts.map((account) => account.provider.toLowerCase());
   const unlinkedProviders = [
     { strategy: "oauth_github", label: "GitHub", match: "github" },
@@ -88,6 +95,23 @@ export function Page() {
   ].filter((provider) =>
     linkedProviderLabels.every((linkedProvider) => !linkedProvider.includes(provider.match)),
   );
+
+  useEffect(() => {
+    if (!isDeleteDialogOpen) {
+      setDeleteCountdown(5);
+      return;
+    }
+
+    if (deleteCountdown <= 0) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setDeleteCountdown((previous) => Math.max(0, previous - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timeout);
+  }, [deleteCountdown, isDeleteDialogOpen]);
 
   async function handleUnlinkAccount(accountId: string) {
     if (!user) {
@@ -172,16 +196,22 @@ export function Page() {
     }
   }
 
+  function handleOpenDeleteDialog() {
+    if (!user || user.deleteSelfEnabled === false || isDeletingAccount) {
+      return;
+    }
+
+    setDeleteError(null);
+    setDeleteCountdown(5);
+    setIsDeleteDialogOpen(true);
+  }
+
   async function handleDeleteAccount() {
     if (!user) {
       return;
     }
     if (!user.deleteSelfEnabled) {
       setDeleteError("Account deletion is disabled for this environment.");
-      return;
-    }
-    if (deleteConfirmation !== "DELETE") {
-      setDeleteError('Type "DELETE" to confirm account deletion.');
       return;
     }
 
@@ -203,57 +233,13 @@ export function Page() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Security</CardTitle>
-          <CardDescription>
-            Connected accounts, active sessions, and passkey controls.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 lg:grid-cols-3">
-            <div className="rounded-lg border bg-background/70 p-3">
-              <p className="text-xs text-muted-foreground">Connected accounts</p>
-              <p className="mt-1 text-2xl font-semibold">
-                {isUserLoaded ? externalAccounts.length : "..."}
-              </p>
-            </div>
-            <div className="rounded-lg border bg-background/70 p-3">
-              <p className="text-xs text-muted-foreground">Passkeys</p>
-              <p className="mt-1 text-2xl font-semibold">
-                {isUserLoaded ? passkeys.length : "..."}
-              </p>
-            </div>
-            <div className="rounded-lg border bg-background/70 p-3">
-              <p className="text-xs text-muted-foreground">Active sessions on this device</p>
-              <p className="mt-1 text-2xl font-semibold">
-                {isSessionsLoaded ? availableSessions.length : "..."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              disabled={!isSessionsLoaded || isRevokingOtherSessions || otherSessionsCount === 0}
-              onClick={() => {
-                void handleRevokeOtherSessions();
-              }}
-            >
-              <IconLogout2 className="size-4" />
-              {isRevokingOtherSessions ? "Revoking..." : "Revoke other sessions"}
-            </Button>
-          </div>
-          {sessionActionError ? (
-            <p className="text-sm text-destructive">{sessionActionError}</p>
-          ) : null}
-        </CardContent>
-      </Card>
-
       <section id="linked-accounts" className="scroll-mt-24">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Linked accounts</CardTitle>
+            <CardDescription>
+              Manage connected identity providers for this account.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {!isUserLoaded ? (
@@ -326,54 +312,83 @@ export function Page() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Sessions</CardTitle>
+            <CardDescription>
+              Review device sessions and revoke access you no longer trust.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             {!isSessionsLoaded ? (
               <p className="text-sm text-muted-foreground">Loading sessions...</p>
             ) : availableSessions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No device sessions available.</p>
             ) : (
-              availableSessions.map((session) => (
-                <div key={session.id} className="rounded-lg border bg-background/70 p-3 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-mono text-xs text-muted-foreground">
-                      Session {formatSessionIdForDisplay(session.id)}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      {session.id === activeSessionId ? (
-                        <Badge variant="outline">Current</Badge>
-                      ) : null}
-                      <Badge variant="secondary">
-                        <IconShieldCheck className="mr-1 size-3.5" />
-                        {session.status}
-                      </Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={
-                          session.id === activeSessionId || revokingSessionId === session.id
-                        }
-                        onClick={() => {
-                          void handleRevokeSession(session.id);
-                        }}
-                      >
-                        <IconLogout2 className="size-3.5" />
-                        {session.id === activeSessionId
-                          ? "Current session"
-                          : revokingSessionId === session.id
-                            ? "Revoking..."
-                            : "Revoke"}
-                      </Button>
+              availableSessions.map((session) => {
+                const isCurrentSession = session.id === activeSessionId;
+
+                return (
+                  <div
+                    key={session.id}
+                    className="rounded-lg border bg-background/70 p-3 text-sm"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-mono text-xs text-muted-foreground">
+                        Session {formatSessionIdForDisplay(session.id)}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {isCurrentSession ? (
+                          <Badge variant="outline" className="gap-1.5">
+                            <IconShieldCheck className="size-3.5" />
+                            Current session
+                          </Badge>
+                        ) : (
+                          <>
+                            <Badge variant="secondary">
+                              <IconShieldCheck className="mr-1 size-3.5" />
+                              {session.status}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={revokingSessionId === session.id}
+                              onClick={() => {
+                                void handleRevokeSession(session.id);
+                              }}
+                            >
+                              <IconLogout2 className="size-3.5" />
+                              {revokingSessionId === session.id ? "Revoking..." : "Revoke"}
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
+                    <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <IconClock className="size-3.5" />
+                      Last active:{" "}
+                      {isCurrentSession
+                        ? "Now"
+                        : formatDateTime(
+                            session.lastActiveAt ? session.lastActiveAt.getTime() : null,
+                          )}
+                    </p>
                   </div>
-                  <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                    <IconClock className="size-3.5" />
-                    Last active:{" "}
-                    {formatDateTime(session.lastActiveAt ? session.lastActiveAt.getTime() : null)}
-                  </p>
-                </div>
-              ))
+                );
+              })
             )}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                variant="outline"
+                disabled={!isSessionsLoaded || isRevokingOtherSessions || otherSessionsCount === 0}
+                onClick={() => {
+                  void handleRevokeOtherSessions();
+                }}
+              >
+                <IconLogout2 className="size-4" />
+                {isRevokingOtherSessions ? "Revoking..." : "Revoke other sessions"}
+              </Button>
+              {sessionActionError ? (
+                <p className="text-sm text-destructive">{sessionActionError}</p>
+              ) : null}
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -391,40 +406,80 @@ export function Page() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Type DELETE to confirm account deletion.
+              Permanently deleting your account signs you out and removes access to all workspaces.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                value={deleteConfirmation}
-                onChange={(event) => {
-                  setDeleteConfirmation(event.target.value);
-                }}
-                placeholder="DELETE"
-              />
-              <Button
-                variant="destructive"
-                disabled={
-                  isDeletingAccount ||
-                  deleteConfirmation !== "DELETE" ||
-                  user?.deleteSelfEnabled === false
-                }
-                onClick={() => {
-                  void handleDeleteAccount();
-                }}
-              >
-                <IconTrash className="size-4" />
-                {isDeletingAccount ? "Deleting..." : "Delete account"}
-              </Button>
-            </div>
+            <Button
+              variant="destructive"
+              disabled={!user || isDeletingAccount || user.deleteSelfEnabled === false}
+              onClick={handleOpenDeleteDialog}
+            >
+              <IconTrash className="size-4" />
+              Delete account
+            </Button>
             {user?.deleteSelfEnabled === false ? (
               <p className="text-sm text-muted-foreground">
                 Account deletion is currently disabled.
               </p>
             ) : null}
-            {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
           </CardContent>
         </Card>
       </section>
+
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (isDeletingAccount) {
+            return;
+          }
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setDeleteCountdown(5);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete account?</DialogTitle>
+            <DialogDescription>
+              This permanently removes your account and can not be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              {deleteCountdown > 0
+                ? `Delete unlocks in ${deleteCountdown} ${deleteCountdown === 1 ? "second" : "seconds"}.`
+                : "Delete is unlocked now."}{" "}
+              After deletion you will be signed out immediately.
+            </p>
+            {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeletingAccount}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                void handleDeleteAccount();
+              }}
+              disabled={
+                isDeletingAccount ||
+                deleteCountdown > 0 ||
+                !user ||
+                user.deleteSelfEnabled === false
+              }
+            >
+              <IconTrash className="size-4" />
+              {isDeletingAccount ? "Deleting..." : "Delete account"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

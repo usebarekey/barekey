@@ -27,6 +27,18 @@ type UpsertUserPreferencesArgs = {
   landingPreference: UserPreferences["landingPreference"];
 };
 
+type RevokeCurrentUserFreePlanCreditArgs = {
+  expectedAssignedOrgId: string | null;
+  reason: string | null;
+};
+
+export type RevokeCurrentUserFreePlanCreditResult = {
+  revoked: boolean;
+  reason: "revoked" | "already_available" | "mismatch";
+  previousAssignedOrgId: string | null;
+  previousAssignedOrgSlug: string | null;
+};
+
 export const getCurrentUserAccountRef = makeFunctionReference<
   "query",
   Record<string, never>,
@@ -50,3 +62,9 @@ export const upsertCurrentUserPreferencesRef = makeFunctionReference<
   UpsertUserPreferencesArgs,
   UserPreferences
 >("user_preferences:upsertCurrentUserPreferences");
+
+export const revokeCurrentUserFreePlanCreditRef = makeFunctionReference<
+  "action",
+  RevokeCurrentUserFreePlanCreditArgs,
+  RevokeCurrentUserFreePlanCreditResult
+>("payments:revokeCurrentUserFreePlanCredit");
