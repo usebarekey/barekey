@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun ../../scripts/bootstrap.ts sync auth && vite",
-    "build": "bun ../../scripts/bootstrap.ts sync auth && tsc && vite build",
+    "dev": "vite",
+    "build": "tsc && vite build",
     "cf:dev": "bun run build && wrangler dev",
     "cf:deploy": "bun run build && wrangler deploy",
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -2,7 +2,6 @@
 .env
 .env.local
 .env.*
-!.env.example
 node_modules
 dist
 .vercel
@@ -11,3 +10,5 @@ dist
 /pkg/auth/src/generated/runtime-config.generated.ts
 /pkg/convex/generated/private_config.generated.ts
 /pkg/api-proxy/src/generated/private-config.generated.ts
+.cursor
+.vscode
