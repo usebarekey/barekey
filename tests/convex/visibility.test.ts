@@ -11,6 +11,10 @@ describe("getVariableVisibility", () => {
     expect(getVariableVisibility({ visibility: null })).toBe("private");
   });
 
+  test("preserves explicit private visibility", () => {
+    expect(getVariableVisibility({ visibility: "private" })).toBe("private");
+  });
+
   test("preserves explicit public visibility", () => {
     expect(getVariableVisibility({ visibility: "public" })).toBe("public");
   });
