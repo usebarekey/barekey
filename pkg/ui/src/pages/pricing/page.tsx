@@ -200,17 +200,14 @@ export function Page() {
           (variant) =>
             variant.tier === plan.id &&
             variant.interval === (plan.id === "free" ? "monthly" : billingInterval) &&
-            variant.overageMode ===
-              (plan.id === "free" ? "without_overages" : overageMode),
+            variant.overageMode === (plan.id === "free" ? "without_overages" : overageMode),
         ) ?? null;
 
       const monthlyPriceUsd = selectedVariant?.monthlyPriceUsd ?? plan.defaultMonthlyPriceUsd;
-      const staticRequests =
-        selectedVariant?.includedStaticRequests ?? plan.defaultStaticRequests;
+      const staticRequests = selectedVariant?.includedStaticRequests ?? plan.defaultStaticRequests;
       const dynamicRequests =
         selectedVariant?.includedDynamicRequests ?? plan.defaultDynamicRequests;
-      const storageBytes =
-        selectedVariant?.includedStorageBytes ?? plan.defaultStorageBytes;
+      const storageBytes = selectedVariant?.includedStorageBytes ?? plan.defaultStorageBytes;
       const staticOveragePer1kUsd =
         selectedVariant?.staticOveragePer1kUsd ?? plan.defaultStaticOveragePer1kUsd;
       const dynamicOveragePer1kUsd =
@@ -358,7 +355,8 @@ export function Page() {
                         </div>
                         {overageMode === "with_overages" && plan.overage?.staticPer1kUsd ? (
                           <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                            then {formatUsdPerThousand(plan.overage.staticPer1kUsd)} per 1,000 static requests
+                            then {formatUsdPerThousand(plan.overage.staticPer1kUsd)} per 1,000
+                            static requests
                           </p>
                         ) : null}
                       </div>
@@ -369,7 +367,8 @@ export function Page() {
                         </div>
                         {overageMode === "with_overages" && plan.overage?.dynamicPer1kUsd ? (
                           <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                            then {formatUsdPerThousand(plan.overage.dynamicPer1kUsd)} per 1,000 dynamic requests
+                            then {formatUsdPerThousand(plan.overage.dynamicPer1kUsd)} per 1,000
+                            dynamic requests
                           </p>
                         ) : null}
                       </div>
@@ -439,8 +438,8 @@ export function Page() {
           </div>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            You can create unlimited organizations. New organizations start without a plan until
-            you apply your free workspace credit or choose a paid plan.
+            You can create unlimited organizations. New organizations start without a plan until you
+            apply your free workspace credit or choose a paid plan.
             {overageMode === "with_overages"
               ? " Overage charges are billed monthly, even on annual plans."
               : ""}

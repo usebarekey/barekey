@@ -72,7 +72,12 @@ export function Page() {
         orgName={organization?.name}
         imageUrl={organization?.imageUrl}
         imageSeed={organization?.id}
-        subtitle={<>Track projects, team access, and pending invites from one place. All values reflect the last 24 hours.</>}
+        subtitle={
+          <>
+            Track projects, team access, and pending invites from one place. All values reflect the
+            last 24 hours.
+          </>
+        }
         tags={
           <>
             {isOrgClaimsLoading ? (

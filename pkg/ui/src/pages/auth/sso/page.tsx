@@ -1,10 +1,6 @@
 import { Logo } from "@/components/custom/logo";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import {
-  IconBrandGithubFilled,
-  IconBrandGoogleFilled,
-  IconKeyFilled,
-} from "@tabler/icons-react";
+import { IconBrandGithubFilled, IconBrandGoogleFilled, IconKeyFilled } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useSignIn } from "@clerk/react-router";
@@ -94,15 +90,9 @@ export function Page() {
         <Logo className="h-8" />
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Button
-          className="w-full"
-          disabled={!isLoaded || isBusy}
-          onClick={signInWithPasskey}
-        >
+        <Button className="w-full" disabled={!isLoaded || isBusy} onClick={signInWithPasskey}>
           <IconKeyFilled />
-          {pendingAction === "passkey"
-            ? "Continuing with Passkey..."
-            : "Continue using Passkey"}
+          {pendingAction === "passkey" ? "Continuing with Passkey..." : "Continue using Passkey"}
         </Button>
         <div className="flex flex-row items-center gap-2">
           <Separator className="flex-1" />
@@ -116,9 +106,7 @@ export function Page() {
           onClick={() => signInWithOAuth("oauth_google")}
         >
           <IconBrandGoogleFilled />
-          {pendingAction === "google"
-            ? "Continuing with Google..."
-            : "Continue using Google"}
+          {pendingAction === "google" ? "Continuing with Google..." : "Continue using Google"}
         </Button>
         <Button
           variant="outline"
@@ -127,9 +115,7 @@ export function Page() {
           onClick={() => signInWithOAuth("oauth_github")}
         >
           <IconBrandGithubFilled />
-          {pendingAction === "github"
-            ? "Continuing with GitHub..."
-            : "Continue using GitHub"}
+          {pendingAction === "github" ? "Continuing with GitHub..." : "Continue using GitHub"}
         </Button>
         {error ? (
           <p className="text-sm text-destructive" role="alert">

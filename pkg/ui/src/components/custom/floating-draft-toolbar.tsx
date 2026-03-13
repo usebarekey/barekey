@@ -38,17 +38,10 @@ export function FloatingDraftToolbar({
         className="pointer-events-auto flex max-w-[min(92vw,52rem)] items-center gap-3 rounded-xl border bg-card/95 px-3 py-2 shadow-xl backdrop-blur-sm"
       >
         <p className="pr-1 text-sm text-muted-foreground">{message}</p>
-        <Button
-          variant="outline"
-          onClick={onDiscard}
-          disabled={discardDisabled || isSaving}
-        >
+        <Button variant="outline" onClick={onDiscard} disabled={discardDisabled || isSaving}>
           {discardLabel}
         </Button>
-        <Button
-          onClick={onSave}
-          disabled={saveDisabled || isSaving}
-        >
+        <Button onClick={onSave} disabled={saveDisabled || isSaving}>
           {isSaving ? savingLabel : saveLabel}
         </Button>
       </div>

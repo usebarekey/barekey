@@ -146,7 +146,7 @@ export const buildManifestForOrgProjectStageInternal = internalMutation({
         const fallbackTypeScriptType = toTypeScriptTypeForDeclaredType({
           declaredType,
           normalizedJsonValue:
-            declaredType === "json" ? normalizedValueA ?? normalizedValueB ?? null : undefined,
+            declaredType === "json" ? (normalizedValueA ?? normalizedValueB ?? null) : undefined,
         });
         const valueATypeScriptType =
           normalizedValueA === undefined

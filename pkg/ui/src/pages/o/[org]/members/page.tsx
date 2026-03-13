@@ -48,26 +48,21 @@ export function Page() {
   const { orgSlug = "org" } = useParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alphabetical_asc");
-  const {
-    organization,
-    membership,
-    memberships,
-    invitations,
-    membershipRequests,
-  } = useOrganization({
-    memberships: {
-      pageSize: 50,
-      keepPreviousData: true,
-    },
-    invitations: {
-      pageSize: 20,
-      keepPreviousData: true,
-    },
-    membershipRequests: {
-      pageSize: 20,
-      keepPreviousData: true,
-    },
-  });
+  const { organization, membership, memberships, invitations, membershipRequests } =
+    useOrganization({
+      memberships: {
+        pageSize: 50,
+        keepPreviousData: true,
+      },
+      invitations: {
+        pageSize: 20,
+        keepPreviousData: true,
+      },
+      membershipRequests: {
+        pageSize: 20,
+        keepPreviousData: true,
+      },
+    });
 
   const allMembers = memberships?.data ?? [];
   const allInvites = invitations?.data ?? [];
@@ -80,7 +75,8 @@ export function Page() {
       lastName: publicUserData?.lastName ?? null,
       identifier: publicUserData?.identifier ?? "member",
     });
-    const haystack = `${rowName} ${publicUserData?.identifier ?? ""} ${memberRow.role}`.toLowerCase();
+    const haystack =
+      `${rowName} ${publicUserData?.identifier ?? ""} ${memberRow.role}`.toLowerCase();
     return normalizedQuery.length === 0 || haystack.includes(normalizedQuery);
   });
   const sortedMembers = [...searchedMembers].sort((left, right) => {
@@ -295,7 +291,10 @@ export function Page() {
         </OrgSectionCard>
 
         <div className="space-y-4">
-          <OrgSectionCard title="Invitation queue" description="People invited to join this workspace.">
+          <OrgSectionCard
+            title="Invitation queue"
+            description="People invited to join this workspace."
+          >
             <div className="space-y-2">
               {invitations?.isLoading ? (
                 Array.from({ length: 3 }).map((_, index) => (
@@ -310,10 +309,7 @@ export function Page() {
                 </div>
               ) : (
                 allInvites.map((invite) => (
-                  <div
-                    key={invite.id}
-                    className="rounded-xl border bg-background/80 p-3 text-sm"
-                  >
+                  <div key={invite.id} className="rounded-xl border bg-background/80 p-3 text-sm">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate font-medium">{invite.emailAddress}</p>
                       <Badge variant="outline">{invite.status}</Badge>

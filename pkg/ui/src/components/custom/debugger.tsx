@@ -4,10 +4,7 @@ import tailwindColors from "tailwindcss/colors";
 import { IconMinus, IconPlus, IconSettings } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { useTheme } from "theme-watcher";
 
 const DEBUG_COLOR_STORAGE_KEY = "debugger-tailwind-color-family";
@@ -374,7 +371,9 @@ function applyRadiusPx(radiusPx: number): void {
 
 export function Debugger() {
   const { toggleMode, resolvedTheme } = useTheme();
-  const [colorFamily, setColorFamily] = useState<TailwindColorFamily>(() => readStoredColorFamily());
+  const [colorFamily, setColorFamily] = useState<TailwindColorFamily>(() =>
+    readStoredColorFamily(),
+  );
   const [fontMode, setFontMode] = useState<DebugFontMode>(() => readStoredFontMode());
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => readStoredCollapsed());
   const [spacingRem, setSpacingRem] = useState<number>(() => readStoredSpacingRem());
@@ -519,9 +518,7 @@ export function Debugger() {
         >
           <IconMinus />
         </Button>
-        <span className="w-18 text-center text-xs text-muted-foreground">
-          Pad {spacingPx}px
-        </span>
+        <span className="w-18 text-center text-xs text-muted-foreground">Pad {spacingPx}px</span>
         <Button
           variant="outline"
           size="icon-xs"

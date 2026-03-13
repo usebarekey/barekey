@@ -91,14 +91,12 @@ function resolveSegmentPercentage(input: {
   if (input.function === "ease_in_out") {
     const easedProgress = smoothstep(input.progress);
     return (
-      input.currentPercentage +
-      (input.nextPercentage - input.currentPercentage) * easedProgress
+      input.currentPercentage + (input.nextPercentage - input.currentPercentage) * easedProgress
     );
   }
 
   return (
-    input.currentPercentage +
-    (input.nextPercentage - input.currentPercentage) * input.progress
+    input.currentPercentage + (input.nextPercentage - input.currentPercentage) * input.progress
   );
 }
 

@@ -22,12 +22,7 @@ function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   );
 }
 
-function SelectValue({
-  className,
-  children,
-  displayNameMap,
-  ...props
-}: SelectValueProps) {
+function SelectValue({ className, children, displayNameMap, ...props }: SelectValueProps) {
   const resolvedChildren =
     children ??
     (displayNameMap

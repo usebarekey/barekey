@@ -1,9 +1,6 @@
 import { v } from "convex/values";
 
-export const variableVisibilityValidator = v.union(
-  v.literal("private"),
-  v.literal("public"),
-);
+export const variableVisibilityValidator = v.union(v.literal("private"), v.literal("public"));
 
 export type VariableVisibility = "private" | "public";
 

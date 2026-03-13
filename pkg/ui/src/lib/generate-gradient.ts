@@ -41,7 +41,10 @@ function encodeSvgAsDataUrl(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-export function generateGradientSvg(seed: GradientSeed, options: GenerateGradientOptions = {}): string {
+export function generateGradientSvg(
+  seed: GradientSeed,
+  options: GenerateGradientOptions = {},
+): string {
   const size = options.size ?? 128;
   const [colorA, colorB, colorC, accent] = pickUniqueColors(seed, 4);
   const random = seedrandom(`${seed}:layout`);

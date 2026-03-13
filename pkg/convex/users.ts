@@ -19,7 +19,10 @@ const RESERVED_USER_SLUG_BASES = new Set([
 ]);
 
 function normalizeSlugBaseFromText(value: string): string {
-  const normalized = value.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 20);
   if (normalized.length === 0) {
     return "user";
   }
@@ -82,12 +85,14 @@ function pickCanonicalUserRow<T extends { _id: string; createdAtMs: number }>(
     return null;
   }
 
-  return [...rows].sort((left, right) => {
-    if (left.createdAtMs !== right.createdAtMs) {
-      return left.createdAtMs - right.createdAtMs;
-    }
-    return String(left._id).localeCompare(String(right._id));
-  })[0] ?? null;
+  return (
+    [...rows].sort((left, right) => {
+      if (left.createdAtMs !== right.createdAtMs) {
+        return left.createdAtMs - right.createdAtMs;
+      }
+      return String(left._id).localeCompare(String(right._id));
+    })[0] ?? null
+  );
 }
 
 type UserRow = {

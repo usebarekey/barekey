@@ -95,10 +95,7 @@ export function generateDefaultOrgName(input: {
   fullName?: string | null;
   email?: string | null;
 }): string {
-  const baseName =
-    input.fullName?.trim() ||
-    input.email?.split("@")[0]?.trim() ||
-    "User";
+  const baseName = input.fullName?.trim() || input.email?.split("@")[0]?.trim() || "User";
   return `${baseName}'s Organization`;
 }
 

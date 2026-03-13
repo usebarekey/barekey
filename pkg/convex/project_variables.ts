@@ -232,7 +232,7 @@ type PreparedWriteMutationResult = {
   deletedCount: number;
   storageDeltaBytes: number;
   creates: Array<
-      | {
+    | {
         name: string;
         visibility: VariableVisibility;
         kind: "secret";
@@ -244,7 +244,7 @@ type PreparedWriteMutationResult = {
         rolloutFunction: null;
         rolloutMilestones: null;
       }
-      | {
+    | {
         name: string;
         visibility: VariableVisibility;
         kind: "ab_roll";
@@ -256,7 +256,7 @@ type PreparedWriteMutationResult = {
         rolloutFunction: null;
         rolloutMilestones: null;
       }
-      | {
+    | {
         name: string;
         visibility: VariableVisibility;
         kind: "rollout";
@@ -270,7 +270,7 @@ type PreparedWriteMutationResult = {
       }
   >;
   updates: Array<
-      | {
+    | {
         id: Id<"projectVariables">;
         visibility: VariableVisibility;
         kind: "secret";
@@ -282,7 +282,7 @@ type PreparedWriteMutationResult = {
         rolloutFunction: null;
         rolloutMilestones: null;
       }
-      | {
+    | {
         id: Id<"projectVariables">;
         visibility: VariableVisibility;
         kind: "ab_roll";
@@ -294,7 +294,7 @@ type PreparedWriteMutationResult = {
         rolloutFunction: null;
         rolloutMilestones: null;
       }
-      | {
+    | {
         id: Id<"projectVariables">;
         visibility: VariableVisibility;
         kind: "rollout";
@@ -566,7 +566,9 @@ export const listForCurrentOrgProjectStage = query({
       )
       .collect();
 
-    return rows.map(mapVariableMetadataRow).sort((left, right) => left.name.localeCompare(right.name));
+    return rows
+      .map(mapVariableMetadataRow)
+      .sort((left, right) => left.name.localeCompare(right.name));
   },
 });
 
@@ -712,10 +714,7 @@ export const resolvePublicVariableRowsForOrgProjectStageInternal = internalQuery
         ? await ctx.db
             .query("projectVariables")
             .withIndex("by_project_id_and_stage_slug_and_visibility", (q) =>
-              q
-                .eq("projectId", project._id)
-                .eq("stageSlug", stage.slug)
-                .eq("visibility", "public"),
+              q.eq("projectId", project._id).eq("stageSlug", stage.slug).eq("visibility", "public"),
             )
             .collect()
         : await Promise.all(
@@ -748,11 +747,12 @@ export const resolvePublicVariableRowsForOrgProjectStageInternal = internalQuery
 
     return {
       orgId: project.orgId,
-      rows: normalizedNames === undefined
-        ? resolvedRows.sort((left, right) => left.name.localeCompare(right.name))
-        : normalizedNames
-            .map((name) => resolvedRows.find((row) => row.name === name) ?? null)
-            .filter((row): row is (typeof resolvedRows)[number] => row !== null),
+      rows:
+        normalizedNames === undefined
+          ? resolvedRows.sort((left, right) => left.name.localeCompare(right.name))
+          : normalizedNames
+              .map((name) => resolvedRows.find((row) => row.name === name) ?? null)
+              .filter((row): row is (typeof resolvedRows)[number] => row !== null),
     };
   },
 });
@@ -795,7 +795,9 @@ export const listVariableMetadataForOrgProjectStageInternal = internalQuery({
       )
       .collect();
 
-    return rows.map(mapVariableMetadataRow).sort((left, right) => left.name.localeCompare(right.name));
+    return rows
+      .map(mapVariableMetadataRow)
+      .sort((left, right) => left.name.localeCompare(right.name));
   },
 });
 
@@ -1366,10 +1368,10 @@ export const applyDraftForCurrentOrgProjectStage = action({
 
     const entries = [...args.creates];
     for (const update of args.updates) {
-          const existing = existingById.get(update.id);
-          if (existing === undefined) {
-            throw new Error("Variable update target does not exist.");
-          }
+      const existing = existingById.get(update.id);
+      if (existing === undefined) {
+        throw new Error("Variable update target does not exist.");
+      }
 
       if (update.kind === "secret") {
         entries.push({

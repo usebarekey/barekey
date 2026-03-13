@@ -359,7 +359,9 @@ export function Page() {
       setOrganizationName("");
       capture("organization_creation_succeeded", {
         checkout_required: false,
-        destination: createdOrganization.slug ? `/o/${createdOrganization.slug}/overview` : "/o/select",
+        destination: createdOrganization.slug
+          ? `/o/${createdOrganization.slug}/overview`
+          : "/o/select",
         starting_plan: organizationStartingPlan,
       });
       void navigate(

@@ -22,7 +22,7 @@ function unquoteEnvValue(rawValue: string): string {
   }
 
   const first = value[0];
-  if (first === "\"" || first === "'") {
+  if (first === '"' || first === "'") {
     let escapeNext = false;
     let closingQuoteIndex = -1;
     for (let index = 1; index < value.length; index += 1) {
@@ -52,7 +52,7 @@ function unquoteEnvValue(rawValue: string): string {
         .replace(/\\n/g, "\n")
         .replace(/\\r/g, "\r")
         .replace(/\\t/g, "\t")
-        .replace(/\\"/g, "\"")
+        .replace(/\\"/g, '"')
         .replace(/\\\\/g, "\\");
     }
   }
@@ -66,7 +66,7 @@ function unquoteEnvValue(rawValue: string): string {
 
     const quote = unquotedValue[0];
     const unquotedLast = unquotedValue[unquotedValue.length - 1];
-    if ((quote === "\"" || quote === "'") && unquotedLast === quote) {
+    if ((quote === '"' || quote === "'") && unquotedLast === quote) {
       const innerValue = unquotedValue.slice(1, -1);
       if (quote === "'") {
         return innerValue;
@@ -76,7 +76,7 @@ function unquoteEnvValue(rawValue: string): string {
         .replace(/\\n/g, "\n")
         .replace(/\\r/g, "\r")
         .replace(/\\t/g, "\t")
-        .replace(/\\"/g, "\"")
+        .replace(/\\"/g, '"')
         .replace(/\\\\/g, "\\");
     }
 

@@ -9,13 +9,7 @@ export const declaredTypeValidator = v.union(
   v.literal("json"),
 );
 
-export type DeclaredVariableType =
-  | "string"
-  | "boolean"
-  | "int64"
-  | "float"
-  | "date"
-  | "json";
+export type DeclaredVariableType = "string" | "boolean" | "int64" | "float" | "date" | "json";
 
 const INT64_MIN = BigInt("-9223372036854775808");
 const INT64_MAX = BigInt("9223372036854775807");
@@ -34,9 +28,7 @@ function isDeclaredType(value: string): value is DeclaredVariableType {
   );
 }
 
-export function fallbackDeclaredType(
-  value: string | null | undefined,
-): DeclaredVariableType {
+export function fallbackDeclaredType(value: string | null | undefined): DeclaredVariableType {
   if (value !== null && value !== undefined && isDeclaredType(value)) {
     return value;
   }

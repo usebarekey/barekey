@@ -10,14 +10,7 @@ import {
   IconSettingsCog,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import {
-  NavLink,
-  Navigate,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
+import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { Logo } from "@/components/custom/logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,11 +23,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,17 +84,11 @@ function SidebarUserMenu({
   const { resolvedTheme, toggleMode } = useTheme();
 
   const displayName =
-    user?.fullName?.trim() ||
-    user?.username?.trim() ||
-    user?.firstName?.trim() ||
-    "Account";
+    user?.fullName?.trim() || user?.username?.trim() || user?.firstName?.trim() || "Account";
   const email =
-    user?.primaryEmailAddress?.emailAddress ??
-    user?.emailAddresses?.[0]?.emailAddress ??
-    null;
+    user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? null;
   const avatarSeed = user?.id ?? currentUserSlug ?? "user";
-  const avatarSrc =
-    user?.imageUrl ?? generateGradientDataUrl(avatarSeed, { size: 96 });
+  const avatarSrc = user?.imageUrl ?? generateGradientDataUrl(avatarSeed, { size: 96 });
 
   return (
     <DropdownMenu>
@@ -114,18 +97,13 @@ function SidebarUserMenu({
           "ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/40 p-2 text-left outline-hidden transition-colors group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1"
         }
       >
-        <Avatar
-          size="sm"
-          className="border-sidebar-border group-data-[collapsible=icon]:size-6"
-        >
+        <Avatar size="sm" className="border-sidebar-border group-data-[collapsible=icon]:size-6">
           <AvatarImage src={avatarSrc} />
           <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
           <p className="truncate text-sm font-medium">{displayName}</p>
-          <p className="text-muted-foreground truncate text-xs">
-            {email ?? "No email"}
-          </p>
+          <p className="text-muted-foreground truncate text-xs">{email ?? "No email"}</p>
         </div>
         <IconChevronUp className="size-4 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
       </DropdownMenuTrigger>
@@ -144,12 +122,8 @@ function SidebarUserMenu({
                 <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {displayName}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {email ?? "No email"}
-                </p>
+                <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                <p className="truncate text-xs text-muted-foreground">{email ?? "No email"}</p>
               </div>
             </div>
           </DropdownMenuLabel>
@@ -222,10 +196,7 @@ export function Layout() {
     : "";
   const activeLegacySegment = relativePath.split("/").filter(Boolean)[0] ?? "";
   const requestedSectionIdFromPath = (() => {
-    if (
-      activeLegacySegment === "profile" ||
-      activeLegacySegment === "overview"
-    ) {
+    if (activeLegacySegment === "profile" || activeLegacySegment === "overview") {
       return "profile-information";
     }
     if (activeLegacySegment === "security") {
@@ -233,8 +204,7 @@ export function Layout() {
     }
     return "";
   })();
-  const requestedSectionId =
-    hash.replace(/^#/, "") || requestedSectionIdFromPath;
+  const requestedSectionId = hash.replace(/^#/, "") || requestedSectionIdFromPath;
   const activeSectionId = [...profileCardLinks, ...securityCardLinks].some(
     (item) => item.sectionId === requestedSectionId,
   )
@@ -282,15 +252,11 @@ export function Layout() {
   }
 
   if (currentUser.slug !== userSlug) {
-    return (
-      <Navigate to={`/u/${currentUser.slug}#${activeSectionId}`} replace />
-    );
+    return <Navigate to={`/u/${currentUser.slug}#${activeSectionId}`} replace />;
   }
 
   const userPath = `/u/${currentUser.slug}#profile-information`;
-  const dashboardPath = activeOrgSlug
-    ? `/o/${activeOrgSlug}/overview`
-    : "/o/select";
+  const dashboardPath = activeOrgSlug ? `/o/${activeOrgSlug}/overview` : "/o/select";
 
   return (
     <SidebarProvider>
@@ -394,9 +360,7 @@ export function Layout() {
             render={<NavLink to={dashboardPath} />}
           >
             <IconArrowLeft />
-            <span className="group-data-[collapsible=icon]:hidden">
-              Go back
-            </span>
+            <span className="group-data-[collapsible=icon]:hidden">Go back</span>
           </Button>
           <SidebarUserMenu
             dashboardPath={dashboardPath}

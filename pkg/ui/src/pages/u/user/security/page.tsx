@@ -237,9 +237,7 @@ export function Page() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Linked accounts</CardTitle>
-            <CardDescription>
-              Manage connected identity providers for this account.
-            </CardDescription>
+            <CardDescription>Manage connected identity providers for this account.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {!isUserLoaded ? (
@@ -326,10 +324,7 @@ export function Page() {
                 const isCurrentSession = session.id === activeSessionId;
 
                 return (
-                  <div
-                    key={session.id}
-                    className="rounded-lg border bg-background/70 p-3 text-sm"
-                  >
+                  <div key={session.id} className="rounded-lg border bg-background/70 p-3 text-sm">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-mono text-xs text-muted-foreground">
                         Session {formatSessionIdForDisplay(session.id)}

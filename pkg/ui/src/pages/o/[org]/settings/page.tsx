@@ -97,7 +97,9 @@ export function Page() {
   const effectiveOrgRole = membership?.role ?? orgClaims?.orgRole ?? null;
   const canDeleteOrganizationByRole =
     effectiveOrgRole === "org:admin" || effectiveOrgRole === "org:owner";
-  const privilegedMemberCount = membershipRows.filter((row) => isPrivilegedOrgRole(row.role)).length;
+  const privilegedMemberCount = membershipRows.filter((row) =>
+    isPrivilegedOrgRole(row.role),
+  ).length;
   const isCurrentMemberPrivileged = isPrivilegedOrgRole(membership?.role ?? null);
   const isLeaveBlockedBySoleMember = memberships !== undefined && memberCount <= 1;
   const isLeaveBlockedByNoAdmins = memberships !== undefined && privilegedMemberCount === 0;
@@ -109,9 +111,9 @@ export function Page() {
     ? "You can not leave while you are the only member. Delete the organization instead."
     : isLeaveBlockedByNoAdmins
       ? "You can not leave because this organization currently has no admin. Assign an admin first."
-    : isLeaveBlockedByLastAdmin
-      ? "You can not leave because this would leave the organization without an admin."
-      : null;
+      : isLeaveBlockedByLastAdmin
+        ? "You can not leave because this would leave the organization without an admin."
+        : null;
   const isDeletePrerequisitesLoading = orgDeletionReadiness === undefined;
   const remainingProjectCount = orgDeletionReadiness?.projectCount ?? 0;
   const areDeletePrerequisitesMet = !isDeletePrerequisitesLoading && remainingProjectCount === 0;
@@ -219,9 +221,7 @@ export function Page() {
       return;
     }
     if (isLeaveWorkspaceBlocked) {
-      setLeaveError(
-        leaveBlockedReason ?? "You can not leave this workspace right now.",
-      );
+      setLeaveError(leaveBlockedReason ?? "You can not leave this workspace right now.");
       return;
     }
 
@@ -264,9 +264,8 @@ export function Page() {
         expectedOrgSlug: orgSlug,
       });
       const fallbackMembership =
-        (userMemberships.data ?? []).find(
-          (row) => row.organization.id !== deleteContext.orgId,
-        ) ?? null;
+        (userMemberships.data ?? []).find((row) => row.organization.id !== deleteContext.orgId) ??
+        null;
       await organization.destroy();
       try {
         await revokeFreePlanCredit({
@@ -475,7 +474,9 @@ export function Page() {
                 size="sm"
                 variant="destructive"
                 onClick={handleLeaveWorkspace}
-                disabled={!membership || isLeaving || isDeletingOrganization || isLeaveWorkspaceBlocked}
+                disabled={
+                  !membership || isLeaving || isDeletingOrganization || isLeaveWorkspaceBlocked
+                }
               >
                 <IconTrash className="size-4" />
                 {isLeaving ? "Leaving..." : "Leave workspace"}

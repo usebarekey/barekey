@@ -6,15 +6,19 @@
   ],
   "scripts": {
     "convex:dev": "bunx convex dev",
-    "convex:deploy": "bunx convex deploy",
+    "convex:deploy": "bun run barekey:sync && bunx convex deploy",
     "auth:dev": "cd pkg/auth && bun run dev",
-    "auth:build": "cd pkg/auth && bun run build",
-    "auth:deploy": "cd pkg/auth && bun run cf:deploy",
+    "auth:build": "bun run barekey:sync:public && cd pkg/auth && bun run build",
+    "auth:deploy": "bun run barekey:sync:public && cd pkg/auth && bun run cf:deploy",
     "api-proxy:dev": "cd pkg/api-proxy && wrangler dev",
-    "api-proxy:deploy": "cd pkg/api-proxy && wrangler deploy",
+    "api-proxy:deploy": "bun run barekey:sync && cd pkg/api-proxy && wrangler deploy",
     "ui:dev": "cd pkg/ui && bun run dev",
-    "ui:build": "cd pkg/ui && bun run build",
-    "ui:deploy": "cd pkg/ui && bun run cf:deploy",
+    "ui:build": "bun run barekey:sync:public && cd pkg/ui && bun run build",
+    "ui:deploy": "bun run barekey:sync:public && cd pkg/ui && bun run cf:deploy",
+    "barekey:sync": "bun run ./codegen/barekey-config.ts all",
+    "barekey:sync:public": "bun run ./codegen/barekey-config.ts public",
+    "barekey:sync:private": "bun run ./codegen/barekey-config.ts private",
+    "typegen": "barekey typegen",
     "test": "bun test tests",
     "lint": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore .",
     "lint:fix": "oxlint --config .config/oxlint.json --ignore-path .config/.oxlintignore --fix .",
@@ -22,6 +26,7 @@
     "format:check": "oxfmt --config .config/oxfmt.json --ignore-path .config/.oxfmtignore --check ."
   },
   "dependencies": {
+    "@barekey/sdk": "^0.1.3",
     "@clerk/backend": "^2.32.1",
     "@noble/hashes": "^2.0.1",
     "@useautumn/convex": "^0.0.23",
@@ -29,6 +34,7 @@
     "convex": "^1.32.0"
   },
   "devDependencies": {
+    "@barekey/cli": "^0.1.4",
     "oxfmt": "^0.34.0",
     "oxlint": "^1.49.0"
   },

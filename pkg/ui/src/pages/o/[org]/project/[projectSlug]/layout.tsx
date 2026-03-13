@@ -8,13 +8,7 @@ import {
   IconSettingsCog,
 } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
-import {
-  Link,
-  NavLink,
-  Outlet,
-  useLocation,
-  useParams,
-} from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { api } from "@convex/_generated/api";
@@ -123,7 +117,11 @@ export function Layout() {
           workspace.
         </p>
         <div className="mt-4">
-          <Button variant="outline" nativeButton={false} render={<Link to={`/o/${orgSlug}/projects`} />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link to={`/o/${orgSlug}/projects`} />}
+          >
             <IconArrowLeft />
             Back to projects
           </Button>
@@ -211,9 +209,7 @@ export function Layout() {
         <DialogContent className="max-h-[85vh] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>barekey.json</DialogTitle>
-            <DialogDescription>
-              Project runtime defaults for CLI/SDK integration.
-            </DialogDescription>
+            <DialogDescription>Project runtime defaults for CLI/SDK integration.</DialogDescription>
           </DialogHeader>
           <CodeBlock
             code={runtimeConfigSnippet}

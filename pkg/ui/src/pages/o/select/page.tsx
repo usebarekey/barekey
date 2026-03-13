@@ -34,8 +34,7 @@ export function Page() {
   const memberships = userMemberships.data ?? [];
   const hasMemberships = memberships.length > 0;
   const hasActiveOrgMembership =
-    orgSlug !== null &&
-    memberships.some((membership) => membership.organization.slug === orgSlug);
+    orgSlug !== null && memberships.some((membership) => membership.organization.slug === orgSlug);
 
   async function handleCreateDefaultOrg() {
     if (!isOrgListLoaded || !isSignedIn || user == null) {
@@ -46,7 +45,8 @@ export function Page() {
     setCreateError(null);
     capture("default_org_creation_submitted");
 
-    const email = user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null;
+    const email =
+      user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null;
     const fullName = user.fullName ?? user.username ?? user.firstName ?? null;
     const orgName = generateDefaultOrgName({
       email,
@@ -111,7 +111,15 @@ export function Page() {
 
     hasAttemptedAutoCreateRef.current = true;
     void handleCreateDefaultOrg();
-  }, [hasMemberships, isAuthLoaded, isCreatingDefaultOrg, isOrgListLoaded, isSignedIn, orgSlug, user]);
+  }, [
+    hasMemberships,
+    isAuthLoaded,
+    isCreatingDefaultOrg,
+    isOrgListLoaded,
+    isSignedIn,
+    orgSlug,
+    user,
+  ]);
 
   if (isAuthLoaded && isSignedIn && isOrgListLoaded && orgSlug && hasActiveOrgMembership) {
     return <Navigate to={`/o/${orgSlug}/overview`} replace />;
@@ -151,7 +159,8 @@ export function Page() {
             </div>
             {hasMemberships ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                You already belong to {memberships.length} organization{memberships.length === 1 ? "" : "s"}.
+                You already belong to {memberships.length} organization
+                {memberships.length === 1 ? "" : "s"}.
               </p>
             ) : null}
             {createError ? <p className="mt-3 text-sm text-destructive">{createError}</p> : null}
@@ -171,8 +180,8 @@ export function Page() {
         </SignedIn>
 
         <div className="text-xs text-muted-foreground">
-          Barekey workspaces live under <span className="font-mono">/o/:orgSlug</span>. User
-          account pages live under <span className="font-mono">/u/:userSlug</span>.{" "}
+          Barekey workspaces live under <span className="font-mono">/o/:orgSlug</span>. User account
+          pages live under <span className="font-mono">/u/:userSlug</span>.{" "}
           <Link
             to="/"
             className="underline underline-offset-4"
