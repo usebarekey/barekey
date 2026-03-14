@@ -343,6 +343,25 @@ function scheduleBatchNames(input: {
   ];
 }
 
+async function attachScheduledFunctionIdIfStillPending(input: {
+  ctx: Parameters<typeof mutation>[0]["handler"] extends (ctx: infer T, args: never) => unknown
+    ? T
+    : never;
+  scheduleId: Id<"projectVariableSchedules">;
+  scheduledFunctionId: Id<"_scheduled_functions">;
+}) {
+  const latest = await input.ctx.db.get(input.scheduleId);
+  if (latest === null || latest.status !== "scheduled") {
+    return latest;
+  }
+
+  await input.ctx.db.patch(input.scheduleId, {
+    scheduledFunctionId: input.scheduledFunctionId,
+  });
+
+  return await input.ctx.db.get(input.scheduleId);
+}
+
 export const listForCurrentOrgProject = query({
   args: {
     expectedOrgSlug: v.string(),
@@ -653,9 +672,17 @@ export const createForCurrentOrgProject = mutation({
       },
     );
 
-    await ctx.db.patch(scheduleId, {
+    const persistedSchedule = await attachScheduledFunctionIdIfStillPending({
+      ctx,
+      scheduleId,
       scheduledFunctionId,
     });
+    const currentSchedule = persistedSchedule ?? (await ctx.db.get(scheduleId));
+    const currentStatus = currentSchedule?.status ?? "scheduled";
+    const currentExecutedAtMs = currentSchedule?.executedAtMs ?? null;
+    const currentCanceledAtMs = currentSchedule?.canceledAtMs ?? null;
+    const currentFailedAtMs = currentSchedule?.failedAtMs ?? null;
+    const currentFailureMessage = currentSchedule?.failureMessage ?? null;
 
     return {
       id: scheduleId,
@@ -663,7 +690,7 @@ export const createForCurrentOrgProject = mutation({
       stageName: stage.name,
       timezone,
       runAtMs,
-      status: "scheduled",
+      status: currentStatus,
       createdCount: snapshot.createdCount,
       updatedCount: snapshot.updatedCount,
       batchNames: scheduleBatchNames({
@@ -672,10 +699,10 @@ export const createForCurrentOrgProject = mutation({
       }),
       createdAtMs: now,
       updatedAtMs: now,
-      executedAtMs: null,
-      canceledAtMs: null,
-      failedAtMs: null,
-      failureMessage: null,
+      executedAtMs: currentExecutedAtMs,
+      canceledAtMs: currentCanceledAtMs,
+      failedAtMs: currentFailedAtMs,
+      failureMessage: currentFailureMessage,
     };
   },
 });
@@ -757,7 +784,7 @@ export const updateForCurrentOrgProject = mutation({
       timezone,
       runAtMs,
       status: "scheduled",
-      scheduledFunctionId,
+      scheduledFunctionId: null,
       preparedCreates: snapshot.preparedCreates,
       preparedUpdates: snapshot.preparedUpdates,
       updateTargets: snapshot.updateTargets,
@@ -770,6 +797,16 @@ export const updateForCurrentOrgProject = mutation({
       failedAtMs: null,
       failureMessage: null,
     });
+    const persistedSchedule = await attachScheduledFunctionIdIfStillPending({
+      ctx,
+      scheduleId: existingSchedule._id,
+      scheduledFunctionId,
+    });
+    const currentStatus = persistedSchedule?.status ?? "scheduled";
+    const currentExecutedAtMs = persistedSchedule?.executedAtMs ?? null;
+    const currentCanceledAtMs = persistedSchedule?.canceledAtMs ?? null;
+    const currentFailedAtMs = persistedSchedule?.failedAtMs ?? null;
+    const currentFailureMessage = persistedSchedule?.failureMessage ?? null;
 
     return {
       id: existingSchedule._id,
@@ -777,7 +814,7 @@ export const updateForCurrentOrgProject = mutation({
       stageName: stage.name,
       timezone,
       runAtMs,
-      status: "scheduled",
+      status: currentStatus,
       createdCount: snapshot.createdCount,
       updatedCount: snapshot.updatedCount,
       batchNames: scheduleBatchNames({
@@ -786,10 +823,10 @@ export const updateForCurrentOrgProject = mutation({
       }),
       createdAtMs: existingSchedule.createdAtMs,
       updatedAtMs,
-      executedAtMs: null,
-      canceledAtMs: null,
-      failedAtMs: null,
-      failureMessage: null,
+      executedAtMs: currentExecutedAtMs,
+      canceledAtMs: currentCanceledAtMs,
+      failedAtMs: currentFailedAtMs,
+      failureMessage: currentFailureMessage,
     };
   },
 });
