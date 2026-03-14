@@ -343,6 +343,42 @@ function scheduleBatchNames(input: {
   ];
 }
 
+function toScheduledScheduleSummary(input: {
+  id: Id<"projectVariableSchedules">;
+  stageSlug: string;
+  stageName: string;
+  timezone: string;
+  runAtMs: number;
+  status: "scheduled" | "applied" | "failed" | "canceled";
+  createdCount: number;
+  updatedCount: number;
+  batchNames: Array<string>;
+  createdAtMs: number;
+  updatedAtMs: number;
+  executedAtMs: number | null;
+  canceledAtMs: number | null;
+  failedAtMs: number | null;
+  failureMessage: string | null;
+}) {
+  return {
+    id: input.id,
+    stageSlug: input.stageSlug,
+    stageName: input.stageName,
+    timezone: input.timezone,
+    runAtMs: input.runAtMs,
+    status: input.status,
+    createdCount: input.createdCount,
+    updatedCount: input.updatedCount,
+    batchNames: input.batchNames,
+    createdAtMs: input.createdAtMs,
+    updatedAtMs: input.updatedAtMs,
+    executedAtMs: input.executedAtMs,
+    canceledAtMs: input.canceledAtMs,
+    failedAtMs: input.failedAtMs,
+    failureMessage: input.failureMessage,
+  };
+}
+
 async function attachScheduledFunctionIdIfStillPending(input: {
   ctx: Parameters<typeof mutation>[0]["handler"] extends (ctx: infer T, args: never) => unknown
     ? T
@@ -406,26 +442,28 @@ export const listForCurrentOrgProject = query({
 
     const stageNames = new Map(stages.map((stage) => [stage.slug, stage.name] as const));
     return rows
-      .map((row) => ({
-        id: row._id,
-        stageSlug: row.stageSlug,
-        stageName: stageNames.get(row.stageSlug) ?? row.stageSlug,
-        timezone: row.timezone,
-        runAtMs: row.runAtMs,
-        status: row.status,
-        createdCount: row.createdCount,
-        updatedCount: row.updatedCount,
-        batchNames: scheduleBatchNames({
-          creates: row.preparedCreates,
-          updateTargets: row.updateTargets,
+      .map((row) =>
+        toScheduledScheduleSummary({
+          id: row._id,
+          stageSlug: row.stageSlug,
+          stageName: stageNames.get(row.stageSlug) ?? row.stageSlug,
+          timezone: row.timezone,
+          runAtMs: row.runAtMs,
+          status: row.status,
+          createdCount: row.createdCount,
+          updatedCount: row.updatedCount,
+          batchNames: scheduleBatchNames({
+            creates: row.preparedCreates,
+            updateTargets: row.updateTargets,
+          }),
+          createdAtMs: row.createdAtMs,
+          updatedAtMs: row.updatedAtMs,
+          executedAtMs: row.executedAtMs,
+          canceledAtMs: row.canceledAtMs,
+          failedAtMs: row.failedAtMs,
+          failureMessage: row.failureMessage,
         }),
-        createdAtMs: row.createdAtMs,
-        updatedAtMs: row.updatedAtMs,
-        executedAtMs: row.executedAtMs,
-        canceledAtMs: row.canceledAtMs,
-        failedAtMs: row.failedAtMs,
-        failureMessage: row.failureMessage,
-      }))
+      )
       .sort((left, right) => left.runAtMs - right.runAtMs);
   },
 });
@@ -684,7 +722,7 @@ export const createForCurrentOrgProject = mutation({
     const currentFailedAtMs = currentSchedule?.failedAtMs ?? null;
     const currentFailureMessage = currentSchedule?.failureMessage ?? null;
 
-    return {
+    return toScheduledScheduleSummary({
       id: scheduleId,
       stageSlug: stage.slug,
       stageName: stage.name,
@@ -703,7 +741,7 @@ export const createForCurrentOrgProject = mutation({
       canceledAtMs: currentCanceledAtMs,
       failedAtMs: currentFailedAtMs,
       failureMessage: currentFailureMessage,
-    };
+    });
   },
 });
 
@@ -808,7 +846,7 @@ export const updateForCurrentOrgProject = mutation({
     const currentFailedAtMs = persistedSchedule?.failedAtMs ?? null;
     const currentFailureMessage = persistedSchedule?.failureMessage ?? null;
 
-    return {
+    return toScheduledScheduleSummary({
       id: existingSchedule._id,
       stageSlug: stage.slug,
       stageName: stage.name,
@@ -827,7 +865,7 @@ export const updateForCurrentOrgProject = mutation({
       canceledAtMs: currentCanceledAtMs,
       failedAtMs: currentFailedAtMs,
       failureMessage: currentFailureMessage,
-    };
+    });
   },
 });
 
