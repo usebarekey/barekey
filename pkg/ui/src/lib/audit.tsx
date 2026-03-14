@@ -208,3 +208,46 @@ export function getAuditSeverityIcon(severity: AuditEventRow["severity"]): React
   }
   return null;
 }
+
+/**
+ * Converts a camelCase or snake_case payload key into a human-readable label.
+ * Strips common noise suffixes like "Id" and "Slug" that aren't meaningful to users.
+ */
+export function formatPayloadKey(key: string): string {
+  const spaced = key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ");
+
+  const trimmed = spaced
+    .replace(/\s+id$/i, "")
+    .replace(/\s+slug$/i, "");
+
+  const label = trimmed.length > 0 ? trimmed : spaced;
+  return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
+}
+
+/**
+ * Formats a payload value for display. Converts snake_case identifiers
+ * into readable text and capitalises the first word.
+ */
+export function formatPayloadValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
+  if (typeof value === "number") {
+    return value.toLocaleString();
+  }
+  if (typeof value !== "string") {
+    return JSON.stringify(value, null, 2);
+  }
+
+  if (/^[a-z0-9]+(_[a-z0-9]+)+$/.test(value)) {
+    const spaced = value.replace(/_/g, " ");
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  }
+
+  return value;
+}

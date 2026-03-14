@@ -77,6 +77,30 @@ function AuditEventsSection({
   const [beforeOccurredAtMs, setBeforeOccurredAtMs] = useState<number | null>(null);
   const [events, setEvents] = useState<Array<AuditEventRow>>([]);
 
+  const categoryDisplayMap = useMemo(() => {
+    const map: Record<string, string> = { [ALL_CATEGORY]: "All categories" };
+    for (const option of auditCategoryOptions) {
+      map[option.value] = option.label;
+    }
+    return map;
+  }, []);
+
+  const projectDisplayMap = useMemo(() => {
+    const map: Record<string, string> = { [ALL_PROJECTS]: "All projects" };
+    for (const project of projects) {
+      map[project.slug] = project.name;
+    }
+    return map;
+  }, [projects]);
+
+  const actorDisplayMap = useMemo(() => {
+    const map: Record<string, string> = { [ALL_ACTORS]: "All actors" };
+    for (const option of auditActorSourceOptions) {
+      map[option.value] = option.label;
+    }
+    return map;
+  }, []);
+
   const filterKey = useMemo(
     () => JSON.stringify({ category, projectSlug, actorSource, sensitiveOnly }),
     [actorSource, category, projectSlug, sensitiveOnly],
@@ -117,15 +141,18 @@ function AuditEventsSection({
         title="Filters"
         description="Narrow the activity feed by category, project, actor, or sensitive events."
       >
-        <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+        <div className="grid gap-3 lg:grid-cols-4">
           <Select
             value={category ?? ALL_CATEGORY}
             onValueChange={(value) => {
               setCategory(value === ALL_CATEGORY ? null : value as (typeof auditCategoryOptions)[number]["value"]);
             }}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="All categories" />
+            <SelectTrigger className="w-full">
+              <SelectValue
+                placeholder="All categories"
+                displayNameMap={categoryDisplayMap}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL_CATEGORY}>All categories</SelectItem>
@@ -143,8 +170,11 @@ function AuditEventsSection({
               setProjectSlug(value === ALL_PROJECTS ? null : value);
             }}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="All projects" />
+            <SelectTrigger className="w-full">
+              <SelectValue
+                placeholder="All projects"
+                displayNameMap={projectDisplayMap}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL_PROJECTS}>All projects</SelectItem>
@@ -162,8 +192,11 @@ function AuditEventsSection({
               setActorSource(value === ALL_ACTORS ? null : value as (typeof auditActorSourceOptions)[number]["value"]);
             }}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="All actors" />
+            <SelectTrigger className="w-full">
+              <SelectValue
+                placeholder="All actors"
+                displayNameMap={actorDisplayMap}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL_ACTORS}>All actors</SelectItem>
@@ -176,6 +209,7 @@ function AuditEventsSection({
           </Select>
 
           <Button
+            className="w-full"
             variant={sensitiveOnly ? "default" : "outline"}
             onClick={() => {
               setSensitiveOnly((previous) => !previous);

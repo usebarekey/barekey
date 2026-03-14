@@ -14,6 +14,8 @@ import {
   formatAuditAbsoluteTime,
   formatAuditActor,
   formatAuditRelativeTime,
+  formatPayloadKey,
+  formatPayloadValue,
   getAuditCategoryLabel,
   getAuditEmptyStateLabel,
   getAuditEventIcon,
@@ -40,14 +42,18 @@ function AuditPayloadDetails({ event }: { event: AuditEventRow }) {
   return (
     <div className="space-y-2 rounded-xl border bg-background/70 p-3">
       {entries.map(([key, value]) => (
-        <div key={key} className="grid gap-1 rounded-lg border bg-background/60 p-3 sm:grid-cols-[150px_1fr]">
-          <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            {key}
+        <div key={key} className="grid gap-1 rounded-lg border bg-background/60 p-3 sm:grid-cols-[minmax(120px,auto)_1fr]">
+          <div className="text-xs font-medium text-muted-foreground">
+            {formatPayloadKey(key)}
           </div>
           <div className="text-sm text-foreground">
-            <pre className="overflow-auto whitespace-pre-wrap break-words font-mono text-xs">
-              {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
-            </pre>
+            {typeof value === "object" && value !== null ? (
+              <pre className="overflow-auto whitespace-pre-wrap break-words font-mono text-xs">
+                {JSON.stringify(value, null, 2)}
+              </pre>
+            ) : (
+              <span className="text-sm">{formatPayloadValue(value)}</span>
+            )}
           </div>
         </div>
       ))}
