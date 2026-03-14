@@ -1,9 +1,4 @@
-import {
-  useAuth,
-  useClerk,
-  useOrganizationList,
-  useUser,
-} from "@clerk/react-router";
+import { useAuth, useClerk, useOrganizationList, useUser } from "@clerk/react-router";
 import { useQuery } from "convex/react";
 import {
   IconChevronUp,
@@ -11,6 +6,7 @@ import {
   IconBriefcase,
   IconChartBar,
   IconCreditCard,
+  IconHistory,
   IconLogout2,
   IconPlus,
   IconSettings,
@@ -19,7 +15,7 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 import { capitalCase } from "change-case";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   Link,
   NavLink,
@@ -33,11 +29,7 @@ import {
 import { Logo } from "@/components/custom/logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -85,12 +77,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { generateGradientDataUrl } from "@/lib/generate-gradient";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@convex/_generated/api";
+import { listLocallyDeletedOrgIds, subscribeToDeletedOrgIds } from "@/lib/deleted-orgs";
 import { useTheme } from "theme-watcher";
 
 const primaryNavItems = [
   { label: "Overview", icon: IconChartBar, segment: "overview" },
   { label: "Projects", icon: IconBriefcase, segment: "projects" },
+  { label: "Audit", icon: IconHistory, segment: "audit" },
   { label: "Members", icon: IconUsers, segment: "members" },
   { label: "Billing", icon: IconCreditCard, segment: "billing" },
 ] as const;
@@ -154,9 +151,7 @@ function OrgSelectTriggerContent({
         <AvatarImage src={avatarSrc} />
         <AvatarFallback>{initials(name) || "OR"}</AvatarFallback>
       </Avatar>
-      <span className="truncate text-sm group-data-[collapsible=icon]:hidden">
-        {name}
-      </span>
+      <span className="truncate text-sm group-data-[collapsible=icon]:hidden">{name}</span>
     </div>
   );
 }
@@ -169,17 +164,11 @@ function SidebarUserMenu() {
   const currentUser = useQuery(api.users.getCurrentUser, {});
 
   const displayName =
-    user?.fullName?.trim() ||
-    user?.username?.trim() ||
-    user?.firstName?.trim() ||
-    "Account";
+    user?.fullName?.trim() || user?.username?.trim() || user?.firstName?.trim() || "Account";
   const email =
-    user?.primaryEmailAddress?.emailAddress ??
-    user?.emailAddresses?.[0]?.emailAddress ??
-    null;
+    user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? null;
   const avatarSeed = user?.id ?? currentUser?.slug ?? "user";
-  const avatarSrc =
-    user?.imageUrl ?? generateGradientDataUrl(avatarSeed, { size: 96 });
+  const avatarSrc = user?.imageUrl ?? generateGradientDataUrl(avatarSeed, { size: 96 });
   const userPath = currentUser?.slug ? `/u/${currentUser.slug}#profile` : null;
 
   return (
@@ -189,18 +178,13 @@ function SidebarUserMenu() {
           "ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/40 p-2 text-left outline-hidden transition-colors group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1"
         }
       >
-        <Avatar
-          size="sm"
-          className="border-sidebar-border group-data-[collapsible=icon]:size-6"
-        >
+        <Avatar size="sm" className="border-sidebar-border group-data-[collapsible=icon]:size-6">
           <AvatarImage src={avatarSrc} />
           <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
           <p className="truncate text-sm font-medium">{displayName}</p>
-          <p className="text-muted-foreground truncate text-xs">
-            {email ?? "No email"}
-          </p>
+          <p className="text-muted-foreground truncate text-xs">{email ?? "No email"}</p>
         </div>
         <IconChevronUp className="size-4 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
       </DropdownMenuTrigger>
@@ -219,12 +203,8 @@ function SidebarUserMenu() {
                 <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {displayName}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {email ?? "No email"}
-                </p>
+                <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                <p className="truncate text-xs text-muted-foreground">{email ?? "No email"}</p>
               </div>
             </div>
           </DropdownMenuLabel>
@@ -308,10 +288,14 @@ export function Layout() {
   } = useOrganizationList({
     userMemberships: true,
   });
-  const [switchError, setSwitchError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const lastRequestedOrgIdRef = useRef<string | null>(null);
   useEnsureCurrentUserRecord();
+  const locallyDeletedOrgIds = useSyncExternalStore(
+    subscribeToDeletedOrgIds,
+    listLocallyDeletedOrgIds,
+    () => [],
+  );
 
   const orgBasePath = `/o/${orgSlug}`;
   const relativePath = pathname.startsWith(orgBasePath)
@@ -326,15 +310,12 @@ export function Layout() {
   )
     ? requestedSettingsSectionId
     : "workspace-profile";
-  const nextOrgSegment =
-    activeSegment === "project" ? "projects" : activeSegment;
+  const nextOrgSegment = activeSegment === "project" ? "projects" : activeSegment;
   const isProjectRoute = activeSegment === "project";
-  const projectSlugSegment = isProjectRoute ? relativeSegments[1] ?? null : null;
-  const projectPageSegment = isProjectRoute ? relativeSegments[2] ?? "variables" : null;
+  const projectSlugSegment = isProjectRoute ? (relativeSegments[1] ?? null) : null;
+  const projectPageSegment = isProjectRoute ? (relativeSegments[2] ?? "variables") : null;
   const projectPageTitle =
-    projectPageSegment === null
-      ? null
-      : capitalCase(projectPageSegment.replaceAll("-", " "));
+    projectPageSegment === null ? null : capitalCase(projectPageSegment.replaceAll("-", " "));
   const segmentTitles: Record<string, string> = {
     overview: "Overview",
     projects: "Projects",
@@ -343,25 +324,23 @@ export function Layout() {
     settings: "Settings",
   };
   const activeTitle =
-    segmentTitles[nextOrgSegment] ??
-    capitalCase(nextOrgSegment.replaceAll("-", " "));
+    segmentTitles[nextOrgSegment] ?? capitalCase(nextOrgSegment.replaceAll("-", " "));
 
-  const memberships = userMemberships.data ?? [];
+  const memberships = (userMemberships.data ?? []).filter(
+    (membership) => !locallyDeletedOrgIds.includes(membership.organization.id),
+  );
   const selectableMemberships = memberships.filter((membership) =>
     Boolean(membership.organization.slug),
   );
   const routeMatchesActiveOrg = activeOrgSlug === orgSlug;
   const matchingMembershipBySlug =
-    memberships.find((membership) => membership.organization.slug === orgSlug) ??
-    null;
+    memberships.find((membership) => membership.organization.slug === orgSlug) ?? null;
   const matchingMembershipByActiveOrgId =
     activeOrgId === null
       ? null
-      : memberships.find((membership) => membership.organization.id === activeOrgId) ??
-        null;
+      : (memberships.find((membership) => membership.organization.id === activeOrgId) ?? null);
   const matchingMembership =
-    matchingMembershipBySlug ??
-    (routeMatchesActiveOrg ? matchingMembershipByActiveOrgId : null);
+    matchingMembershipBySlug ?? (routeMatchesActiveOrg ? matchingMembershipByActiveOrgId : null);
 
   useEffect(() => {
     if (isSettingsRoute) {
@@ -394,7 +373,6 @@ export function Layout() {
 
     if (routeMatchesActiveOrg) {
       lastRequestedOrgIdRef.current = null;
-      setSwitchError(null);
       return;
     }
 
@@ -408,12 +386,9 @@ export function Layout() {
     }
 
     lastRequestedOrgIdRef.current = targetOrgId;
-    setSwitchError(null);
     void setActive({ organization: targetOrgId }).catch((error: unknown) => {
       lastRequestedOrgIdRef.current = targetOrgId;
-      setSwitchError(
-        error instanceof Error ? error.message : "Failed to switch workspace.",
-      );
+      console.error(error instanceof Error ? error.message : "Failed to switch workspace.");
     });
   }, [
     isAuthLoaded,
@@ -426,8 +401,22 @@ export function Layout() {
 
   if (!isAuthLoaded || !isOrgListLoaded) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Loading workspace...
+      <div className="flex min-h-screen gap-4 p-4">
+        <Skeleton className="hidden w-16 shrink-0 rounded-2xl md:block" />
+        <div className="flex-1 space-y-4">
+          <div className="flex h-14 items-center gap-3 rounded-2xl border px-4">
+            <Skeleton className="size-8 rounded-full" />
+            <SkeletonPlaceholder
+              className="w-36 rounded-md"
+              content={<p className="text-sm text-muted-foreground">Loading workspace...</p>}
+            />
+          </div>
+          <div className="space-y-4 rounded-2xl border p-6">
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-44 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -440,26 +429,7 @@ export function Layout() {
     if (matchingMembership !== null) {
       return (
         <div className="flex min-h-screen items-center justify-center px-4">
-          <div className="w-full max-w-md rounded-xl border p-5">
-            <p className="text-sm font-medium">Switching workspace...</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Setting <span className="font-mono">{orgSlug}</span> as your
-              active workspace.
-            </p>
-            {switchError ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <p className="text-sm text-destructive">{switchError}</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link to="/o/select" />}
-                >
-                  Choose workspace
-                </Button>
-              </div>
-            ) : null}
-          </div>
+          <Spinner className="size-8" />
         </div>
       );
     }
@@ -470,17 +440,12 @@ export function Layout() {
           <div>
             <p className="text-sm font-medium">Workspace not available</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              You do not have access to{" "}
-              <span className="font-mono">{orgSlug}</span>, or this workspace is
-              unavailable.
+              You do not have access to <span className="font-mono">{orgSlug}</span>, or this
+              workspace is unavailable.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link to="/o/select" />}
-            >
+            <Button variant="outline" nativeButton={false} render={<Link to="/o/select" />}>
               Select workspace
             </Button>
             <Button
@@ -574,16 +539,12 @@ export function Layout() {
                     item.segment === "overview"
                       ? pathname === `/o/${orgSlug}` || pathname === href
                       : item.segment === "projects"
-                        ? pathname.startsWith(href) ||
-                          pathname.startsWith(`/o/${orgSlug}/project/`)
+                        ? pathname.startsWith(href) || pathname.startsWith(`/o/${orgSlug}/project/`)
                         : pathname.startsWith(href);
 
                   return (
                     <SidebarMenuItem key={item.segment}>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        render={<NavLink to={href} />}
-                      >
+                      <SidebarMenuButton isActive={isActive} render={<NavLink to={href} />}>
                         <item.icon />
                         <span>{item.label}</span>
                       </SidebarMenuButton>
@@ -618,15 +579,8 @@ export function Layout() {
                       <SidebarMenuItem key={item.sectionId}>
                         <SidebarMenuButton
                           className="pl-5 text-muted-foreground"
-                          isActive={
-                            isSettingsRoute &&
-                            activeSettingsSectionId === item.sectionId
-                          }
-                          render={
-                            <NavLink
-                              to={`/o/${orgSlug}/settings#${item.sectionId}`}
-                            />
-                          }
+                          isActive={isSettingsRoute && activeSettingsSectionId === item.sectionId}
+                          render={<NavLink to={`/o/${orgSlug}/settings#${item.sectionId}`} />}
                         >
                           <span>{item.label}</span>
                         </SidebarMenuButton>
@@ -655,9 +609,7 @@ export function Layout() {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
-                    <BreadcrumbLink
-                      render={<NavLink to={`/o/${orgSlug}/overview`} />}
-                    >
+                    <BreadcrumbLink render={<NavLink to={`/o/${orgSlug}/overview`} />}>
                       {orgSlug}
                     </BreadcrumbLink>
                   </BreadcrumbItem>
@@ -675,7 +627,9 @@ export function Layout() {
                           <BreadcrumbItem>
                             <BreadcrumbLink
                               render={
-                                <NavLink to={`/o/${orgSlug}/project/${projectSlugSegment}/variables`} />
+                                <NavLink
+                                  to={`/o/${orgSlug}/project/${projectSlugSegment}/variables`}
+                                />
                               }
                             >
                               {projectSlugSegment}

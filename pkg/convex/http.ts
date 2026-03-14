@@ -1,4 +1,5 @@
 import { httpRouter } from "convex/server";
+import { verifyWebhook } from "@clerk/backend/webhooks";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -101,6 +102,7 @@ type DecryptedVariable =
   | {
       id: Id<"projectVariables">;
       name: string;
+      visibility: EnvVisibility;
       kind: "secret";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       value: string;
@@ -108,6 +110,7 @@ type DecryptedVariable =
   | {
       id: Id<"projectVariables">;
       name: string;
+      visibility: EnvVisibility;
       kind: "ab_roll";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       valueA: string;
@@ -117,6 +120,7 @@ type DecryptedVariable =
   | {
       id: Id<"projectVariables">;
       name: string;
+      visibility: EnvVisibility;
       kind: "rollout";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
       valueA: string;
@@ -800,6 +804,7 @@ function buildVariableDefinition(
       name: string;
       kind: "rollout";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      visibility: EnvVisibility;
       valueA: string;
       valueB: string;
       rolloutFunction: RolloutFunction;
@@ -2094,6 +2099,43 @@ const typegenManifest = httpAction(async (ctx, request) => {
   });
 });
 
+const clerkWebhook = httpAction(async (ctx, request) => {
+  const requestId = readRequestId(request);
+  if (runtimeConfig.clerkWebhookSigningSecret === null) {
+    return errorResponse({
+      status: 503,
+      code: "WEBHOOK_UNAVAILABLE",
+      message: "Clerk webhook signing secret is not configured.",
+      requestId,
+    });
+  }
+
+  try {
+    const event = await verifyWebhook(request, {
+      signingSecret: runtimeConfig.clerkWebhookSigningSecret,
+    });
+    const result = await ctx.runAction(internal.audit.ingestClerkWebhookEventInternal, {
+      payloadJson: JSON.stringify(event),
+    });
+
+    return buildJsonResponse(200, {
+      accepted: result.accepted,
+      requestId,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : "Webhook verification failed.";
+    return errorResponse({
+      status: 401,
+      code: "INVALID_WEBHOOK_SIGNATURE",
+      message,
+      requestId,
+    });
+  }
+});
+
 const corsPreflight = httpAction(async () => buildCorsPreflightResponse());
 
 const http = httpRouter();
@@ -2248,6 +2290,17 @@ http.route({
 });
 http.route({
   path: "/v1/typegen/manifest",
+  method: "OPTIONS",
+  handler: corsPreflight,
+});
+
+http.route({
+  path: "/v1/internal/clerk/webhook",
+  method: "POST",
+  handler: clerkWebhook,
+});
+http.route({
+  path: "/v1/internal/clerk/webhook",
   method: "OPTIONS",
   handler: corsPreflight,
 });

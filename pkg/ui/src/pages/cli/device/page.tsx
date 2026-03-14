@@ -13,6 +13,7 @@ import { useSearchParams } from "react-router-dom";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 
 export function Page() {
   const [searchParams] = useSearchParams();
@@ -93,7 +94,14 @@ export function Page() {
                 }}
                 disabled={isSubmitting || userCode.length === 0}
               >
-                {isSubmitting ? "Authorizing..." : "Authorize CLI"}
+                {isSubmitting ? (
+                  <SkeletonPlaceholder
+                    className="inline-block rounded-md"
+                    content={<span>Authorize CLI</span>}
+                  />
+                ) : (
+                  "Authorize CLI"
+                )}
               </Button>
             </div>
           </SignedIn>

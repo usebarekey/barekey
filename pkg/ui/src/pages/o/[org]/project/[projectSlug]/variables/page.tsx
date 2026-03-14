@@ -31,6 +31,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OrgSectionCard } from "@/components/custom/org-workspace";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 import {
   Select,
   SelectContent,
@@ -602,8 +604,32 @@ function VariableEditorDialog({
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-            Decrypting...
+          <div className="space-y-4">
+            <SkeletonPlaceholder
+              className="w-28 rounded-md"
+              content={<p className="text-sm text-muted-foreground">Decrypting...</p>}
+            />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="space-y-1.5">
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+            <Skeleton className="h-px w-full" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-14" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Skeleton className="h-10 w-20" />
+              <Skeleton className="h-10 w-24" />
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
@@ -359,7 +360,9 @@ export function Page() {
       setOrganizationName("");
       capture("organization_creation_succeeded", {
         checkout_required: false,
-        destination: createdOrganization.slug ? `/o/${createdOrganization.slug}/overview` : "/o/select",
+        destination: createdOrganization.slug
+          ? `/o/${createdOrganization.slug}/overview`
+          : "/o/select",
         starting_plan: organizationStartingPlan,
       });
       void navigate(
@@ -734,11 +737,21 @@ export function Page() {
                 </div>
 
                 {isSwitchingOrganization ? (
-                  <p className="text-xs text-muted-foreground">Switching organization...</p>
+                  <SkeletonPlaceholder
+                    className="w-40 rounded-md"
+                    content={
+                      <p className="text-xs text-muted-foreground">Switching organization...</p>
+                    }
+                  />
                 ) : isWorkspacePlanStatusLoading ? (
-                  <p className="text-xs text-muted-foreground">
-                    Checking workspace billing status...
-                  </p>
+                  <SkeletonPlaceholder
+                    className="w-52 rounded-md"
+                    content={
+                      <p className="text-xs text-muted-foreground">
+                        Checking workspace billing status...
+                      </p>
+                    }
+                  />
                 ) : workspacePlanStatus?.isPlanless ? (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                     This workspace is without a plan and currently disabled for project creation.
@@ -799,15 +812,31 @@ export function Page() {
                 createKind === "project" ? isCreateProjectDisabled : isCreateOrganizationDisabled
               }
             >
-              {createKind === "project"
-                ? isProjectSubmitting
-                  ? "Creating..."
-                  : "Create project"
-                : isOrganizationSubmitting
-                  ? "Creating..."
-                  : organizationStartingPlan === "without_plan"
-                    ? "Create organization"
-                    : "Create organization and continue"}
+              {createKind === "project" ? (
+                isProjectSubmitting ? (
+                  <SkeletonPlaceholder
+                    className="inline-block rounded-md"
+                    content={<span>Create project</span>}
+                  />
+                ) : (
+                  "Create project"
+                )
+              ) : isOrganizationSubmitting ? (
+                <SkeletonPlaceholder
+                  className="inline-block rounded-md"
+                  content={
+                    <span>
+                      {organizationStartingPlan === "without_plan"
+                        ? "Create organization"
+                        : "Create organization and continue"}
+                    </span>
+                  }
+                />
+              ) : organizationStartingPlan === "without_plan" ? (
+                "Create organization"
+              ) : (
+                "Create organization and continue"
+              )}
             </Button>
           </CardFooter>
         </SignedIn>

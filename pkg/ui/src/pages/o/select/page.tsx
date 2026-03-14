@@ -1,18 +1,20 @@
-import { Button } from "@/components/ui/button";
+import { useAuth, useOrganizationList, useUser } from "@clerk/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
+
 import { useEnsureCurrentUserRecord } from "@/hooks/use-ensure-current-user-record";
+import { Spinner } from "@/components/ui/spinner";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
 import { useAnalytics } from "@/lib/posthog";
 import { generateDefaultOrgName, generateDefaultOrgSlugCandidate } from "@/lib/slugs";
-import {
-  OrganizationList,
-  SignedIn,
-  SignedOut,
-  useAuth,
-  useOrganizationList,
-  useUser,
-} from "@clerk/react-router";
-import { useEffect, useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+
+function WorkspaceRedirectSpinner() {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <Spinner className="size-8" />
+    </div>
+  );
+}
 
 export function Page() {
   const { isLoaded: isAuthLoaded, isSignedIn, orgSlug } = useAuth();
@@ -27,15 +29,24 @@ export function Page() {
     userMemberships: true,
   });
   const [isCreatingDefaultOrg, setIsCreatingDefaultOrg] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [isResolvingOrg, setIsResolvingOrg] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
   const hasAttemptedAutoCreateRef = useRef(false);
+  const hasAttemptedAutoSelectRef = useRef<string | null>(null);
+
   useEnsureCurrentUserRecord();
 
   const memberships = userMemberships.data ?? [];
-  const hasMemberships = memberships.length > 0;
-  const hasActiveOrgMembership =
-    orgSlug !== null &&
-    memberships.some((membership) => membership.organization.slug === orgSlug);
+  const selectableMemberships = memberships.filter(
+    (membership) =>
+      typeof membership.organization.slug === "string" && membership.organization.slug.length > 0,
+  );
+  const activeMembership =
+    orgSlug === null
+      ? null
+      : (selectableMemberships.find((membership) => membership.organization.slug === orgSlug) ??
+        null);
+  const fallbackMembership = selectableMemberships[0] ?? null;
 
   async function handleCreateDefaultOrg() {
     if (!isOrgListLoaded || !isSignedIn || user == null) {
@@ -43,10 +54,11 @@ export function Page() {
     }
 
     setIsCreatingDefaultOrg(true);
-    setCreateError(null);
+    setResolveError(null);
     capture("default_org_creation_submitted");
 
-    const email = user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null;
+    const email =
+      user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null;
     const fullName = user.fullName ?? user.username ?? user.firstName ?? null;
     const orgName = generateDefaultOrgName({
       email,
@@ -85,7 +97,7 @@ export function Page() {
       });
       capture("default_org_creation_succeeded");
     } catch (error: unknown) {
-      setCreateError(getClerkErrorMessage(error, "Unable to create default organization."));
+      setResolveError(getClerkErrorMessage(error, "Unable to create default organization."));
       capture("default_org_creation_failed");
     } finally {
       setIsCreatingDefaultOrg(false);
@@ -97,97 +109,77 @@ export function Page() {
       return;
     }
 
-    if (orgSlug) {
+    if (activeMembership) {
       return;
     }
 
-    if (hasMemberships || isCreatingDefaultOrg) {
+    if (fallbackMembership) {
+      if (
+        isResolvingOrg ||
+        hasAttemptedAutoSelectRef.current === fallbackMembership.organization.id
+      ) {
+        return;
+      }
+
+      hasAttemptedAutoSelectRef.current = fallbackMembership.organization.id;
+      setIsResolvingOrg(true);
+      setResolveError(null);
+
+      void setActive({
+        organization: fallbackMembership.organization.id,
+      })
+        .then(() => {
+          capture("workspace_auto_selected", {
+            orgId: fallbackMembership.organization.id,
+            orgSlug: fallbackMembership.organization.slug,
+          });
+        })
+        .catch((error: unknown) => {
+          setResolveError(getClerkErrorMessage(error, "Unable to open your workspace."));
+          hasAttemptedAutoSelectRef.current = null;
+        })
+        .finally(() => {
+          setIsResolvingOrg(false);
+        });
       return;
     }
 
-    if (hasAttemptedAutoCreateRef.current) {
+    if (isCreatingDefaultOrg || hasAttemptedAutoCreateRef.current) {
       return;
     }
 
     hasAttemptedAutoCreateRef.current = true;
     void handleCreateDefaultOrg();
-  }, [hasMemberships, isAuthLoaded, isCreatingDefaultOrg, isOrgListLoaded, isSignedIn, orgSlug, user]);
+  }, [
+    activeMembership,
+    capture,
+    fallbackMembership,
+    isAuthLoaded,
+    isCreatingDefaultOrg,
+    isOrgListLoaded,
+    isResolvingOrg,
+    isSignedIn,
+    setActive,
+    user,
+  ]);
 
-  if (isAuthLoaded && isSignedIn && isOrgListLoaded && orgSlug && hasActiveOrgMembership) {
-    return <Navigate to={`/o/${orgSlug}/overview`} replace />;
+  if (isAuthLoaded && !isSignedIn) {
+    return <Navigate to="/auth/sso" replace />;
   }
 
-  return (
-    <div className="mx-auto flex min-h-screen w-full max-w-5xl items-start justify-center px-4 py-10">
-      <div className="w-full space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold">Organizations</h1>
-          <p className="text-sm text-muted-foreground">
-            Select an organization to enter its workspace or create a new one.
-          </p>
-        </div>
+  if (activeMembership?.organization.slug) {
+    return <Navigate to={`/o/${activeMembership.organization.slug}/overview`} replace />;
+  }
 
-        <SignedOut>
-          <div className="rounded-lg border p-4 text-sm text-muted-foreground">
-            Sign in first to manage organizations.
-          </div>
-        </SignedOut>
+  if (
+    !isAuthLoaded ||
+    !isOrgListLoaded ||
+    isCreatingDefaultOrg ||
+    isResolvingOrg ||
+    (!resolveError && isSignedIn && (fallbackMembership !== null || memberships.length === 0))
+  ) {
+    return <WorkspaceRedirectSpinner />;
+  }
 
-        <SignedIn>
-          <div className="rounded-xl border p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">Default organization bootstrap</p>
-                <p className="text-sm text-muted-foreground">
-                  Creates a workspace slug like <span className="font-mono">johndoeorg-5831</span>.
-                </p>
-              </div>
-              <Button
-                onClick={handleCreateDefaultOrg}
-                disabled={!isOrgListLoaded || isCreatingDefaultOrg}
-              >
-                {isCreatingDefaultOrg ? "Creating..." : "Create default org"}
-              </Button>
-            </div>
-            {hasMemberships ? (
-              <p className="mt-3 text-xs text-muted-foreground">
-                You already belong to {memberships.length} organization{memberships.length === 1 ? "" : "s"}.
-              </p>
-            ) : null}
-            {createError ? <p className="mt-3 text-sm text-destructive">{createError}</p> : null}
-          </div>
-
-          <div className="rounded-xl border p-4">
-            <OrganizationList
-              hidePersonal={true}
-              afterCreateOrganizationUrl={(organization) =>
-                organization.slug ? `/o/${organization.slug}/overview` : "/o/select"
-              }
-              afterSelectOrganizationUrl={(organization) =>
-                organization.slug ? `/o/${organization.slug}/overview` : "/o/select"
-              }
-            />
-          </div>
-        </SignedIn>
-
-        <div className="text-xs text-muted-foreground">
-          Barekey workspaces live under <span className="font-mono">/o/:orgSlug</span>. User
-          account pages live under <span className="font-mono">/u/:userSlug</span>.{" "}
-          <Link
-            to="/"
-            className="underline underline-offset-4"
-            onClick={() => {
-              capture("navigation_clicked", {
-                destination: "/",
-                location: "organization_select_footer",
-                type: "internal_link",
-              });
-            }}
-          >
-            Back home
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
+  return <WorkspaceRedirectSpinner />;
 }

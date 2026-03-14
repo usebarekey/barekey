@@ -5,8 +5,9 @@ import {
   IconInfoCircle,
   IconAlertTriangle,
   IconAlertOctagon,
-  IconLoader,
 } from "@tabler/icons-react";
+
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { resolvedTheme } = useTheme();
@@ -20,7 +21,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         info: <IconInfoCircle className="size-4" />,
         warning: <IconAlertTriangle className="size-4" />,
         error: <IconAlertOctagon className="size-4" />,
-        loading: <IconLoader className="size-4 animate-spin" />,
+        loading: <Skeleton className="size-4 rounded-full" />,
       }}
       style={
         {

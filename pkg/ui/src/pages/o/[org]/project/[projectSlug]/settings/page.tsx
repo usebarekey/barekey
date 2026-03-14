@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { Input } from "@/components/ui/input";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 import type { ProjectRouteContext } from "../layout";
 
 type StageDraftRow = {
@@ -59,7 +60,7 @@ export function Page() {
   const [stageDraftRows, setStageDraftRows] = useState<StageDraftRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deleteCountdown, setDeleteCountdown] = useState(5);
+  const [deleteCountdown, setDeleteCountdown] = useState(3);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
   const draftToolbarRef = useRef<HTMLDivElement | null>(null);
 
@@ -129,7 +130,7 @@ export function Page() {
 
   useEffect(() => {
     if (!isDeleteDialogOpen) {
-      setDeleteCountdown(5);
+      setDeleteCountdown(3);
       return;
     }
 
@@ -458,7 +459,7 @@ export function Page() {
               variant="outline"
               className="border-destructive/50 text-destructive hover:text-destructive"
               onClick={() => {
-                setDeleteCountdown(5);
+                setDeleteCountdown(3);
                 setIsDeleteDialogOpen(true);
               }}
             >
@@ -477,7 +478,7 @@ export function Page() {
           }
           setIsDeleteDialogOpen(open);
           if (!open) {
-            setDeleteCountdown(5);
+            setDeleteCountdown(3);
           }
         }}
       >
@@ -492,20 +493,40 @@ export function Page() {
             {areDeletePrerequisitesMet ? (
               <p className="text-sm text-muted-foreground">
                 All environments and variables have been removed.{" "}
-                {deleteCountdown > 0
-                  ? `Delete unlocks in ${deleteCountdown} ${deleteCountdown === 1 ? "second" : "seconds"}.`
-                  : "Delete is unlocked now."}{" "}
+                {deleteCountdown > 0 ? (
+                  <>
+                    Delete unlocks in{" "}
+                    <strong className="font-bold text-foreground">{deleteCountdown}</strong>{" "}
+                    {deleteCountdown === 1 ? "second" : "seconds"}.
+                  </>
+                ) : (
+                  "Delete is unlocked now."
+                )}{" "}
                 Note that we can not recover or undo this operation.
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
                 To delete this project, please delete{" "}
                 <span className="font-bold text-foreground">
-                  {isDeletePrerequisitesLoading ? "..." : remainingEnvironmentCount}
+                  {isDeletePrerequisitesLoading ? (
+                    <SkeletonPlaceholder
+                      className="inline-block rounded-md align-middle"
+                      content={<span>88</span>}
+                    />
+                  ) : (
+                    remainingEnvironmentCount
+                  )}
                 </span>{" "}
                 environments and the{" "}
                 <span className="font-bold text-foreground">
-                  {isDeletePrerequisitesLoading ? "..." : remainingVariableCount}
+                  {isDeletePrerequisitesLoading ? (
+                    <SkeletonPlaceholder
+                      className="inline-block rounded-md align-middle"
+                      content={<span>888</span>}
+                    />
+                  ) : (
+                    remainingVariableCount
+                  )}
                 </span>{" "}
                 variables for this project. Note that we can not recover or undo this operation.
               </p>
@@ -531,7 +552,14 @@ export function Page() {
                 !areDeletePrerequisitesMet
               }
             >
-              {isDeletingProject ? "Deleting..." : "Delete project"}
+              {isDeletingProject ? (
+                <SkeletonPlaceholder
+                  className="inline-block rounded-md"
+                  content={<span>Delete project</span>}
+                />
+              ) : (
+                "Delete project"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

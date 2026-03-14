@@ -3,12 +3,12 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
-  action,
   internalAction,
   internalMutation,
   internalQuery,
   mutation,
   query,
+  type MutationCtx,
 } from "./_generated/server";
 import {
   assertExpectedOrgSlug,
@@ -19,6 +19,8 @@ import {
 import { decryptSecretValueForProject } from "./lib/encryption";
 import { type DeclaredVariableType } from "./lib/declared_types";
 import {
+  type ProjectVariablePreparedCreateEntry,
+  type ProjectVariablePreparedUpdateEntry,
   projectVariablePreparedCreateValidator,
   projectVariablePreparedUpdateValidator,
   projectVariableScheduleCreateEntryValidator,
@@ -216,9 +218,7 @@ function validateRunAtMs(value: number): number {
 }
 
 async function buildPreparedScheduleSnapshot(input: {
-  ctx: Parameters<typeof action>[0]["handler"] extends (ctx: infer T, args: never) => unknown
-    ? T
-    : never;
+  ctx: MutationCtx;
   orgId: string;
   clerkUserId: string;
   projectSlug: string;
@@ -226,12 +226,8 @@ async function buildPreparedScheduleSnapshot(input: {
   creates: Array<ScheduledCreateEntry>;
   updates: Array<ScheduledUpdateEntry>;
 }): Promise<{
-  preparedCreates: Array<
-    (typeof projectVariablePreparedCreateValidator)["type"] extends never ? never : never
-  >;
-  preparedUpdates: Array<
-    (typeof projectVariablePreparedUpdateValidator)["type"] extends never ? never : never
-  >;
+  preparedCreates: Array<ProjectVariablePreparedCreateEntry>;
+  preparedUpdates: Array<ProjectVariablePreparedUpdateEntry>;
   updateTargets: Array<{
     id: Id<"projectVariables">;
     name: string;
@@ -349,10 +345,46 @@ function scheduleBatchNames(input: {
   ];
 }
 
+function summarizeScheduleEntries(input: {
+  creates: Array<{
+    name: string;
+    visibility: VariableVisibility;
+    kind: "secret" | "ab_roll" | "rollout";
+    declaredType: DeclaredVariableType;
+  }>;
+  updates: Array<{
+    id: Id<"projectVariables">;
+    visibility: VariableVisibility;
+    kind: "secret" | "ab_roll" | "rollout";
+    declaredType: DeclaredVariableType;
+  }>;
+  updateTargets: Array<{
+    id: Id<"projectVariables">;
+    name: string;
+  }>;
+}) {
+  const namesById = new Map(input.updateTargets.map((entry) => [entry.id, entry.name] as const));
+
+  return [
+    ...input.creates.map((entry) => ({
+      operation: "create",
+      name: entry.name,
+      kind: entry.kind,
+      visibility: entry.visibility,
+      declaredType: entry.declaredType,
+    })),
+    ...input.updates.map((entry) => ({
+      operation: "update",
+      name: namesById.get(entry.id) ?? "unknown",
+      kind: entry.kind,
+      visibility: entry.visibility,
+      declaredType: entry.declaredType,
+    })),
+  ];
+}
+
 async function attachScheduledFunctionIdIfStillPending(input: {
-  ctx: Parameters<typeof mutation>[0]["handler"] extends (ctx: infer T, args: never) => unknown
-    ? T
-    : never;
+  ctx: MutationCtx;
   scheduleId: Id<"projectVariableSchedules">;
   scheduledFunctionId: Id<"_scheduled_functions">;
 }) {
@@ -475,7 +507,7 @@ export const decryptForCurrentOrgProject = mutation({
           const value = await decryptSecretValueForProject(ctx, {
             projectId: project._id,
             orgId: project.orgId,
-            ciphertext: entry.encryptedValue,
+            encryptedValue: entry.encryptedValue,
           });
           return {
             name: entry.name,
@@ -489,12 +521,12 @@ export const decryptForCurrentOrgProject = mutation({
         const valueA = await decryptSecretValueForProject(ctx, {
           projectId: project._id,
           orgId: project.orgId,
-          ciphertext: entry.encryptedValueA,
+          encryptedValue: entry.encryptedValueA,
         });
         const valueB = await decryptSecretValueForProject(ctx, {
           projectId: project._id,
           orgId: project.orgId,
-          ciphertext: entry.encryptedValueB,
+          encryptedValue: entry.encryptedValueB,
         });
 
         if (entry.kind === "ab_roll") {
@@ -533,7 +565,7 @@ export const decryptForCurrentOrgProject = mutation({
           const value = await decryptSecretValueForProject(ctx, {
             projectId: project._id,
             orgId: project.orgId,
-            ciphertext: entry.encryptedValue,
+            encryptedValue: entry.encryptedValue,
           });
           return {
             id: entry.id,
@@ -548,12 +580,12 @@ export const decryptForCurrentOrgProject = mutation({
         const valueA = await decryptSecretValueForProject(ctx, {
           projectId: project._id,
           orgId: project.orgId,
-          ciphertext: entry.encryptedValueA,
+          encryptedValue: entry.encryptedValueA,
         });
         const valueB = await decryptSecretValueForProject(ctx, {
           projectId: project._id,
           orgId: project.orgId,
-          ciphertext: entry.encryptedValueB,
+          encryptedValue: entry.encryptedValueB,
         });
 
         if (entry.kind === "ab_roll") {
@@ -690,6 +722,46 @@ export const createForCurrentOrgProject = mutation({
     const currentFailedAtMs = currentSchedule?.failedAtMs ?? null;
     const currentFailureMessage = currentSchedule?.failureMessage ?? null;
 
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: project._id,
+      projectSlug: project.slug,
+      stageSlug: stage.slug,
+      eventType: "schedule.created",
+      category: "schedule",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "schedule",
+      subjectId: String(scheduleId),
+      subjectName: stage.name,
+      title: `Scheduled ${snapshot.createdCount + snapshot.updatedCount} variable change${snapshot.createdCount + snapshot.updatedCount === 1 ? "" : "s"}`,
+      description: `A scheduled batch was created for ${project.slug}/${stage.slug}.`,
+      severity: summarizeScheduleEntries({
+        creates: snapshot.preparedCreates,
+        updates: snapshot.preparedUpdates,
+        updateTargets: snapshot.updateTargets,
+      }).some((entry) => entry.visibility === "private")
+        ? "sensitive"
+        : "info",
+      payloadJson: JSON.stringify({
+        timezone,
+        runAtMs,
+        counts: {
+          created: snapshot.createdCount,
+          updated: snapshot.updatedCount,
+        },
+        variables: summarizeScheduleEntries({
+          creates: snapshot.preparedCreates,
+          updates: snapshot.preparedUpdates,
+          updateTargets: snapshot.updateTargets,
+        }),
+      }),
+      retentionTierOverride: null,
+    });
+
     return {
       id: scheduleId,
       stageSlug: stage.slug,
@@ -814,6 +886,46 @@ export const updateForCurrentOrgProject = mutation({
     const currentFailedAtMs = persistedSchedule?.failedAtMs ?? null;
     const currentFailureMessage = persistedSchedule?.failureMessage ?? null;
 
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: project._id,
+      projectSlug: project.slug,
+      stageSlug: stage.slug,
+      eventType: "schedule.updated",
+      category: "schedule",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "schedule",
+      subjectId: String(existingSchedule._id),
+      subjectName: stage.name,
+      title: `Updated scheduled variable batch`,
+      description: `The scheduled batch for ${project.slug}/${stage.slug} was edited.`,
+      severity: summarizeScheduleEntries({
+        creates: snapshot.preparedCreates,
+        updates: snapshot.preparedUpdates,
+        updateTargets: snapshot.updateTargets,
+      }).some((entry) => entry.visibility === "private")
+        ? "sensitive"
+        : "info",
+      payloadJson: JSON.stringify({
+        timezone,
+        runAtMs,
+        counts: {
+          created: snapshot.createdCount,
+          updated: snapshot.updatedCount,
+        },
+        variables: summarizeScheduleEntries({
+          creates: snapshot.preparedCreates,
+          updates: snapshot.preparedUpdates,
+          updateTargets: snapshot.updateTargets,
+        }),
+      }),
+      retentionTierOverride: null,
+    });
+
     return {
       id: existingSchedule._id,
       stageSlug: stage.slug,
@@ -882,6 +994,35 @@ export const cancelForCurrentOrgProject = mutation({
       canceledAtMs: now,
     });
 
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: project._id,
+      projectSlug: project.slug,
+      stageSlug: schedule.stageSlug,
+      eventType: "schedule.canceled",
+      category: "schedule",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "schedule",
+      subjectId: String(schedule._id),
+      subjectName: schedule.stageSlug,
+      title: "Canceled scheduled variable batch",
+      description: `A scheduled batch for ${project.slug}/${schedule.stageSlug} was canceled.`,
+      severity: "warning",
+      payloadJson: JSON.stringify({
+        timezone: schedule.timezone,
+        runAtMs: schedule.runAtMs,
+        counts: {
+          created: schedule.createdCount,
+          updated: schedule.updatedCount,
+        },
+      }),
+      retentionTierOverride: null,
+    });
+
     return null;
   },
 });
@@ -889,11 +1030,23 @@ export const cancelForCurrentOrgProject = mutation({
 const scheduleExecutionRowValidator = v.union(
   v.object({
     scheduleId: v.id("projectVariableSchedules"),
+    projectId: v.id("projects"),
+    orgSlug: v.string(),
     projectSlug: v.string(),
     orgId: v.string(),
     stageSlug: v.string(),
+    timezone: v.string(),
+    runAtMs: v.number(),
+    createdCount: v.number(),
+    updatedCount: v.number(),
     preparedCreates: v.array(projectVariablePreparedCreateValidator),
     preparedUpdates: v.array(projectVariablePreparedUpdateValidator),
+    updateTargets: v.array(
+      v.object({
+        id: v.id("projectVariables"),
+        name: v.string(),
+      }),
+    ),
     status: projectVariableScheduleStatusValidator,
   }),
   v.null(),
@@ -917,11 +1070,18 @@ export const getScheduleForExecutionInternal = internalQuery({
 
     return {
       scheduleId: schedule._id,
+      projectId: project._id,
+      orgSlug: project.orgSlug,
       projectSlug: project.slug,
       orgId: schedule.orgId,
       stageSlug: schedule.stageSlug,
+      timezone: schedule.timezone,
+      runAtMs: schedule.runAtMs,
+      createdCount: schedule.createdCount,
+      updatedCount: schedule.updatedCount,
       preparedCreates: schedule.preparedCreates,
       preparedUpdates: schedule.preparedUpdates,
+      updateTargets: schedule.updateTargets,
       status: schedule.status,
     };
   },
@@ -1009,11 +1169,79 @@ export const executeScheduledVariableScheduleInternal = internalAction({
       await ctx.runMutation(internal.project_variable_schedules.markScheduleAppliedInternal, {
         scheduleId: schedule.scheduleId,
       });
+      await ctx.runMutation(internal.audit.appendEventInternal, {
+        orgId: schedule.orgId,
+        orgSlug: schedule.orgSlug,
+        projectId: schedule.projectId,
+        projectSlug: schedule.projectSlug,
+        stageSlug: schedule.stageSlug,
+        eventType: "schedule.executed",
+        category: "schedule",
+        actorSource: "scheduler",
+        actorClerkUserId: null,
+        actorDisplayName: "Scheduler",
+        actorEmail: null,
+        subjectType: "schedule",
+        subjectId: String(schedule.scheduleId),
+        subjectName: schedule.stageSlug,
+        title: "Executed scheduled variable batch",
+        description: `A scheduled batch for ${schedule.projectSlug}/${schedule.stageSlug} applied successfully.`,
+        severity: summarizeScheduleEntries({
+          creates: schedule.preparedCreates,
+          updates: schedule.preparedUpdates,
+          updateTargets: schedule.updateTargets,
+        }).some((entry) => entry.visibility === "private")
+          ? "sensitive"
+          : "info",
+        payloadJson: JSON.stringify({
+          timezone: schedule.timezone,
+          runAtMs: schedule.runAtMs,
+          counts: {
+            created: schedule.createdCount,
+            updated: schedule.updatedCount,
+          },
+          variables: summarizeScheduleEntries({
+            creates: schedule.preparedCreates,
+            updates: schedule.preparedUpdates,
+            updateTargets: schedule.updateTargets,
+          }),
+        }),
+        retentionTierOverride: null,
+      });
     } catch (error: unknown) {
       const failureMessage = error instanceof Error ? error.message : "Scheduled update failed.";
       await ctx.runMutation(internal.project_variable_schedules.markScheduleFailedInternal, {
         scheduleId: schedule.scheduleId,
         failureMessage,
+      });
+      await ctx.runMutation(internal.audit.appendEventInternal, {
+        orgId: schedule.orgId,
+        orgSlug: schedule.orgSlug,
+        projectId: schedule.projectId,
+        projectSlug: schedule.projectSlug,
+        stageSlug: schedule.stageSlug,
+        eventType: "schedule.failed",
+        category: "schedule",
+        actorSource: "scheduler",
+        actorClerkUserId: null,
+        actorDisplayName: "Scheduler",
+        actorEmail: null,
+        subjectType: "schedule",
+        subjectId: String(schedule.scheduleId),
+        subjectName: schedule.stageSlug,
+        title: "Scheduled variable batch failed",
+        description: `A scheduled batch for ${schedule.projectSlug}/${schedule.stageSlug} failed to apply.`,
+        severity: "warning",
+        payloadJson: JSON.stringify({
+          timezone: schedule.timezone,
+          runAtMs: schedule.runAtMs,
+          counts: {
+            created: schedule.createdCount,
+            updated: schedule.updatedCount,
+          },
+          failureMessage,
+        }),
+        retentionTierOverride: null,
       });
       throw error;
     }

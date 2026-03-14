@@ -10,14 +10,7 @@ import {
   IconSettingsCog,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import {
-  NavLink,
-  Navigate,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
+import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { Logo } from "@/components/custom/logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,11 +23,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +35,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 import {
   Sidebar,
   SidebarContent,
@@ -95,17 +86,11 @@ function SidebarUserMenu({
   const { resolvedTheme, toggleMode } = useTheme();
 
   const displayName =
-    user?.fullName?.trim() ||
-    user?.username?.trim() ||
-    user?.firstName?.trim() ||
-    "Account";
+    user?.fullName?.trim() || user?.username?.trim() || user?.firstName?.trim() || "Account";
   const email =
-    user?.primaryEmailAddress?.emailAddress ??
-    user?.emailAddresses?.[0]?.emailAddress ??
-    null;
+    user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? null;
   const avatarSeed = user?.id ?? currentUserSlug ?? "user";
-  const avatarSrc =
-    user?.imageUrl ?? generateGradientDataUrl(avatarSeed, { size: 96 });
+  const avatarSrc = user?.imageUrl ?? generateGradientDataUrl(avatarSeed, { size: 96 });
 
   return (
     <DropdownMenu>
@@ -114,18 +99,13 @@ function SidebarUserMenu({
           "ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/40 p-2 text-left outline-hidden transition-colors group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-1"
         }
       >
-        <Avatar
-          size="sm"
-          className="border-sidebar-border group-data-[collapsible=icon]:size-6"
-        >
+        <Avatar size="sm" className="border-sidebar-border group-data-[collapsible=icon]:size-6">
           <AvatarImage src={avatarSrc} />
           <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
           <p className="truncate text-sm font-medium">{displayName}</p>
-          <p className="text-muted-foreground truncate text-xs">
-            {email ?? "No email"}
-          </p>
+          <p className="text-muted-foreground truncate text-xs">{email ?? "No email"}</p>
         </div>
         <IconChevronUp className="size-4 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
       </DropdownMenuTrigger>
@@ -144,12 +124,8 @@ function SidebarUserMenu({
                 <AvatarFallback>{initials(displayName) || "U"}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {displayName}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {email ?? "No email"}
-                </p>
+                <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                <p className="truncate text-xs text-muted-foreground">{email ?? "No email"}</p>
               </div>
             </div>
           </DropdownMenuLabel>
@@ -222,10 +198,7 @@ export function Layout() {
     : "";
   const activeLegacySegment = relativePath.split("/").filter(Boolean)[0] ?? "";
   const requestedSectionIdFromPath = (() => {
-    if (
-      activeLegacySegment === "profile" ||
-      activeLegacySegment === "overview"
-    ) {
+    if (activeLegacySegment === "profile" || activeLegacySegment === "overview") {
       return "profile-information";
     }
     if (activeLegacySegment === "security") {
@@ -233,8 +206,7 @@ export function Layout() {
     }
     return "";
   })();
-  const requestedSectionId =
-    hash.replace(/^#/, "") || requestedSectionIdFromPath;
+  const requestedSectionId = hash.replace(/^#/, "") || requestedSectionIdFromPath;
   const activeSectionId = [...profileCardLinks, ...securityCardLinks].some(
     (item) => item.sectionId === requestedSectionId,
   )
@@ -263,8 +235,22 @@ export function Layout() {
 
   if (!isLoaded) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Loading account...
+      <div className="flex min-h-screen gap-4 p-4">
+        <Skeleton className="hidden w-16 shrink-0 rounded-2xl md:block" />
+        <div className="flex-1 space-y-4">
+          <div className="flex h-14 items-center gap-3 rounded-2xl border px-4">
+            <Skeleton className="size-8 rounded-full" />
+            <SkeletonPlaceholder
+              className="w-32 rounded-md"
+              content={<p className="text-sm text-muted-foreground">Loading account...</p>}
+            />
+          </div>
+          <div className="space-y-4 rounded-2xl border p-6">
+            <Skeleton className="h-8 w-52" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -275,22 +261,32 @@ export function Layout() {
 
   if (currentUser === undefined || currentUser === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Preparing account...
+      <div className="flex min-h-screen gap-4 p-4">
+        <Skeleton className="hidden w-16 shrink-0 rounded-2xl md:block" />
+        <div className="flex-1 space-y-4">
+          <div className="flex h-14 items-center gap-3 rounded-2xl border px-4">
+            <Skeleton className="size-8 rounded-full" />
+            <SkeletonPlaceholder
+              className="w-36 rounded-md"
+              content={<p className="text-sm text-muted-foreground">Preparing account...</p>}
+            />
+          </div>
+          <div className="space-y-4 rounded-2xl border p-6">
+            <Skeleton className="h-8 w-44" />
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-36 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (currentUser.slug !== userSlug) {
-    return (
-      <Navigate to={`/u/${currentUser.slug}#${activeSectionId}`} replace />
-    );
+    return <Navigate to={`/u/${currentUser.slug}#${activeSectionId}`} replace />;
   }
 
   const userPath = `/u/${currentUser.slug}#profile-information`;
-  const dashboardPath = activeOrgSlug
-    ? `/o/${activeOrgSlug}/overview`
-    : "/o/select";
+  const dashboardPath = activeOrgSlug ? `/o/${activeOrgSlug}/overview` : "/o/select";
 
   return (
     <SidebarProvider>
@@ -394,9 +390,7 @@ export function Layout() {
             render={<NavLink to={dashboardPath} />}
           >
             <IconArrowLeft />
-            <span className="group-data-[collapsible=icon]:hidden">
-              Go back
-            </span>
+            <span className="group-data-[collapsible=icon]:hidden">Go back</span>
           </Button>
           <SidebarUserMenu
             dashboardPath={dashboardPath}

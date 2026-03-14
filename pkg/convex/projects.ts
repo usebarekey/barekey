@@ -181,6 +181,31 @@ export const createForCurrentOrgInternal = internalMutation({
       });
     }
 
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: args.expectedOrgSlug,
+      projectId: id,
+      projectSlug: slug,
+      stageSlug: null,
+      eventType: "project.created",
+      category: "project",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "project",
+      subjectId: String(id),
+      subjectName: trimmedName,
+      title: `Created project ${trimmedName}`,
+      description: `Project ${trimmedName} is ready with development and production stages.`,
+      severity: "info",
+      payloadJson: JSON.stringify({
+        projectSlug: slug,
+        defaultStages: DEFAULT_PROJECT_STAGES.map((stage) => stage.slug),
+      }),
+      retentionTierOverride: null,
+    });
+
     return {
       id,
       orgId: activeOrg.orgId,
@@ -359,6 +384,31 @@ export const deleteForCurrentOrg = mutation({
     }
 
     await ctx.db.delete(project._id);
+
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: project._id,
+      projectSlug: project.slug,
+      stageSlug: null,
+      eventType: "project.deleted",
+      category: "project",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "project",
+      subjectId: String(project._id),
+      subjectName: project.name,
+      title: `Deleted project ${project.name}`,
+      description: `Project ${project.name} and its keys were removed from this workspace.`,
+      severity: "warning",
+      payloadJson: JSON.stringify({
+        projectSlug: project.slug,
+        deletedKeyCount: keys.length,
+      }),
+      retentionTierOverride: null,
+    });
 
     return {
       deletedProjectId: project._id,

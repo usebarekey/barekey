@@ -8,6 +8,13 @@ import {
   projectVariableScheduleStatusValidator,
   projectVariableScheduleUpdateTargetValidator,
 } from "./lib/project_variable_schedules";
+import {
+  auditActorSourceValidator,
+  auditCategoryValidator,
+  auditRetentionTierValidator,
+  auditSeverityValidator,
+  auditSubjectTypeValidator,
+} from "./lib/audit";
 import { rolloutFunctionValidator, rolloutMilestoneValidator } from "./lib/rollout";
 import { variableVisibilityValidator } from "./lib/visibility";
 
@@ -145,6 +152,11 @@ export default defineSchema({
     createdAtMs: v.number(),
     updatedAtMs: v.number(),
   }).index("by_org_id", ["orgId"]),
+  orgBillingSnapshots: defineTable({
+    orgId: v.string(),
+    currentTier: v.union(v.literal("free"), v.literal("pro"), v.literal("max"), v.null()),
+    updatedAtMs: v.number(),
+  }).index("by_org_id", ["orgId"]),
   billingRequestLog: defineTable({
     orgId: v.string(),
     requestKey: v.string(),
@@ -195,4 +207,36 @@ export default defineSchema({
     .index("by_access_token_hash", ["accessTokenHash"])
     .index("by_refresh_token_hash", ["refreshTokenHash"])
     .index("by_clerk_user_id_and_org_id", ["clerkUserId", "orgId"]),
+  auditEvents: defineTable({
+    orgId: v.string(),
+    orgSlug: v.string(),
+    projectId: v.union(v.id("projects"), v.null()),
+    projectSlug: v.union(v.string(), v.null()),
+    stageSlug: v.union(v.string(), v.null()),
+    eventType: v.string(),
+    category: auditCategoryValidator,
+    occurredAtMs: v.number(),
+    actorSource: auditActorSourceValidator,
+    actorClerkUserId: v.union(v.string(), v.null()),
+    actorDisplayName: v.union(v.string(), v.null()),
+    actorEmail: v.union(v.string(), v.null()),
+    subjectType: auditSubjectTypeValidator,
+    subjectId: v.union(v.string(), v.null()),
+    subjectName: v.union(v.string(), v.null()),
+    title: v.string(),
+    description: v.string(),
+    severity: auditSeverityValidator,
+    payloadJson: v.string(),
+    retentionTier: auditRetentionTierValidator,
+    expiresAtMs: v.union(v.number(), v.null()),
+  })
+    .index("by_org_id_and_occurred_at_ms", ["orgId", "occurredAtMs"])
+    .index("by_org_id_and_category_and_occurred_at_ms", ["orgId", "category", "occurredAtMs"])
+    .index("by_org_id_and_project_slug_and_occurred_at_ms", [
+      "orgId",
+      "projectSlug",
+      "occurredAtMs",
+    ])
+    .index("by_org_id_and_event_type_and_occurred_at_ms", ["orgId", "eventType", "occurredAtMs"])
+    .index("by_expires_at_ms", ["expiresAtMs"]),
 });

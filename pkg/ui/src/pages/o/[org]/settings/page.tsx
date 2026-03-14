@@ -18,9 +18,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 import { getClerkErrorMessage, isClerkIdentifierExistsError } from "@/lib/clerk-errors";
 import { revokeCurrentUserFreePlanCreditRef } from "@/lib/convex-refs";
 import { initials } from "@/lib/org-utils";
+import { markOrgDeletedLocally, unmarkOrgDeletedLocally } from "@/lib/deleted-orgs";
 import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 import { generateOrganizationSlugCandidateFromName } from "@/lib/slugs";
 
@@ -65,6 +67,7 @@ export function Page() {
   const [isLeaving, setIsLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [isDeleteOrganizationDialogOpen, setIsDeleteOrganizationDialogOpen] = useState(false);
+  const [deleteOrganizationCountdown, setDeleteOrganizationCountdown] = useState(3);
   const [isDeletingOrganization, setIsDeletingOrganization] = useState(false);
   const [deleteOrganizationError, setDeleteOrganizationError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
@@ -97,7 +100,9 @@ export function Page() {
   const effectiveOrgRole = membership?.role ?? orgClaims?.orgRole ?? null;
   const canDeleteOrganizationByRole =
     effectiveOrgRole === "org:admin" || effectiveOrgRole === "org:owner";
-  const privilegedMemberCount = membershipRows.filter((row) => isPrivilegedOrgRole(row.role)).length;
+  const privilegedMemberCount = membershipRows.filter((row) =>
+    isPrivilegedOrgRole(row.role),
+  ).length;
   const isCurrentMemberPrivileged = isPrivilegedOrgRole(membership?.role ?? null);
   const isLeaveBlockedBySoleMember = memberships !== undefined && memberCount <= 1;
   const isLeaveBlockedByNoAdmins = memberships !== undefined && privilegedMemberCount === 0;
@@ -109,9 +114,9 @@ export function Page() {
     ? "You can not leave while you are the only member. Delete the organization instead."
     : isLeaveBlockedByNoAdmins
       ? "You can not leave because this organization currently has no admin. Assign an admin first."
-    : isLeaveBlockedByLastAdmin
-      ? "You can not leave because this would leave the organization without an admin."
-      : null;
+      : isLeaveBlockedByLastAdmin
+        ? "You can not leave because this would leave the organization without an admin."
+        : null;
   const isDeletePrerequisitesLoading = orgDeletionReadiness === undefined;
   const remainingProjectCount = orgDeletionReadiness?.projectCount ?? 0;
   const areDeletePrerequisitesMet = !isDeletePrerequisitesLoading && remainingProjectCount === 0;
@@ -132,6 +137,23 @@ export function Page() {
   useEffect(() => {
     setNameDraft(organization?.name ?? "");
   }, [organization?.name]);
+
+  useEffect(() => {
+    if (!isDeleteOrganizationDialogOpen) {
+      setDeleteOrganizationCountdown(3);
+      return;
+    }
+
+    if (deleteOrganizationCountdown <= 0) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setDeleteOrganizationCountdown((previous) => Math.max(0, previous - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timeout);
+  }, [deleteOrganizationCountdown, isDeleteOrganizationDialogOpen]);
 
   async function handleSaveProfile() {
     if (!organization || isUpdatingProfile) {
@@ -219,9 +241,7 @@ export function Page() {
       return;
     }
     if (isLeaveWorkspaceBlocked) {
-      setLeaveError(
-        leaveBlockedReason ?? "You can not leave this workspace right now.",
-      );
+      setLeaveError(leaveBlockedReason ?? "You can not leave this workspace right now.");
       return;
     }
 
@@ -259,14 +279,16 @@ export function Page() {
 
     setIsDeletingOrganization(true);
     setDeleteOrganizationError(null);
+    let locallyHiddenOrgId: string | null = null;
     try {
       const deleteContext = await assertCanDeleteCurrentOrg({
         expectedOrgSlug: orgSlug,
       });
       const fallbackMembership =
-        (userMemberships.data ?? []).find(
-          (row) => row.organization.id !== deleteContext.orgId,
-        ) ?? null;
+        (userMemberships.data ?? []).find((row) => row.organization.id !== deleteContext.orgId) ??
+        null;
+      markOrgDeletedLocally(deleteContext.orgId);
+      locallyHiddenOrgId = deleteContext.orgId;
       await organization.destroy();
       try {
         await revokeFreePlanCredit({
@@ -305,6 +327,9 @@ export function Page() {
 
       void navigate("/o/select", { replace: true });
     } catch (error: unknown) {
+      if (locallyHiddenOrgId) {
+        unmarkOrgDeletedLocally(locallyHiddenOrgId);
+      }
       const requestId = extractRequestId(error);
       if (requestId) {
         setDeleteOrganizationError(
@@ -349,13 +374,6 @@ export function Page() {
               />
             </div>
 
-            <div className="space-y-1 text-sm">
-              <p>
-                <span className="text-muted-foreground">Workspace slug:</span>{" "}
-                <span className="font-mono">{organization?.slug ?? orgSlug}</span>
-              </p>
-            </div>
-
             {profileError ? <p className="text-sm text-destructive">{profileError}</p> : null}
             {profileSuccess ? (
               <p className="text-sm text-muted-foreground">{profileSuccess}</p>
@@ -366,7 +384,14 @@ export function Page() {
               onClick={handleSaveProfile}
               disabled={!organization || isUpdatingProfile || nameDraft.trim().length === 0}
             >
-              {isUpdatingProfile ? "Saving..." : "Save profile"}
+              {isUpdatingProfile ? (
+                <SkeletonPlaceholder
+                  className="inline-block rounded-md"
+                  content={<span>Save profile</span>}
+                />
+              ) : (
+                "Save profile"
+              )}
             </Button>
           </div>
         </OrgSectionCard>
@@ -399,7 +424,14 @@ export function Page() {
                   disabled={!organization || isUpdatingLogo}
                   onClick={() => logoInputRef.current?.click()}
                 >
-                  {isUpdatingLogo ? "Uploading..." : "Upload image"}
+                  {isUpdatingLogo ? (
+                    <SkeletonPlaceholder
+                      className="inline-block rounded-md"
+                      content={<span>Upload image</span>}
+                    />
+                  ) : (
+                    "Upload image"
+                  )}
                 </Button>
                 <Button
                   size="sm"
@@ -429,11 +461,25 @@ export function Page() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-4">
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
-                {memberships ? memberCount : "..."}
+                {memberships ? (
+                  memberCount
+                ) : (
+                  <SkeletonPlaceholder
+                    className="inline-block rounded-md align-middle"
+                    content={<span>88</span>}
+                  />
+                )}
               </span>{" "}
               members ·{" "}
               <span className="font-medium text-foreground">
-                {invitations ? inviteCount : "..."}
+                {invitations ? (
+                  inviteCount
+                ) : (
+                  <SkeletonPlaceholder
+                    className="inline-block rounded-md align-middle"
+                    content={<span>88</span>}
+                  />
+                )}
               </span>{" "}
               pending invites
             </p>
@@ -475,10 +521,19 @@ export function Page() {
                 size="sm"
                 variant="destructive"
                 onClick={handleLeaveWorkspace}
-                disabled={!membership || isLeaving || isDeletingOrganization || isLeaveWorkspaceBlocked}
+                disabled={
+                  !membership || isLeaving || isDeletingOrganization || isLeaveWorkspaceBlocked
+                }
               >
                 <IconTrash className="size-4" />
-                {isLeaving ? "Leaving..." : "Leave workspace"}
+                {isLeaving ? (
+                  <SkeletonPlaceholder
+                    className="inline-block rounded-md"
+                    content={<span>Leave workspace</span>}
+                  />
+                ) : (
+                  "Leave workspace"
+                )}
               </Button>
             </div>
 
@@ -511,6 +566,7 @@ export function Page() {
                   variant="destructive"
                   onClick={() => {
                     setDeleteOrganizationError(null);
+                    setDeleteOrganizationCountdown(3);
                     setIsDeleteOrganizationDialogOpen(true);
                   }}
                   disabled={
@@ -535,6 +591,9 @@ export function Page() {
           if (isDeletingOrganization) {
             return;
           }
+          if (!open) {
+            setDeleteOrganizationCountdown(3);
+          }
           setIsDeleteOrganizationDialogOpen(open);
         }}
       >
@@ -548,13 +607,31 @@ export function Page() {
           <div className="space-y-2">
             {areDeletePrerequisitesMet ? (
               <p className="text-sm text-muted-foreground">
-                This action permanently deletes this organization and can not be undone.
+                {deleteOrganizationCountdown > 0 ? (
+                  <>
+                    Delete unlocks in{" "}
+                    <strong className="font-bold text-foreground">
+                      {deleteOrganizationCountdown}
+                    </strong>{" "}
+                    {deleteOrganizationCountdown === 1 ? "second" : "seconds"}. This action
+                    permanently deletes this organization and can not be undone.
+                  </>
+                ) : (
+                  "Delete is unlocked now. This action permanently deletes this organization and can not be undone."
+                )}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
                 To delete this organization, please delete{" "}
                 <span className="font-bold text-foreground">
-                  {isDeletePrerequisitesLoading ? "..." : remainingProjectCount}
+                  {isDeletePrerequisitesLoading ? (
+                    <SkeletonPlaceholder
+                      className="inline-block rounded-md align-middle"
+                      content={<span>88</span>}
+                    />
+                  ) : (
+                    remainingProjectCount
+                  )}
                 </span>{" "}
                 projects in this organization first. Note that we can not recover or undo this
                 operation.
@@ -584,12 +661,20 @@ export function Page() {
               }}
               disabled={
                 isDeletingOrganization ||
+                deleteOrganizationCountdown > 0 ||
                 isDeletePrerequisitesLoading ||
                 !areDeletePrerequisitesMet ||
                 !canDeleteOrganizationByRole
               }
             >
-              {isDeletingOrganization ? "Deleting..." : "Delete organization"}
+              {isDeletingOrganization ? (
+                <SkeletonPlaceholder
+                  className="inline-block rounded-md"
+                  content={<span>Delete organization</span>}
+                />
+              ) : (
+                "Delete organization"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

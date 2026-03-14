@@ -1498,7 +1498,7 @@ export const applyDraftForCurrentOrgProjectStage = action({
       return existing.name;
     });
 
-    return await ctx.runAction(
+    const result = await ctx.runAction(
       internal.project_variables.writeVariablesForOrgProjectStageWithUsageInternal,
       {
         orgId: activeOrg.orgId,
@@ -1511,6 +1511,67 @@ export const applyDraftForCurrentOrgProjectStage = action({
         deletes,
       },
     );
+
+    const touchedEntries = [
+      ...args.creates.map((entry) => ({
+        operation: "create",
+        name: entry.name,
+        kind: entry.kind,
+        visibility: entry.visibility,
+        declaredType: entry.declaredType,
+      })),
+      ...args.updates.map((entry) => {
+        const existing = existingById.get(entry.id);
+        return {
+          operation: "update",
+          name: existing?.name ?? "unknown",
+          kind: entry.kind,
+          visibility: entry.visibility,
+          declaredType: entry.declaredType,
+        };
+      }),
+      ...args.deletes.map((variableId) => {
+        const existing = existingById.get(variableId);
+        return {
+          operation: "delete",
+          name: existing?.name ?? "unknown",
+          kind: existing?.kind ?? "secret",
+          visibility: existing?.visibility ?? "private",
+          declaredType: existing?.declaredType ?? "string",
+        };
+      }),
+    ];
+
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: null,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+      eventType: "variable.draft_applied",
+      category: "variable",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "stage",
+      subjectId: args.stageSlug,
+      subjectName: args.stageSlug,
+      title: `Applied ${touchedEntries.length} variable change${touchedEntries.length === 1 ? "" : "s"}`,
+      description: `Updated ${args.projectSlug}/${args.stageSlug} with ${result.createdCount} create${result.createdCount === 1 ? "" : "s"}, ${result.updatedCount} update${result.updatedCount === 1 ? "" : "s"}, and ${result.deletedCount} delete${result.deletedCount === 1 ? "" : "s"}.`,
+      severity: touchedEntries.some((entry) => entry.visibility === "private")
+        ? "sensitive"
+        : "info",
+      payloadJson: JSON.stringify({
+        projectSlug: args.projectSlug,
+        stageSlug: args.stageSlug,
+        counts: result,
+        variables: touchedEntries,
+      }),
+      retentionTierOverride: null,
+    });
+
+    return result;
   },
 });
 

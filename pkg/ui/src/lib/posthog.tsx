@@ -10,6 +10,60 @@ const posthogApiHost = runtimeConfig.posthogHost;
 const posthogUiHost = runtimeConfig.posthogUiHost;
 
 let hasInitializedPostHog = false;
+let hasWarnedPostHogDisabled = false;
+
+function isOfficialPostHogHost(value: string) {
+  try {
+    const hostname = new URL(value).hostname;
+    return hostname.endsWith(".posthog.com") || hostname.endsWith(".i.posthog.com");
+  } catch {
+    return false;
+  }
+}
+
+function deriveOfficialPostHogIngestHost(uiHost: string): string | null {
+  try {
+    const hostname = new URL(uiHost).hostname;
+    if (hostname === "us.posthog.com" || hostname === "app.posthog.com") {
+      return "https://us.i.posthog.com";
+    }
+    if (hostname.endsWith(".posthog.com")) {
+      return `https://${hostname.replace(/\.posthog\.com$/, ".i.posthog.com")}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function resolvePostHogApiHost() {
+  if (!import.meta.env.DEV || isOfficialPostHogHost(posthogApiHost)) {
+    return posthogApiHost;
+  }
+
+  return deriveOfficialPostHogIngestHost(posthogUiHost) ?? posthogApiHost;
+}
+
+function shouldInitializePostHog() {
+  if (!posthogApiKey || typeof window === "undefined") {
+    return false;
+  }
+
+  // Local development should not boot PostHog against a custom proxy host that
+  // doesn't fully implement PostHog's config/flags endpoints.
+  if (import.meta.env.DEV && !isOfficialPostHogHost(posthogApiHost)) {
+    if (!hasWarnedPostHogDisabled) {
+      console.warn(
+        `[PostHog] Disabled in development because the configured host "${posthogApiHost}" is not an official PostHog ingest host.`,
+      );
+      hasWarnedPostHogDisabled = true;
+    }
+    return false;
+  }
+
+  return true;
+}
 
 function isUiSurface(pathname: string) {
   return (
@@ -27,12 +81,12 @@ function getSurface(pathname: string) {
 type AnalyticsProperties = Record<string, string | number | boolean | null | undefined>;
 
 function initPostHog() {
-  if (hasInitializedPostHog || !posthogApiKey || typeof window === "undefined") {
+  if (hasInitializedPostHog || !shouldInitializePostHog()) {
     return;
   }
 
   posthog.init(posthogApiKey, {
-    api_host: posthogApiHost,
+    api_host: resolvePostHogApiHost(),
     ui_host: posthogUiHost,
     autocapture: true,
     capture_pageleave: true,

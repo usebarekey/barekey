@@ -23,6 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 
 function formatDateTime(timestampMs: number | null): string {
   if (timestampMs === null) {
@@ -82,7 +84,7 @@ export function Page() {
   const [isRevokingOtherSessions, setIsRevokingOtherSessions] = useState(false);
   const [sessionActionError, setSessionActionError] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deleteCountdown, setDeleteCountdown] = useState(5);
+  const [deleteCountdown, setDeleteCountdown] = useState(3);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -98,7 +100,7 @@ export function Page() {
 
   useEffect(() => {
     if (!isDeleteDialogOpen) {
-      setDeleteCountdown(5);
+      setDeleteCountdown(3);
       return;
     }
 
@@ -202,7 +204,7 @@ export function Page() {
     }
 
     setDeleteError(null);
-    setDeleteCountdown(5);
+    setDeleteCountdown(3);
     setIsDeleteDialogOpen(true);
   }
 
@@ -237,13 +239,35 @@ export function Page() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Linked accounts</CardTitle>
-            <CardDescription>
-              Manage connected identity providers for this account.
-            </CardDescription>
+            <CardDescription>Manage connected identity providers for this account.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {!isUserLoaded ? (
-              <p className="text-sm text-muted-foreground">Loading linked account details...</p>
+              <div className="space-y-3">
+                <SkeletonPlaceholder
+                  className="w-52 rounded-md"
+                  content={
+                    <p className="text-sm text-muted-foreground">
+                      Loading linked account details...
+                    </p>
+                  }
+                />
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between rounded-lg border bg-background/70 p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="size-8 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-3 w-32" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-9 w-24" />
+                  </div>
+                ))}
+              </div>
             ) : externalAccounts.length === 0 ? (
               <p className="text-sm text-muted-foreground">No linked third-party accounts.</p>
             ) : (
@@ -272,7 +296,14 @@ export function Page() {
                     }}
                   >
                     <IconUnlink className="size-3.5" />
-                    {unlinkingAccountId === account.id ? "Unlinking..." : "Unlink"}
+                    {unlinkingAccountId === account.id ? (
+                      <SkeletonPlaceholder
+                        className="inline-block rounded-md"
+                        content={<span>Unlink</span>}
+                      />
+                    ) : (
+                      "Unlink"
+                    )}
                   </Button>
                 </div>
               ))
@@ -295,9 +326,14 @@ export function Page() {
                       }}
                     >
                       {getProviderIcon(provider.label, "size-4")}
-                      {linkingProvider === provider.strategy
-                        ? "Redirecting..."
-                        : `Link ${provider.label}`}
+                      {linkingProvider === provider.strategy ? (
+                        <SkeletonPlaceholder
+                          className="inline-block rounded-md"
+                          content={<span>{`Link ${provider.label}`}</span>}
+                        />
+                      ) : (
+                        `Link ${provider.label}`
+                      )}
                     </Button>
                   ))}
                 </div>
@@ -318,7 +354,24 @@ export function Page() {
           </CardHeader>
           <CardContent className="space-y-3">
             {!isSessionsLoaded ? (
-              <p className="text-sm text-muted-foreground">Loading sessions...</p>
+              <div className="space-y-3">
+                <SkeletonPlaceholder
+                  className="w-32 rounded-md"
+                  content={<p className="text-sm text-muted-foreground">Loading sessions...</p>}
+                />
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="rounded-lg border bg-background/70 p-3 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <Skeleton className="h-4 w-28" />
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-6 w-28" />
+                        <Skeleton className="h-9 w-20" />
+                      </div>
+                    </div>
+                    <Skeleton className="mt-2 h-3 w-48" />
+                  </div>
+                ))}
+              </div>
             ) : availableSessions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No device sessions available.</p>
             ) : (
@@ -326,10 +379,7 @@ export function Page() {
                 const isCurrentSession = session.id === activeSessionId;
 
                 return (
-                  <div
-                    key={session.id}
-                    className="rounded-lg border bg-background/70 p-3 text-sm"
-                  >
+                  <div key={session.id} className="rounded-lg border bg-background/70 p-3 text-sm">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-mono text-xs text-muted-foreground">
                         Session {formatSessionIdForDisplay(session.id)}
@@ -355,7 +405,14 @@ export function Page() {
                               }}
                             >
                               <IconLogout2 className="size-3.5" />
-                              {revokingSessionId === session.id ? "Revoking..." : "Revoke"}
+                              {revokingSessionId === session.id ? (
+                                <SkeletonPlaceholder
+                                  className="inline-block rounded-md"
+                                  content={<span>Revoke</span>}
+                                />
+                              ) : (
+                                "Revoke"
+                              )}
                             </Button>
                           </>
                         )}
@@ -383,7 +440,14 @@ export function Page() {
                 }}
               >
                 <IconLogout2 className="size-4" />
-                {isRevokingOtherSessions ? "Revoking..." : "Revoke other sessions"}
+                {isRevokingOtherSessions ? (
+                  <SkeletonPlaceholder
+                    className="inline-block rounded-md"
+                    content={<span>Revoke other sessions</span>}
+                  />
+                ) : (
+                  "Revoke other sessions"
+                )}
               </Button>
               {sessionActionError ? (
                 <p className="text-sm text-destructive">{sessionActionError}</p>
@@ -433,7 +497,7 @@ export function Page() {
           }
           setIsDeleteDialogOpen(open);
           if (!open) {
-            setDeleteCountdown(5);
+            setDeleteCountdown(3);
             setDeleteError(null);
           }
         }}
@@ -447,9 +511,15 @@ export function Page() {
           </DialogHeader>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              {deleteCountdown > 0
-                ? `Delete unlocks in ${deleteCountdown} ${deleteCountdown === 1 ? "second" : "seconds"}.`
-                : "Delete is unlocked now."}{" "}
+              {deleteCountdown > 0 ? (
+                <>
+                  Delete unlocks in{" "}
+                  <strong className="font-bold text-foreground">{deleteCountdown}</strong>{" "}
+                  {deleteCountdown === 1 ? "second" : "seconds"}.
+                </>
+              ) : (
+                "Delete is unlocked now."
+              )}{" "}
               After deletion you will be signed out immediately.
             </p>
             {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
@@ -475,7 +545,14 @@ export function Page() {
               }
             >
               <IconTrash className="size-4" />
-              {isDeletingAccount ? "Deleting..." : "Delete account"}
+              {isDeletingAccount ? (
+                <SkeletonPlaceholder
+                  className="inline-block rounded-md"
+                  content={<span>Delete account</span>}
+                />
+              ) : (
+                "Delete account"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

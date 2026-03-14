@@ -5,17 +5,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  getCurrentUserPreferencesRef,
-  upsertCurrentUserPreferencesRef,
-} from "@/lib/convex-refs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
+import { getCurrentUserPreferencesRef, upsertCurrentUserPreferencesRef } from "@/lib/convex-refs";
 import { LandingPreference, PreferredTheme } from "@/lib/user-preferences";
 
 export function Page() {
@@ -40,9 +33,7 @@ export function Page() {
       await setActive({ organization: nextOrgId });
       void navigate(`/o/${nextOrgSlug}/overview`);
     } catch (error: unknown) {
-      setActionError(
-        error instanceof Error ? error.message : "Failed to open workspace.",
-      );
+      setActionError(error instanceof Error ? error.message : "Failed to open workspace.");
     } finally {
       setActiveActionSlug(null);
     }
@@ -56,15 +47,10 @@ export function Page() {
       await upsertPreferences({
         preferredTheme: preferences?.preferredTheme ?? PreferredTheme.System,
         defaultOrgSlug: nextOrgSlug,
-        landingPreference:
-          preferences?.landingPreference ?? LandingPreference.AccountOverview,
+        landingPreference: preferences?.landingPreference ?? LandingPreference.AccountOverview,
       });
     } catch (error: unknown) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "Failed to save default workspace.",
-      );
+      setActionError(error instanceof Error ? error.message : "Failed to save default workspace.");
     } finally {
       setActiveActionSlug(null);
     }
@@ -72,7 +58,38 @@ export function Page() {
 
   if (!isLoaded) {
     return (
-      <div className="text-sm text-muted-foreground">Loading workspaces...</div>
+      <div className="space-y-4">
+        <SkeletonPlaceholder
+          className="w-36 rounded-md"
+          content={<div className="text-sm text-muted-foreground">Loading workspaces...</div>}
+        />
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-4 w-72" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="space-y-3 rounded-lg border bg-background/70 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-5 w-14" />
+                    <Skeleton className="h-5 w-16" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-9 w-32" />
+                  <Skeleton className="h-9 w-28" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -102,11 +119,7 @@ export function Page() {
                 >
                   Create workspace
                 </Button>
-                <Button
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link to="/o/select" />}
-                >
+                <Button variant="outline" nativeButton={false} render={<Link to="/o/select" />}>
                   Organization selector
                 </Button>
               </div>
@@ -114,9 +127,7 @@ export function Page() {
           ) : (
             selectableMemberships.map((membership) => {
               const membershipSlug = membership.organization.slug ?? "";
-              const membershipRole = (
-                membership.roleName || membership.role
-              ).replace(/^org:/, "");
+              const membershipRole = (membership.roleName || membership.role).replace(/^org:/, "");
               const isDefault = preferences?.defaultOrgSlug === membershipSlug;
               const isActive = activeOrgSlug === membershipSlug;
               const isBusy = activeActionSlug === membershipSlug;
@@ -128,12 +139,8 @@ export function Page() {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {membership.organization.name}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {membershipRole}
-                      </p>
+                      <p className="truncate text-sm font-medium">{membership.organization.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{membershipRole}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {isActive ? (
@@ -154,14 +161,18 @@ export function Page() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        void handleOpenWorkspace(
-                          membershipSlug,
-                          membership.organization.id,
-                        );
+                        void handleOpenWorkspace(membershipSlug, membership.organization.id);
                       }}
                       disabled={isBusy}
                     >
-                      {isBusy ? "Opening..." : "Open workspace"}
+                      {isBusy ? (
+                        <SkeletonPlaceholder
+                          className="inline-block rounded-md"
+                          content={<span>Open workspace</span>}
+                        />
+                      ) : (
+                        "Open workspace"
+                      )}
                       <IconArrowRight className="size-4" />
                     </Button>
                     <Button
@@ -178,9 +189,7 @@ export function Page() {
               );
             })
           )}
-          {actionError ? (
-            <p className="text-sm text-destructive">{actionError}</p>
-          ) : null}
+          {actionError ? <p className="text-sm text-destructive">{actionError}</p> : null}
         </CardContent>
       </Card>
     </div>

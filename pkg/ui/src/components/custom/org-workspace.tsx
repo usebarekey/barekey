@@ -74,7 +74,7 @@ export function OrgRoleBadge({ role }: { role: string | null | undefined }) {
 export function OrgPageHero({
   title,
   subtitle,
-  tags,
+  tags: _tags,
   actions,
   className,
 }: {
@@ -154,7 +154,7 @@ export function OrgMetricCard({
       </CardHeader>
       <CardContent className="space-y-1">
         <div className="text-2xl font-semibold tracking-tight">{value}</div>
-        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+        {hint ? <div className="text-xs text-muted-foreground">{hint}</div> : null}
       </CardContent>
     </Card>
   );

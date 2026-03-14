@@ -1,12 +1,9 @@
 import { Logo } from "@/components/custom/logo";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import {
-  IconBrandGithubFilled,
-  IconBrandGoogleFilled,
-  IconKeyFilled,
-} from "@tabler/icons-react";
+import { IconBrandGithubFilled, IconBrandGoogleFilled, IconKeyFilled } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 import { useSignIn } from "@clerk/react-router";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -94,15 +91,16 @@ export function Page() {
         <Logo className="h-8" />
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Button
-          className="w-full"
-          disabled={!isLoaded || isBusy}
-          onClick={signInWithPasskey}
-        >
+        <Button className="w-full" disabled={!isLoaded || isBusy} onClick={signInWithPasskey}>
           <IconKeyFilled />
-          {pendingAction === "passkey"
-            ? "Continuing with Passkey..."
-            : "Continue using Passkey"}
+          {pendingAction === "passkey" ? (
+            <SkeletonPlaceholder
+              className="inline-block rounded-md"
+              content={<span>Continue using Passkey</span>}
+            />
+          ) : (
+            "Continue using Passkey"
+          )}
         </Button>
         <div className="flex flex-row items-center gap-2">
           <Separator className="flex-1" />
@@ -116,9 +114,14 @@ export function Page() {
           onClick={() => signInWithOAuth("oauth_google")}
         >
           <IconBrandGoogleFilled />
-          {pendingAction === "google"
-            ? "Continuing with Google..."
-            : "Continue using Google"}
+          {pendingAction === "google" ? (
+            <SkeletonPlaceholder
+              className="inline-block rounded-md"
+              content={<span>Continue using Google</span>}
+            />
+          ) : (
+            "Continue using Google"
+          )}
         </Button>
         <Button
           variant="outline"
@@ -127,9 +130,14 @@ export function Page() {
           onClick={() => signInWithOAuth("oauth_github")}
         >
           <IconBrandGithubFilled />
-          {pendingAction === "github"
-            ? "Continuing with GitHub..."
-            : "Continue using GitHub"}
+          {pendingAction === "github" ? (
+            <SkeletonPlaceholder
+              className="inline-block rounded-md"
+              content={<span>Continue using GitHub</span>}
+            />
+          ) : (
+            "Continue using GitHub"
+          )}
         </Button>
         {error ? (
           <p className="text-sm text-destructive" role="alert">

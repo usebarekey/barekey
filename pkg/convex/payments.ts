@@ -886,6 +886,36 @@ export const ensureOrgStorageUsageForOrgInternal = internalMutation({
   },
 });
 
+export const upsertOrgBillingSnapshotForOrgInternal = internalMutation({
+  args: {
+    orgId: v.string(),
+    currentTier: v.union(v.literal("free"), v.literal("pro"), v.literal("max"), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("orgBillingSnapshots")
+      .withIndex("by_org_id", (q) => q.eq("orgId", args.orgId))
+      .unique();
+    const updatedAtMs = Date.now();
+
+    if (existing === null) {
+      await ctx.db.insert("orgBillingSnapshots", {
+        orgId: args.orgId,
+        currentTier: args.currentTier,
+        updatedAtMs,
+      });
+      return null;
+    }
+
+    await ctx.db.patch(existing._id, {
+      currentTier: args.currentTier,
+      updatedAtMs,
+    });
+    return null;
+  },
+});
+
 export const applyStorageDeltaForOrgInternal = internalMutation({
   args: {
     orgId: v.string(),
@@ -1445,9 +1475,10 @@ export const reserveFeatureUnitsForOrgInternal = internalAction({
       v.null(),
     ),
   }),
-  handler: async (_ctx, args): Promise<ReserveFeatureUnitsResult> => {
+  handler: async (ctx, args): Promise<ReserveFeatureUnitsResult> => {
+    let planState: WorkspacePlanState;
     try {
-      await readWorkspacePlanStateForOrg(_ctx, {
+      planState = await readWorkspacePlanStateForOrg(ctx, {
         orgId: args.orgId,
         orgSlug: args.orgSlug,
       });
@@ -1463,6 +1494,11 @@ export const reserveFeatureUnitsForOrgInternal = internalAction({
         errorCode: "BILLING_UNAVAILABLE",
       };
     }
+
+    await ctx.runMutation(internal.payments.upsertOrgBillingSnapshotForOrgInternal, {
+      orgId: args.orgId,
+      currentTier: planState.currentTier,
+    });
 
     if (!Number.isFinite(args.units) || args.units <= 0) {
       return {
@@ -1554,6 +1590,11 @@ export const getWorkspacePlanStatusForCurrentOrg = action({
       currentProductId === null ||
       (currentVariant?.tier === BillingTier.Free && !hasAssignedFreePlanCredit);
 
+    await ctx.runMutation(internal.payments.upsertOrgBillingSnapshotForOrgInternal, {
+      orgId: activeOrg.orgId,
+      currentTier: isWithoutPlan ? null : (currentVariant?.tier ?? null),
+    });
+
     return {
       orgId: activeOrg.orgId,
       orgRole: activeOrg.orgRole,
@@ -1624,6 +1665,10 @@ export const assertWorkspacePlanForOrgInternal = internalAction({
     const planState = await readWorkspacePlanStateForOrg(ctx, {
       orgId: args.orgId,
       orgSlug: args.orgSlug,
+    });
+    await ctx.runMutation(internal.payments.upsertOrgBillingSnapshotForOrgInternal, {
+      orgId: args.orgId,
+      currentTier: planState.currentTier,
     });
     return {
       orgId: args.orgId,
@@ -1827,6 +1872,11 @@ export const getBillingStateForCurrentOrg = action({
         })
       : storageUsage;
 
+    await ctx.runMutation(internal.payments.upsertOrgBillingSnapshotForOrgInternal, {
+      orgId: activeOrg.orgId,
+      currentTier: isWithoutPlan ? null : currentTier,
+    });
+
     return {
       orgId: activeOrg.orgId,
       orgRole: activeOrg.orgRole,
@@ -2014,6 +2064,34 @@ export const changePlanForCurrentOrg = action({
 
     const checkoutUrl = attachResult.data.checkout_url ?? null;
     if (checkoutUrl !== null) {
+      await ctx.runMutation(internal.audit.appendEventInternal, {
+        orgId: activeOrg.orgId,
+        orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+        projectId: null,
+        projectSlug: null,
+        stageSlug: null,
+        eventType: "billing.plan_change_requested",
+        category: "billing",
+        actorSource: "barekey_user",
+        actorClerkUserId: activeOrg.clerkUserId,
+        actorDisplayName: identity.name ?? identity.nickname ?? identity.preferredUsername ?? null,
+        actorEmail: identity.email ?? null,
+        subjectType: "billing",
+        subjectId: activeOrg.orgId,
+        subjectName: activeOrg.orgSlug ?? args.expectedOrgSlug,
+        title: "Started billing checkout",
+        description: `A billing change for ${(activeOrg.orgSlug ?? args.expectedOrgSlug)} was submitted to checkout.`,
+        severity: "info",
+        payloadJson: JSON.stringify({
+          currentProductId,
+          attachedProductId: productId,
+          changeOutcome: "submitted",
+          targetTier: args.tier,
+          targetInterval: args.interval,
+          targetOverageMode: args.overageMode,
+        }),
+        retentionTierOverride: null,
+      });
       return {
         attachedProductId: productId,
         checkoutRequired: true,
@@ -2038,6 +2116,44 @@ export const changePlanForCurrentOrg = action({
         changeOutcome = "scheduled";
       }
     }
+
+    const effectiveTier =
+      variants.find((variant) => variant.productId === effectiveProductId)?.tier ??
+      readCurrentVariantFromProductId(effectiveProductId)?.tier ??
+      null;
+    await ctx.runMutation(internal.payments.upsertOrgBillingSnapshotForOrgInternal, {
+      orgId: activeOrg.orgId,
+      currentTier: effectiveTier,
+    });
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: null,
+      projectSlug: null,
+      stageSlug: null,
+      eventType: "billing.plan_change_requested",
+      category: "billing",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: identity.name ?? identity.nickname ?? identity.preferredUsername ?? null,
+      actorEmail: identity.email ?? null,
+      subjectType: "billing",
+      subjectId: activeOrg.orgId,
+      subjectName: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      title: "Changed workspace billing plan",
+      description: `Billing change for ${(activeOrg.orgSlug ?? args.expectedOrgSlug)} is ${changeOutcome}.`,
+      severity: "info",
+      payloadJson: JSON.stringify({
+        currentProductId,
+        attachedProductId: productId,
+        effectiveProductId,
+        changeOutcome,
+        targetTier: args.tier,
+        targetInterval: args.interval,
+        targetOverageMode: args.overageMode,
+      }),
+      retentionTierOverride: null,
+    });
 
     return {
       attachedProductId: productId,
@@ -2071,6 +2187,36 @@ export const revokeFreePlanCreditForCurrentOrg = action({
         orgId: activeOrg.orgId,
         reason: "manual_revoke",
       });
+
+    if (revokeResult.revoked) {
+      await ctx.runMutation(internal.payments.upsertOrgBillingSnapshotForOrgInternal, {
+        orgId: activeOrg.orgId,
+        currentTier: null,
+      });
+      await ctx.runMutation(internal.audit.appendEventInternal, {
+        orgId: activeOrg.orgId,
+        orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+        projectId: null,
+        projectSlug: null,
+        stageSlug: null,
+        eventType: "billing.free_credit_revoked",
+        category: "billing",
+        actorSource: "barekey_user",
+        actorClerkUserId: activeOrg.clerkUserId,
+        actorDisplayName: identity.name ?? identity.nickname ?? identity.preferredUsername ?? null,
+        actorEmail: identity.email ?? null,
+        subjectType: "billing",
+        subjectId: activeOrg.orgId,
+        subjectName: activeOrg.orgSlug ?? args.expectedOrgSlug,
+        title: "Revoked free workspace credit",
+        description: `The free plan credit was revoked from ${(activeOrg.orgSlug ?? args.expectedOrgSlug)}.`,
+        severity: "warning",
+        payloadJson: JSON.stringify({
+          reason: "manual_revoke",
+        }),
+        retentionTierOverride: null,
+      });
+    }
 
     return {
       revoked: revokeResult.revoked,
@@ -2139,6 +2285,13 @@ export const revokeCurrentUserFreePlanCredit = action({
       reason: args.reason ?? "manual_revoke",
     });
 
+    if (revokeResult.revoked) {
+      await ctx.runMutation(internal.payments.upsertOrgBillingSnapshotForOrgInternal, {
+        orgId: previousAssignedOrgId,
+        currentTier: null,
+      });
+    }
+
     return {
       revoked: revokeResult.revoked,
       reason:
@@ -2189,6 +2342,30 @@ export const openBillingPortalForCurrentOrg = action({
     if (portalUrl === null) {
       throw new Error("Billing portal response did not include a URL.");
     }
+
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: null,
+      projectSlug: null,
+      stageSlug: null,
+      eventType: "billing.portal_opened",
+      category: "billing",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: identity.name ?? identity.nickname ?? identity.preferredUsername ?? null,
+      actorEmail: identity.email ?? null,
+      subjectType: "billing",
+      subjectId: activeOrg.orgId,
+      subjectName: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      title: "Opened billing portal",
+      description: `Billing management was opened for ${(activeOrg.orgSlug ?? args.expectedOrgSlug)}.`,
+      severity: "info",
+      payloadJson: JSON.stringify({
+        returnUrl: args.returnUrl,
+      }),
+      retentionTierOverride: null,
+    });
 
     return {
       portalUrl,

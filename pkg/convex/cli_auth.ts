@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import { internal } from "./_generated/api";
 import { internalMutation, mutation } from "./_generated/server";
 import { requireActiveOrgClaims, requireIdentity } from "./lib/auth";
 
@@ -156,6 +157,31 @@ export const completeDeviceCodeForCurrentUser = mutation({
       updatedAtMs: now,
     });
 
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug,
+      projectId: null,
+      projectSlug: null,
+      stageSlug: null,
+      eventType: "cli.device_code_approved",
+      category: "cli",
+      actorSource: "cli",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "cli_session",
+      subjectId: deviceCodeRow.userCode,
+      subjectName: deviceCodeRow.clientName ?? "CLI device flow",
+      title: "Approved CLI sign-in",
+      description: `A CLI device code was approved for workspace ${activeOrg.orgSlug}.`,
+      severity: "info",
+      payloadJson: JSON.stringify({
+        userCode: deviceCodeRow.userCode,
+        clientName: deviceCodeRow.clientName,
+      }),
+      retentionTierOverride: null,
+    });
+
     return {
       status: "completed" as const,
       orgSlug: activeOrg.orgSlug,
@@ -207,6 +233,31 @@ export const completeDeviceCodeForCurrentUserInternal = internalMutation({
       approvedOrgId: args.orgId,
       approvedOrgSlug: args.orgSlug,
       updatedAtMs: now,
+    });
+
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: args.orgId,
+      orgSlug: args.orgSlug,
+      projectId: null,
+      projectSlug: null,
+      stageSlug: null,
+      eventType: "cli.device_code_approved",
+      category: "cli",
+      actorSource: "cli",
+      actorClerkUserId: args.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "cli_session",
+      subjectId: deviceCodeRow.userCode,
+      subjectName: deviceCodeRow.clientName ?? "CLI device flow",
+      title: "Approved CLI sign-in",
+      description: `A CLI device code was approved for workspace ${args.orgSlug}.`,
+      severity: "info",
+      payloadJson: JSON.stringify({
+        userCode: deviceCodeRow.userCode,
+        clientName: deviceCodeRow.clientName,
+      }),
+      retentionTierOverride: null,
     });
 
     return {

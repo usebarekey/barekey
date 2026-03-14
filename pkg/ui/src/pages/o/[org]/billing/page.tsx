@@ -6,7 +6,6 @@ import {
   IconClock,
   IconCpu,
   IconDatabase,
-  IconLoader2,
   IconMail,
   IconUsers,
 } from "@tabler/icons-react";
@@ -33,7 +32,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  formatOverageHint,
+  formatRequestCount,
+  formatStorageBytes,
+  formatUsageProgress,
+} from "@/lib/billing-display";
 import { extractRequestId, formatSupportErrorMessage } from "@/lib/support-errors";
 
 type PlanId = "free" | "pro" | "max";
@@ -186,49 +192,6 @@ function formatUsdPerGb(amount: number): string {
   return `$${fixed}`;
 }
 
-function formatRequestCount(value: number): string {
-  if (value >= 1_000_000 && value % 1_000_000 === 0) {
-    return `${value / 1_000_000}M`;
-  }
-  if (value >= 1_000 && value % 1_000 === 0) {
-    return `${value / 1_000}k`;
-  }
-  return value.toLocaleString();
-}
-
-function formatStorageBytes(value: number): string {
-  if (value >= 1_000_000_000 && value % 1_000_000_000 === 0) {
-    return `${value / 1_000_000_000} GB`;
-  }
-  if (value >= 1_000_000) {
-    const mb = value / 1_000_000;
-    const rounded = mb % 1 === 0 ? mb.toFixed(0) : mb.toFixed(1);
-    return `${rounded} MB`;
-  }
-  return `${value} B`;
-}
-
-function formatUsageProgress(used: number | null, included: number | null, unit: string): string {
-  const usedLabel = used === null ? "0" : unit === "bytes" ? formatStorageBytes(used) : formatRequestCount(used);
-  const includedLabel =
-    included === null
-      ? "unlimited"
-      : unit === "bytes"
-        ? formatStorageBytes(included)
-        : formatRequestCount(included);
-  return `${usedLabel} / ${includedLabel}`;
-}
-
-function formatOverageHint(overageAllowed: boolean | null | undefined): string {
-  if (overageAllowed === true) {
-    return "Overages enabled";
-  }
-  if (overageAllowed === false) {
-    return "Overages disabled";
-  }
-  return "Usage unavailable";
-}
-
 function formatTierName(tier: PlanId): string {
   return PLAN_METADATA.find((plan) => plan.id === tier)?.name ?? tier;
 }
@@ -247,7 +210,10 @@ function formatPlanSummary(
   return `${formatTierName(tier)} monthly (${overageLabel}) at ${formatUsd(monthlyPriceUsd)}/month`;
 }
 
-function formatPriceDeltaSentence(currentMonthlyPriceUsd: number, nextMonthlyPriceUsd: number): string {
+function formatPriceDeltaSentence(
+  currentMonthlyPriceUsd: number,
+  nextMonthlyPriceUsd: number,
+): string {
   const monthlyDelta = nextMonthlyPriceUsd - currentMonthlyPriceUsd;
   if (monthlyDelta === 0) {
     return "with no monthly price change.";
@@ -398,7 +364,9 @@ export function Page() {
     currentUserFreePlanCredit.assignedOrgId === null &&
     currentUserFreePlanCredit.remainingCredits <= 0;
   const isFreePlanActivationBlocked =
-    isFreeCreditLoading || isFreeCreditAssignedToDifferentOrg || isFreeCreditExhaustedWithoutAssignment;
+    isFreeCreditLoading ||
+    isFreeCreditAssignedToDifferentOrg ||
+    isFreeCreditExhaustedWithoutAssignment;
   const currentPlanIndex =
     currentPlanId === null ? -1 : PLAN_METADATA.findIndex((tier) => tier.id === currentPlanId);
 
@@ -409,8 +377,7 @@ export function Page() {
           (variant) =>
             variant.tier === plan.id &&
             variant.interval === (plan.id === "free" ? "monthly" : billingInterval) &&
-            variant.overageMode ===
-              (plan.id === "free" ? "without_overages" : overageMode),
+            variant.overageMode === (plan.id === "free" ? "without_overages" : overageMode),
         ) ?? null;
 
       return {
@@ -441,7 +408,11 @@ export function Page() {
   }, [billingInterval, billingState?.variants, overageMode]);
 
   const currentPlanMonthlyPriceUsd = useMemo(() => {
-    if (!billingState || billingState.currentTier === null || billingState.currentInterval === null) {
+    if (
+      !billingState ||
+      billingState.currentTier === null ||
+      billingState.currentInterval === null
+    ) {
       return null;
     }
     const fromVariant =
@@ -449,8 +420,7 @@ export function Page() {
         (variant) =>
           variant.tier === billingState.currentTier &&
           variant.interval === billingState.currentInterval &&
-          variant.overageMode ===
-            (billingState.currentOverageMode ?? "without_overages"),
+          variant.overageMode === (billingState.currentOverageMode ?? "without_overages"),
       )?.monthlyPriceUsd ?? null;
     if (fromVariant !== null) {
       return fromVariant;
@@ -756,7 +726,10 @@ export function Page() {
         tags={
           <>
             {isOrgClaimsLoading ? (
-              <Badge variant="outline">Loading role...</Badge>
+              <SkeletonPlaceholder
+                className="inline-block rounded-md align-middle"
+                content={<Badge variant="outline">Workspace admin</Badge>}
+              />
             ) : (
               <OrgRoleBadge role={orgClaims.orgRole} />
             )}
@@ -796,398 +769,428 @@ export function Page() {
         </OrgSectionCard>
       ) : (
         <>
-      {showBillingSkeleton ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="rounded-xl border bg-background/70 p-4">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="mt-3 h-7 w-32" />
-              <Skeleton className="mt-2 h-3 w-24" />
+          {showBillingSkeleton ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="rounded-xl border bg-background/70 p-4">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="mt-3 h-7 w-32" />
+                  <Skeleton className="mt-2 h-3 w-24" />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : billingState ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <OrgMetricCard
-            label="Current Plan"
-            value={
-              isWithoutPlan
-                ? "Without a plan"
-                : formatTierName(billingState.currentTier ?? "free")
-            }
-            hint={
-              isWithoutPlan
-                ? "Select a plan to enable billing and usage."
-                : `${billingState.currentInterval === "annually" ? "Annual" : "Monthly"} · ${billingState.currentOverageMode === "with_overages" ? "Overages enabled" : "Overages disabled"}`
-            }
-            icon={<IconCreditCard className="size-4" />}
-          />
-          <OrgMetricCard
-            label="Static Requests"
-            value={
-              isWithoutPlan
-                ? "Without a plan"
-                : formatUsageProgress(
-                    billingState.usage.staticRequests.usage,
-                    billingState.usage.staticRequests.includedUsage,
-                    "requests",
-                  )
-            }
-            hint={
-              isWithoutPlan
-                ? "Usage disabled"
-                : formatOverageHint(billingState.usage.staticRequests.overageAllowed)
-            }
-            icon={<IconBolt className="size-4" />}
-          />
-          <OrgMetricCard
-            label="Dynamic Requests"
-            value={
-              isWithoutPlan
-                ? "Without a plan"
-                : formatUsageProgress(
-                    billingState.usage.dynamicRequests.usage,
-                    billingState.usage.dynamicRequests.includedUsage,
-                    "requests",
-                  )
-            }
-            hint={
-              isWithoutPlan
-                ? "Usage disabled"
-                : formatOverageHint(billingState.usage.dynamicRequests.overageAllowed)
-            }
-            icon={<IconCpu className="size-4" />}
-          />
-          <OrgMetricCard
-            label="Storage"
-            value={
-              isWithoutPlan
-                ? "Without a plan"
-                : formatUsageProgress(
-                    billingState.usage.storageBytes.usage ?? billingState.storageMirrorBytes,
-                    billingState.usage.storageBytes.includedUsage,
-                    "bytes",
-                  )
-            }
-            hint={
-              isWithoutPlan
-                ? "Usage disabled"
-                : formatOverageHint(billingState.usage.storageBytes.overageAllowed)
-            }
-            icon={<IconDatabase className="size-4" />}
-          />
-        </div>
-      ) : null}
+          ) : billingState ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <OrgMetricCard
+                label="Current Plan"
+                value={
+                  isWithoutPlan
+                    ? "Without a plan"
+                    : formatTierName(billingState.currentTier ?? "free")
+                }
+                hint={
+                  isWithoutPlan
+                    ? "Select a plan to enable billing and usage."
+                    : `${billingState.currentInterval === "annually" ? "Annual" : "Monthly"} · ${billingState.currentOverageMode === "with_overages" ? "Overages enabled" : "Overages disabled"}`
+                }
+                icon={<IconCreditCard className="size-4" />}
+              />
+              <OrgMetricCard
+                label="Static Requests"
+                value={
+                  isWithoutPlan
+                    ? "Without a plan"
+                    : formatUsageProgress(
+                        billingState.usage.staticRequests.usage,
+                        billingState.usage.staticRequests.includedUsage,
+                        "requests",
+                      )
+                }
+                hint={
+                  isWithoutPlan
+                    ? "Usage disabled"
+                    : formatOverageHint(billingState.usage.staticRequests.overageAllowed)
+                }
+                icon={<IconBolt className="size-4" />}
+              />
+              <OrgMetricCard
+                label="Dynamic Requests"
+                value={
+                  isWithoutPlan
+                    ? "Without a plan"
+                    : formatUsageProgress(
+                        billingState.usage.dynamicRequests.usage,
+                        billingState.usage.dynamicRequests.includedUsage,
+                        "requests",
+                      )
+                }
+                hint={
+                  isWithoutPlan
+                    ? "Usage disabled"
+                    : formatOverageHint(billingState.usage.dynamicRequests.overageAllowed)
+                }
+                icon={<IconCpu className="size-4" />}
+              />
+              <OrgMetricCard
+                label="Storage"
+                value={
+                  isWithoutPlan
+                    ? "Without a plan"
+                    : formatUsageProgress(
+                        billingState.usage.storageBytes.usage ?? billingState.storageMirrorBytes,
+                        billingState.usage.storageBytes.includedUsage,
+                        "bytes",
+                      )
+                }
+                hint={
+                  isWithoutPlan
+                    ? "Usage disabled"
+                    : formatOverageHint(billingState.usage.storageBytes.overageAllowed)
+                }
+                icon={<IconDatabase className="size-4" />}
+              />
+            </div>
+          ) : null}
 
-      {showBillingSkeleton || billingState ? (
-      <OrgSectionCard
-        title="Plans"
-        description="Choose a plan for this organization."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <ToggleGroup
-              multiple={false}
-              value={[overageMode]}
-              onValueChange={(values) => {
-                const next = values[0];
-                if (next === "without_overages" || next === "with_overages") {
-                  setOverageMode(next);
-                }
-              }}
-              variant="outline"
-              size="sm"
-              spacing={0}
-            >
-              <ToggleGroupItem
-                value="without_overages"
-                disabled={isPlanSubmitting || upgradeOverlay !== null}
-              >
-                Without overages
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="with_overages"
-                disabled={isPlanSubmitting || upgradeOverlay !== null}
-              >
-                With overages
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <ToggleGroup
-              multiple={false}
-              value={[billingInterval]}
-              onValueChange={(values) => {
-                const next = values[0];
-                if (next === "monthly" || next === "annually") {
-                  setBillingInterval(next);
-                }
-              }}
-              variant="outline"
-              size="sm"
-              spacing={0}
-            >
-              <ToggleGroupItem value="monthly" disabled={isPlanSubmitting || upgradeOverlay !== null}>
-                Monthly
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="annually"
-                disabled={isPlanSubmitting || upgradeOverlay !== null}
-              >
-                Annually (-20%)
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                void handleOpenBillingPortal();
-              }}
-              disabled={
-                showBillingSkeleton ||
-                !billingState?.canManageBilling ||
-                isPortalSubmitting ||
-                isPlanSubmitting ||
-                upgradeOverlay !== null
+          {showBillingSkeleton || billingState ? (
+            <OrgSectionCard
+              title="Plans"
+              description="Choose a plan for this organization."
+              action={
+                <div className="flex flex-wrap items-center gap-2">
+                  <ToggleGroup
+                    multiple={false}
+                    value={[overageMode]}
+                    onValueChange={(values) => {
+                      const next = values[0];
+                      if (next === "without_overages" || next === "with_overages") {
+                        setOverageMode(next);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    spacing={0}
+                  >
+                    <ToggleGroupItem
+                      value="without_overages"
+                      disabled={isPlanSubmitting || upgradeOverlay !== null}
+                    >
+                      Without overages
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="with_overages"
+                      disabled={isPlanSubmitting || upgradeOverlay !== null}
+                    >
+                      With overages
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  <ToggleGroup
+                    multiple={false}
+                    value={[billingInterval]}
+                    onValueChange={(values) => {
+                      const next = values[0];
+                      if (next === "monthly" || next === "annually") {
+                        setBillingInterval(next);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    spacing={0}
+                  >
+                    <ToggleGroupItem
+                      value="monthly"
+                      disabled={isPlanSubmitting || upgradeOverlay !== null}
+                    >
+                      Monthly
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="annually"
+                      disabled={isPlanSubmitting || upgradeOverlay !== null}
+                    >
+                      Annually (-20%)
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void handleOpenBillingPortal();
+                    }}
+                    disabled={
+                      showBillingSkeleton ||
+                      !billingState?.canManageBilling ||
+                      isPortalSubmitting ||
+                      isPlanSubmitting ||
+                      upgradeOverlay !== null
+                    }
+                  >
+                    {isPortalSubmitting ? (
+                      <SkeletonPlaceholder
+                        className="inline-block rounded-md"
+                        content={<span>Manage billing</span>}
+                      />
+                    ) : (
+                      "Manage billing"
+                    )}
+                  </Button>
+                  {billingState?.currentTier === "free" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        void handleRevokeFreeCredit();
+                      }}
+                      disabled={
+                        showBillingSkeleton ||
+                        !billingState.canManageBilling ||
+                        isRevokeSubmitting ||
+                        isPlanSubmitting ||
+                        upgradeOverlay !== null
+                      }
+                    >
+                      {isRevokeSubmitting ? (
+                        <SkeletonPlaceholder
+                          className="inline-block rounded-md"
+                          content={<span>Revoke free credit</span>}
+                        />
+                      ) : (
+                        "Revoke free credit"
+                      )}
+                    </Button>
+                  ) : null}
+                </div>
               }
             >
-              {isPortalSubmitting ? "Opening..." : "Manage billing"}
-            </Button>
-            {billingState?.currentTier === "free" ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  void handleRevokeFreeCredit();
-                }}
-                disabled={
-                  showBillingSkeleton ||
-                  !billingState.canManageBilling ||
-                  isRevokeSubmitting ||
-                  isPlanSubmitting ||
-                  upgradeOverlay !== null
-                }
-              >
-                {isRevokeSubmitting ? "Revoking..." : "Revoke free credit"}
-              </Button>
-            ) : null}
-          </div>
-        }
-      >
-        {showBillingSkeleton ? (
-          <div className="grid gap-3 pb-3 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="rounded-xl border bg-background/70 p-6">
-                <Skeleton className="h-6 w-24" />
-                <Skeleton className="mt-3 h-4 w-4/5" />
-                <div className="mt-5 space-y-2">
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-                <Skeleton className="mt-6 h-9 w-full" />
-              </div>
-            ))}
-          </div>
-        ) : billingState ? (
-          <>
-        {billingState?.currentTier === null && !isBillingStateLoading ? (
-          <div className="mb-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            This workspace is without a plan and currently disabled. Select a plan to enable project
-            creation and usage tracking.
-          </div>
-        ) : null}
-        <div className="grid gap-3 pb-3 lg:grid-cols-3">
-          {planTiers.map((plan, index) => (
-            <div key={plan.name} className="relative flex h-full flex-col">
-              {plan.id === "pro" ? (
-                <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-blue-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
-                  Most popular
-                </div>
-              ) : null}
-              {plan.id === "max" ? (
-                <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
-                  Most value
-                </div>
-              ) : null}
-              <div className="flex h-full flex-col rounded-xl border bg-background/70 p-6">
-                <h3 className="text-xl font-semibold tracking-tight">{plan.name}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {plan.description}{" "}
-                  {plan.id === "free" ? (
-                    <>
-                      Available for <span className="font-semibold text-foreground">free</span>.
-                    </>
-                  ) : (
-                    <>
-                      Available for{" "}
-                      <span className="font-semibold text-foreground">
-                        {formatUsd(plan.monthlyPriceUsd)}
-                      </span>{" "}
-                      per month{billingInterval === "annually" ? ", billed annually." : "."}
-                    </>
-                  )}
-                </p>
-                <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-                  {!plan.isConfiguredInAutumn ? (
-                    <p className="text-sm text-amber-600">
-                      Not configured in Autumn yet. Configure this product before activation.
-                    </p>
-                  ) : null}
-                  {plan.includes ? (
-                    <div className="font-medium text-foreground">
-                      <span>{plan.includes}</span>
-                    </div>
-                  ) : null}
-                  <div>
-                    <div className="flex items-start gap-2">
-                      <IconBolt className="mt-0.5 size-4 shrink-0" />
-                      <span>{plan.usage.staticRequests}</span>
-                    </div>
-                    {overageMode === "with_overages" && plan.overage.staticPer1kUsd ? (
-                      <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                        then {formatUsdPerThousand(plan.overage.staticPer1kUsd)} per 1,000 static requests
-                      </p>
-                    ) : null}
-                  </div>
-                  <div>
-                    <div className="flex items-start gap-2">
-                      <IconCpu className="mt-0.5 size-4 shrink-0" />
-                      <span>{plan.usage.dynamicRequests}</span>
-                    </div>
-                    {overageMode === "with_overages" && plan.overage.dynamicPer1kUsd ? (
-                      <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                        then {formatUsdPerThousand(plan.overage.dynamicPer1kUsd)} per 1,000 dynamic requests
-                      </p>
-                    ) : null}
-                  </div>
-                  <div>
-                    <div className="flex items-start gap-2">
-                      <IconDatabase className="mt-0.5 size-4 shrink-0" />
-                      <span>{plan.usage.storage}</span>
-                    </div>
-                    {overageMode === "with_overages" && plan.overage.storagePerGbUsd ? (
-                      <p className="ml-6 mt-0.5 text-sm text-foreground/60">
-                        then {formatUsdPerGb(plan.overage.storagePerGbUsd)} per 1 GB storage
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="mt-5 space-y-2 text-sm text-muted-foreground">
-                  {plan.support.map((item) => {
-                    const SupportIcon = item.toLowerCase().includes("priority")
-                      ? IconClock
-                      : item.toLowerCase().includes("email")
-                        ? IconMail
-                        : IconUsers;
-
-                    return (
-                      <div key={item} className="flex items-start gap-2">
-                        <SupportIcon className="mt-0.5 size-4 shrink-0" />
-                        <span>{item}</span>
+              {showBillingSkeleton ? (
+                <div className="grid gap-3 pb-3 lg:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="rounded-xl border bg-background/70 p-6">
+                      <Skeleton className="h-6 w-24" />
+                      <Skeleton className="mt-3 h-4 w-4/5" />
+                      <div className="mt-5 space-y-2">
+                        <Skeleton className="h-4 w-4/5" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-4 w-2/3" />
                       </div>
-                    );
-                  })}
+                      <Skeleton className="mt-6 h-9 w-full" />
+                    </div>
+                  ))}
                 </div>
-                <div className="mt-auto pt-4">
-                  <div className="space-y-2 border-t border-border/70 pt-4 text-sm text-muted-foreground">
-                    <p className="font-semibold text-foreground">Always included:</p>
-                    {ALWAYS_INCLUDED_FEATURES.map((feature) => (
-                      <div key={feature} className="flex items-start gap-2">
-                        <IconCheck className="mt-0.5 size-4 shrink-0" />
-                        <span>{feature}</span>
+              ) : billingState ? (
+                <>
+                  {billingState?.currentTier === null && !isBillingStateLoading ? (
+                    <div className="mb-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                      This workspace is without a plan and currently disabled. Select a plan to
+                      enable project creation and usage tracking.
+                    </div>
+                  ) : null}
+                  <div className="grid gap-3 pb-3 lg:grid-cols-3">
+                    {planTiers.map((plan, index) => (
+                      <div key={plan.name} className="relative flex h-full flex-col">
+                        {plan.id === "pro" ? (
+                          <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-blue-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
+                            Most popular
+                          </div>
+                        ) : null}
+                        {plan.id === "max" ? (
+                          <div className="pointer-events-none absolute top-0 right-4 z-10 -translate-y-1/2 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm">
+                            Most value
+                          </div>
+                        ) : null}
+                        <div className="flex h-full flex-col rounded-xl border bg-background/70 p-6">
+                          <h3 className="text-xl font-semibold tracking-tight">{plan.name}</h3>
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            {plan.description}{" "}
+                            {plan.id === "free" ? (
+                              <>
+                                Available for{" "}
+                                <span className="font-semibold text-foreground">free</span>.
+                              </>
+                            ) : (
+                              <>
+                                Available for{" "}
+                                <span className="font-semibold text-foreground">
+                                  {formatUsd(plan.monthlyPriceUsd)}
+                                </span>{" "}
+                                per month
+                                {billingInterval === "annually" ? ", billed annually." : "."}
+                              </>
+                            )}
+                          </p>
+                          <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                            {!plan.isConfiguredInAutumn ? (
+                              <p className="text-sm text-amber-600">
+                                Not configured in Autumn yet. Configure this product before
+                                activation.
+                              </p>
+                            ) : null}
+                            {plan.includes ? (
+                              <div className="font-medium text-foreground">
+                                <span>{plan.includes}</span>
+                              </div>
+                            ) : null}
+                            <div>
+                              <div className="flex items-start gap-2">
+                                <IconBolt className="mt-0.5 size-4 shrink-0" />
+                                <span>{plan.usage.staticRequests}</span>
+                              </div>
+                              {overageMode === "with_overages" && plan.overage.staticPer1kUsd ? (
+                                <p className="ml-6 mt-0.5 text-sm text-foreground/60">
+                                  then {formatUsdPerThousand(plan.overage.staticPer1kUsd)} per 1,000
+                                  static requests
+                                </p>
+                              ) : null}
+                            </div>
+                            <div>
+                              <div className="flex items-start gap-2">
+                                <IconCpu className="mt-0.5 size-4 shrink-0" />
+                                <span>{plan.usage.dynamicRequests}</span>
+                              </div>
+                              {overageMode === "with_overages" && plan.overage.dynamicPer1kUsd ? (
+                                <p className="ml-6 mt-0.5 text-sm text-foreground/60">
+                                  then {formatUsdPerThousand(plan.overage.dynamicPer1kUsd)} per
+                                  1,000 dynamic requests
+                                </p>
+                              ) : null}
+                            </div>
+                            <div>
+                              <div className="flex items-start gap-2">
+                                <IconDatabase className="mt-0.5 size-4 shrink-0" />
+                                <span>{plan.usage.storage}</span>
+                              </div>
+                              {overageMode === "with_overages" && plan.overage.storagePerGbUsd ? (
+                                <p className="ml-6 mt-0.5 text-sm text-foreground/60">
+                                  then {formatUsdPerGb(plan.overage.storagePerGbUsd)} per 1 GB
+                                  storage
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="mt-5 space-y-2 text-sm text-muted-foreground">
+                            {plan.support.map((item) => {
+                              const SupportIcon = item.toLowerCase().includes("priority")
+                                ? IconClock
+                                : item.toLowerCase().includes("email")
+                                  ? IconMail
+                                  : IconUsers;
+
+                              return (
+                                <div key={item} className="flex items-start gap-2">
+                                  <SupportIcon className="mt-0.5 size-4 shrink-0" />
+                                  <span>{item}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="mt-auto pt-4">
+                            <div className="space-y-2 border-t border-border/70 pt-4 text-sm text-muted-foreground">
+                              <p className="font-semibold text-foreground">Always included:</p>
+                              {ALWAYS_INCLUDED_FEATURES.map((feature) => (
+                                <div key={feature} className="flex items-start gap-2">
+                                  <IconCheck className="mt-0.5 size-4 shrink-0" />
+                                  <span>{feature}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <Button
+                            className="mt-4"
+                            variant={
+                              plan.id === currentPlanId
+                                ? "secondary"
+                                : currentPlanId === null
+                                  ? plan.id === "pro"
+                                    ? "default"
+                                    : "outline"
+                                  : index > currentPlanIndex
+                                    ? "default"
+                                    : "outline"
+                            }
+                            disabled={
+                              isBillingStateLoading ||
+                              isPlanSubmitting ||
+                              upgradeOverlay !== null ||
+                              !billingState?.canManageBilling ||
+                              !plan.isConfiguredInAutumn ||
+                              (plan.id === "free" && isFreePlanActivationBlocked) ||
+                              (currentPlanId !== null &&
+                                plan.id === currentPlanId &&
+                                billingState.currentInterval ===
+                                  (plan.id === "free" ? "monthly" : billingInterval) &&
+                                billingState.currentOverageMode ===
+                                  (plan.id === "free" ? "without_overages" : overageMode))
+                            }
+                            onClick={() => {
+                              handlePlanButtonClick(plan.id);
+                            }}
+                          >
+                            {isPlanSubmitting && pendingPlanId === plan.id ? (
+                              <span className="inline-flex items-center gap-2">
+                                <Skeleton className="size-4 rounded-full" />
+                                <SkeletonPlaceholder
+                                  className="inline-block rounded-md"
+                                  content={<span>Updating...</span>}
+                                />
+                              </span>
+                            ) : plan.id === currentPlanId ? (
+                              billingState?.currentInterval ===
+                                (plan.id === "free" ? "monthly" : billingInterval) &&
+                              billingState.currentOverageMode ===
+                                (plan.id === "free" ? "without_overages" : overageMode) ? (
+                                `On ${plan.name}`
+                              ) : (
+                                `Update ${plan.name}`
+                              )
+                            ) : !plan.isConfiguredInAutumn ? (
+                              "Configure in Autumn"
+                            ) : plan.id === "free" && isFreeCreditAssignedToDifferentOrg ? (
+                              "Free credit used elsewhere"
+                            ) : plan.id === "free" && isFreeCreditExhaustedWithoutAssignment ? (
+                              "Free credit unavailable"
+                            ) : currentPlanId === null ? (
+                              plan.id === "free" ? (
+                                `Activate Free`
+                              ) : (
+                                `Choose ${plan.name}`
+                              )
+                            ) : index > currentPlanIndex ? (
+                              `Upgrade to ${plan.name}`
+                            ) : (
+                              `Downgrade to ${plan.name}`
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-                <Button
-                  className="mt-4"
-                  variant={
-                    plan.id === currentPlanId
-                      ? "secondary"
-                      : currentPlanId === null
-                        ? plan.id === "pro"
-                          ? "default"
-                          : "outline"
-                        : index > currentPlanIndex
-                        ? "default"
-                        : "outline"
-                  }
-                  disabled={
-                    isBillingStateLoading ||
-                    isPlanSubmitting ||
-                    upgradeOverlay !== null ||
-                    !billingState?.canManageBilling ||
-                    !plan.isConfiguredInAutumn ||
-                    (plan.id === "free" && isFreePlanActivationBlocked) ||
-                    (currentPlanId !== null &&
-                      plan.id === currentPlanId &&
-                      billingState.currentInterval ===
-                        (plan.id === "free" ? "monthly" : billingInterval) &&
-                      billingState.currentOverageMode ===
-                        (plan.id === "free" ? "without_overages" : overageMode))
-                  }
-                  onClick={() => {
-                    handlePlanButtonClick(plan.id);
-                  }}
-                >
-                  {isPlanSubmitting && pendingPlanId === plan.id ? (
-                    <span className="inline-flex items-center gap-2">
-                      <IconLoader2 className="size-4 animate-spin" />
-                      Updating...
-                    </span>
-                  ) : plan.id === currentPlanId ? (
-                    billingState?.currentInterval ===
-                      (plan.id === "free" ? "monthly" : billingInterval) &&
-                    billingState.currentOverageMode ===
-                      (plan.id === "free" ? "without_overages" : overageMode) ? (
-                      `On ${plan.name}`
-                    ) : (
-                      `Update ${plan.name}`
-                    )
-                  ) : !plan.isConfiguredInAutumn ? (
-                    "Configure in Autumn"
-                  ) : plan.id === "free" && isFreeCreditAssignedToDifferentOrg ? (
-                    "Free credit used elsewhere"
-                  ) : plan.id === "free" && isFreeCreditExhaustedWithoutAssignment ? (
-                    "Free credit unavailable"
-                  ) : currentPlanId === null ? (
-                    plan.id === "free" ? `Activate Free` : `Choose ${plan.name}`
-                  ) : index > currentPlanIndex ? (
-                    `Upgrade to ${plan.name}`
-                  ) : (
-                    `Downgrade to ${plan.name}`
-                  )}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-          </>
-        ) : null}
-        <p className="pt-1 text-xs text-muted-foreground">
-          {billingState?.hasScheduledPlanChange ? (
-            <span className="font-semibold text-foreground">
-              {billingState.scheduledPlanChange &&
-              billingState.currentTier !== null &&
-              billingState.currentInterval !== null &&
-              billingState.currentOverageMode !== null &&
-              currentPlanMonthlyPriceUsd !== null
-                ? `${formatScheduledPlanChangeNotice({
-                    currentTier: billingState.currentTier,
-                    currentInterval: billingState.currentInterval,
-                    currentOverageMode: billingState.currentOverageMode,
-                    currentMonthlyPriceUsd: currentPlanMonthlyPriceUsd,
-                    scheduledPlanChange: billingState.scheduledPlanChange,
-                  })} `
-                : "A plan change is set to apply soon. "}
-            </span>
+                </>
+              ) : null}
+              <p className="pt-1 text-xs text-muted-foreground">
+                {billingState?.hasScheduledPlanChange ? (
+                  <span className="font-semibold text-foreground">
+                    {billingState.scheduledPlanChange &&
+                    billingState.currentTier !== null &&
+                    billingState.currentInterval !== null &&
+                    billingState.currentOverageMode !== null &&
+                    currentPlanMonthlyPriceUsd !== null
+                      ? `${formatScheduledPlanChangeNotice({
+                          currentTier: billingState.currentTier,
+                          currentInterval: billingState.currentInterval,
+                          currentOverageMode: billingState.currentOverageMode,
+                          currentMonthlyPriceUsd: currentPlanMonthlyPriceUsd,
+                          scheduledPlanChange: billingState.scheduledPlanChange,
+                        })} `
+                      : "A plan change is set to apply soon. "}
+                  </span>
+                ) : null}
+                You can create unlimited organizations. New organizations start without a plan until
+                you apply your free workspace credit or choose a paid plan.
+                {overageMode === "with_overages"
+                  ? " Overage charges are billed monthly, even on annual plans."
+                  : ""}
+              </p>
+            </OrgSectionCard>
           ) : null}
-          You can create unlimited organizations. New organizations start without a plan until you
-          apply your free workspace credit or choose a paid plan.
-          {overageMode === "with_overages"
-            ? " Overage charges are billed monthly, even on annual plans."
-            : ""}
-        </p>
-      </OrgSectionCard>
-      ) : null}
         </>
       )}
       <Dialog
@@ -1261,7 +1264,7 @@ export function Page() {
               {upgradeOverlay.isSuccess ? (
                 <IconCheck className="size-5 text-primary" />
               ) : (
-                <IconLoader2 className="size-5 animate-spin text-primary" />
+                <Skeleton className="size-5 rounded-full bg-primary/30" />
               )}
             </div>
             <h3 className="mt-4 text-lg font-semibold text-foreground">{upgradeOverlay.title}</h3>

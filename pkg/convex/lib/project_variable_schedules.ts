@@ -3,6 +3,86 @@ import { v } from "convex/values";
 import { declaredTypeValidator } from "./declared_types";
 import { rolloutFunctionValidator, rolloutMilestoneValidator } from "./rollout";
 import { variableVisibilityValidator } from "./visibility";
+import type { Id } from "../_generated/dataModel";
+import type { DeclaredVariableType } from "./declared_types";
+import type { RolloutFunction, RolloutMilestone } from "./rollout";
+import type { VariableVisibility } from "./visibility";
+
+export type ProjectVariablePreparedCreateEntry =
+  | {
+      name: string;
+      visibility: VariableVisibility;
+      kind: "secret";
+      declaredType: DeclaredVariableType;
+      encryptedValue: string;
+      encryptedValueA: null;
+      encryptedValueB: null;
+      chance: null;
+      rolloutFunction: null;
+      rolloutMilestones: null;
+    }
+  | {
+      name: string;
+      visibility: VariableVisibility;
+      kind: "ab_roll";
+      declaredType: DeclaredVariableType;
+      encryptedValue: null;
+      encryptedValueA: string;
+      encryptedValueB: string;
+      chance: number;
+      rolloutFunction: null;
+      rolloutMilestones: null;
+    }
+  | {
+      name: string;
+      visibility: VariableVisibility;
+      kind: "rollout";
+      declaredType: DeclaredVariableType;
+      encryptedValue: null;
+      encryptedValueA: string;
+      encryptedValueB: string;
+      chance: null;
+      rolloutFunction: RolloutFunction;
+      rolloutMilestones: Array<RolloutMilestone>;
+    };
+
+export type ProjectVariablePreparedUpdateEntry =
+  | {
+      id: Id<"projectVariables">;
+      visibility: VariableVisibility;
+      kind: "secret";
+      declaredType: DeclaredVariableType;
+      encryptedValue: string;
+      encryptedValueA: null;
+      encryptedValueB: null;
+      chance: null;
+      rolloutFunction: null;
+      rolloutMilestones: null;
+    }
+  | {
+      id: Id<"projectVariables">;
+      visibility: VariableVisibility;
+      kind: "ab_roll";
+      declaredType: DeclaredVariableType;
+      encryptedValue: null;
+      encryptedValueA: string;
+      encryptedValueB: string;
+      chance: number;
+      rolloutFunction: null;
+      rolloutMilestones: null;
+    }
+  | {
+      id: Id<"projectVariables">;
+      visibility: VariableVisibility;
+      kind: "rollout";
+      declaredType: DeclaredVariableType;
+      encryptedValue: null;
+      encryptedValueA: string;
+      encryptedValueB: string;
+      chance: null;
+      rolloutFunction: RolloutFunction;
+      rolloutMilestones: Array<RolloutMilestone>;
+    };
 
 export const projectVariableScheduleStatusValidator = v.union(
   v.literal("scheduled"),

@@ -10,6 +10,7 @@ import * as Pricing from "@/pages/pricing/page";
 import * as CreateNew from "@/pages/new/page";
 import * as OrgSelect from "@/pages/o/select/page";
 import * as OrgOverview from "@/pages/o/[org]/overview/page";
+import * as OrgAudit from "@/pages/o/[org]/audit/page";
 import * as OrgLayout from "@/pages/o/[org]/layout";
 import * as OrgBilling from "@/pages/o/[org]/billing/page";
 import * as OrgMembers from "@/pages/o/[org]/members/page";
@@ -84,6 +85,7 @@ export function Router() {
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="members" element={<OrgMembers.Page />} />
             <Route path="projects" element={<OrgProjects.Page />} />
+            <Route path="audit" element={<OrgAudit.Page />} />
             <Route path="billing" element={<OrgBilling.Page />} />
             <Route path="project/:projectSlug" element={<OrgProjectLayout.Layout />}>
               <Route index element={<Navigate to="variables" replace />} />

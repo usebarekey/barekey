@@ -5,12 +5,14 @@ import {
   IconBolt,
   IconCpu,
   IconDatabase,
+  IconHistory,
 } from "@tabler/icons-react";
 import { useOrganization } from "@clerk/react-router";
 import { Link, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
 
 import { api } from "@convex/_generated/api";
+import { AuditFeed } from "@/components/custom/audit-feed";
 import {
   OrgMetricCard,
   OrgPageHero,
@@ -20,6 +22,106 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
+import type { AuditEventRow } from "@/lib/audit";
+import {
+  formatOverageHint,
+  formatUsageProgress,
+} from "@/lib/billing-display";
+
+type OverviewBillingState = {
+  currentTier: "free" | "pro" | "max" | null;
+  usage: {
+    staticRequests: {
+      usage: number | null;
+      includedUsage: number | null;
+      overageAllowed: boolean | null;
+    };
+    dynamicRequests: {
+      usage: number | null;
+      includedUsage: number | null;
+      overageAllowed: boolean | null;
+    };
+    storageBytes: {
+      usage: number | null;
+      includedUsage: number | null;
+      overageAllowed: boolean | null;
+    };
+  };
+  storageMirrorBytes: number;
+};
+
+class AuditPreviewErrorBoundary extends Component<
+  {
+    children: ReactNode;
+    fallback: ReactNode;
+  },
+  {
+    hasError: boolean;
+  }
+> {
+  state = {
+    hasError: false,
+  };
+
+  static getDerivedStateFromError() {
+    return {
+      hasError: true,
+    };
+  }
+
+  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {}
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+
+    return this.props.children;
+  }
+}
+
+function AuditPreviewSection({ orgSlug }: { orgSlug: string }) {
+  const previewAuditEvents = useQuery(api.audit.getPreviewEventsForCurrentOrg, {
+    expectedOrgSlug: orgSlug,
+    limit: 6,
+  }) as Array<AuditEventRow> | undefined;
+
+  return (
+    <AuditFeed
+      events={previewAuditEvents ?? []}
+      isLoading={previewAuditEvents === undefined}
+      compact
+    />
+  );
+}
+
+function OverviewMetricCardSkeleton({
+  label,
+  icon,
+}: {
+  label: string;
+  icon: ReactNode;
+}) {
+  return (
+    <OrgMetricCard
+      label={label}
+      icon={icon}
+      value={
+        <SkeletonPlaceholder
+          className="block rounded-lg"
+          content={<p className="text-2xl font-semibold tracking-tight">88,888 / 999,999</p>}
+        />
+      }
+      hint={
+        <SkeletonPlaceholder
+          className="inline-block rounded-md"
+          content={<p className="text-xs text-muted-foreground">Overages enabled</p>}
+        />
+      }
+    />
+  );
+}
 
 export function Page() {
   const { orgSlug = "org" } = useParams();
@@ -29,12 +131,14 @@ export function Page() {
   const projects = useQuery(api.projects.listForCurrentOrg, {
     expectedOrgSlug: orgSlug,
   });
-  const getWorkspacePlanStatus = useAction(api.payments.getWorkspacePlanStatusForCurrentOrg);
+  const getBillingState = useAction(api.payments.getBillingStateForCurrentOrg);
   const [isWorkspacePlanless, setIsWorkspacePlanless] = useState(false);
   const [isWorkspaceBillingUnavailable, setIsWorkspaceBillingUnavailable] = useState(false);
+  const [billingState, setBillingState] = useState<OverviewBillingState | null>(null);
   const { organization } = useOrganization();
   const recentProjects = (projects ?? []).slice(0, 5);
   const isOrgClaimsLoading = orgClaims === undefined;
+  const isBillingLoading = billingState === null && !isWorkspaceBillingUnavailable;
 
   useEffect(() => {
     const orgLabel = organization?.name?.trim() || orgSlug;
@@ -43,17 +147,19 @@ export function Page() {
 
   useEffect(() => {
     let cancelled = false;
-    void getWorkspacePlanStatus({
+    void getBillingState({
       expectedOrgSlug: orgSlug,
     })
       .then((result) => {
         if (!cancelled) {
-          setIsWorkspacePlanless(result.isPlanless);
-          setIsWorkspaceBillingUnavailable(result.billingUnavailable);
+          setBillingState(result);
+          setIsWorkspacePlanless(result.currentTier === null);
+          setIsWorkspaceBillingUnavailable(false);
         }
       })
       .catch(() => {
         if (!cancelled) {
+          setBillingState(null);
           setIsWorkspacePlanless(false);
           setIsWorkspaceBillingUnavailable(true);
         }
@@ -62,7 +168,9 @@ export function Page() {
     return () => {
       cancelled = true;
     };
-  }, [getWorkspacePlanStatus, orgSlug]);
+  }, [getBillingState, orgSlug]);
+
+  const storageUsage = billingState?.usage.storageBytes.usage ?? billingState?.storageMirrorBytes ?? null;
 
   return (
     <div className="space-y-6">
@@ -72,20 +180,52 @@ export function Page() {
         orgName={organization?.name}
         imageUrl={organization?.imageUrl}
         imageSeed={organization?.id}
-        subtitle={<>Track projects, team access, and pending invites from one place. All values reflect the last 24 hours.</>}
+        subtitle={
+          <>
+            Track projects, team access, and pending invites from one place. All values reflect the
+            last 24 hours.
+          </>
+        }
         tags={
           <>
             {isOrgClaimsLoading ? (
-              <Badge variant="outline">Loading role...</Badge>
+              <SkeletonPlaceholder
+                className="inline-block rounded-md align-middle"
+                content={<Badge variant="outline">Workspace admin</Badge>}
+              />
             ) : (
               <OrgRoleBadge role={orgClaims.orgRole} />
             )}
-            {isWorkspacePlanless ? <Badge variant="outline">Workspace without a plan</Badge> : null}
+            {isBillingLoading ? (
+              <SkeletonPlaceholder
+                className="inline-block rounded-md align-middle"
+                content={<Badge variant="outline">Workspace without a plan</Badge>}
+              />
+            ) : isWorkspacePlanless ? (
+              <Badge variant="outline">Workspace without a plan</Badge>
+            ) : null}
           </>
         }
       />
 
-      {isWorkspacePlanless ? (
+      {isBillingLoading ? (
+        <div className="rounded-xl border border-dashed p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <SkeletonPlaceholder
+              className="inline-block flex-1 rounded-md"
+              content={
+                <p className="text-sm text-muted-foreground">
+                  This workspace is without a plan and currently disabled for project creation.
+                </p>
+              }
+            />
+            <SkeletonPlaceholder
+              className="inline-block rounded-md"
+              content={<Button size="sm" variant="outline">Choose billing plan</Button>}
+            />
+          </div>
+        </div>
+      ) : isWorkspacePlanless ? (
         <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
           This workspace is without a plan and currently disabled for project creation.
           <Button
@@ -106,24 +246,91 @@ export function Page() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <OrgMetricCard
-          label="Static Requests"
-          value="0"
-          hint="Usage limits tracking soon"
-          icon={<IconBolt className="size-4" />}
-        />
-        <OrgMetricCard
-          label="Dynamic Requests"
-          value="0"
-          hint="Usage limits tracking soon"
-          icon={<IconCpu className="size-4" />}
-        />
-        <OrgMetricCard
-          label="Storage"
-          value="0 MB"
-          hint="Usage limits tracking soon"
-          icon={<IconDatabase className="size-4" />}
-        />
+        {isBillingLoading ? (
+          <>
+            <OverviewMetricCardSkeleton
+              label="Static Requests"
+              icon={<IconBolt className="size-4" />}
+            />
+            <OverviewMetricCardSkeleton
+              label="Dynamic Requests"
+              icon={<IconCpu className="size-4" />}
+            />
+            <OverviewMetricCardSkeleton
+              label="Storage"
+              icon={<IconDatabase className="size-4" />}
+            />
+          </>
+        ) : (
+          <>
+            <OrgMetricCard
+              label="Static Requests"
+              value={
+                isWorkspaceBillingUnavailable
+                  ? "Unavailable"
+                  : isWorkspacePlanless
+                    ? "Without a plan"
+                    : formatUsageProgress(
+                        billingState?.usage.staticRequests.usage ?? null,
+                        billingState?.usage.staticRequests.includedUsage ?? null,
+                        "requests",
+                      )
+              }
+              hint={
+                isWorkspaceBillingUnavailable
+                  ? "Usage unavailable"
+                  : isWorkspacePlanless
+                    ? "Usage disabled"
+                    : formatOverageHint(billingState?.usage.staticRequests.overageAllowed)
+              }
+              icon={<IconBolt className="size-4" />}
+            />
+            <OrgMetricCard
+              label="Dynamic Requests"
+              value={
+                isWorkspaceBillingUnavailable
+                  ? "Unavailable"
+                  : isWorkspacePlanless
+                    ? "Without a plan"
+                    : formatUsageProgress(
+                        billingState?.usage.dynamicRequests.usage ?? null,
+                        billingState?.usage.dynamicRequests.includedUsage ?? null,
+                        "requests",
+                      )
+              }
+              hint={
+                isWorkspaceBillingUnavailable
+                  ? "Usage unavailable"
+                  : isWorkspacePlanless
+                    ? "Usage disabled"
+                    : formatOverageHint(billingState?.usage.dynamicRequests.overageAllowed)
+              }
+              icon={<IconCpu className="size-4" />}
+            />
+            <OrgMetricCard
+              label="Storage"
+              value={
+                isWorkspaceBillingUnavailable
+                  ? "Unavailable"
+                  : isWorkspacePlanless
+                    ? "Without a plan"
+                    : formatUsageProgress(
+                        storageUsage,
+                        billingState?.usage.storageBytes.includedUsage ?? null,
+                        "bytes",
+                      )
+              }
+              hint={
+                isWorkspaceBillingUnavailable
+                  ? "Usage unavailable"
+                  : isWorkspacePlanless
+                    ? "Usage disabled"
+                    : formatOverageHint(billingState?.usage.storageBytes.overageAllowed)
+              }
+              icon={<IconDatabase className="size-4" />}
+            />
+          </>
+        )}
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.25fr_0.85fr]">
@@ -188,29 +395,35 @@ export function Page() {
 
         <OrgSectionCard
           title="Audit log"
-          description="Scaffolded feed for org and project activity (implementation pending)."
+          description="Recent workspace activity across projects, members, schedules, billing, and automation."
+          action={
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link to={`/o/${orgSlug}/audit`} />}
+            >
+              View all
+              <IconHistory className="size-4" />
+            </Button>
+          }
         >
-          <div className="space-y-4">
-            <div className="rounded-xl border border-dashed bg-background/70 p-3">
-              <p className="org-kicker text-muted-foreground">Scaffold</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                This panel will show an audit trail for key actions like project creation, secret
-                changes, stage updates, membership changes, and access-sensitive operations.
-              </p>
-            </div>
-
-            <div className="rounded-xl border bg-background/70 p-3">
-              <p className="org-kicker text-muted-foreground">Preview events</p>
-              <div className="mt-2 space-y-2">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={index} className="rounded-md border bg-background/50 p-2">
-                    <Skeleton className="h-3 w-2/3" />
-                    <Skeleton className="mt-2 h-2.5 w-1/3" />
-                  </div>
-                ))}
+          <AuditPreviewErrorBoundary
+            fallback={
+              <div className="rounded-xl border border-dashed p-4">
+                <SkeletonPlaceholder
+                  className="inline-block rounded-md"
+                  content={
+                    <p className="text-sm text-muted-foreground">
+                      Audit activity is temporarily unavailable.
+                    </p>
+                  }
+                />
               </div>
-            </div>
-          </div>
+            }
+          >
+            <AuditPreviewSection orgSlug={orgSlug} />
+          </AuditPreviewErrorBoundary>
         </OrgSectionCard>
       </div>
     </div>

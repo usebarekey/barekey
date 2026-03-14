@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
@@ -208,6 +209,32 @@ export const createForCurrentOrgProject = mutation({
       updatedAtMs: now,
     });
 
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: project._id,
+      projectSlug: project.slug,
+      stageSlug: slug,
+      eventType: "stage.created",
+      category: "stage",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "stage",
+      subjectId: String(stageId),
+      subjectName: trimmedName,
+      title: `Created stage ${trimmedName}`,
+      description: `Stage ${trimmedName} was added to project ${project.name}.`,
+      severity: "info",
+      payloadJson: JSON.stringify({
+        projectSlug: project.slug,
+        stageSlug: slug,
+        isDefault: false,
+      }),
+      retentionTierOverride: null,
+    });
+
     return {
       id: stageId,
       projectId: project._id,
@@ -275,6 +302,33 @@ export const renameForCurrentOrgProject = mutation({
     await ctx.db.patch(stage._id, {
       name: trimmedName,
       updatedAtMs: now,
+    });
+
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: project._id,
+      projectSlug: project.slug,
+      stageSlug: stage.slug,
+      eventType: "stage.renamed",
+      category: "stage",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "stage",
+      subjectId: String(stage._id),
+      subjectName: trimmedName,
+      title: `Renamed stage ${stage.name}`,
+      description: `Stage ${stage.slug} is now labeled ${trimmedName}.`,
+      severity: "info",
+      payloadJson: JSON.stringify({
+        projectSlug: project.slug,
+        stageSlug: stage.slug,
+        previousName: stage.name,
+        nextName: trimmedName,
+      }),
+      retentionTierOverride: null,
     });
 
     const variableCount = (
@@ -353,6 +407,31 @@ export const deleteForCurrentOrgProject = mutation({
     }
 
     await ctx.db.delete(stage._id);
+
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: activeOrg.orgId,
+      orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
+      projectId: project._id,
+      projectSlug: project.slug,
+      stageSlug: stage.slug,
+      eventType: "stage.deleted",
+      category: "stage",
+      actorSource: "barekey_user",
+      actorClerkUserId: activeOrg.clerkUserId,
+      actorDisplayName: null,
+      actorEmail: null,
+      subjectType: "stage",
+      subjectId: String(stage._id),
+      subjectName: stage.name,
+      title: `Deleted stage ${stage.name}`,
+      description: `Stage ${stage.name} was removed from project ${project.name}.`,
+      severity: "warning",
+      payloadJson: JSON.stringify({
+        projectSlug: project.slug,
+        stageSlug: stage.slug,
+      }),
+      retentionTierOverride: null,
+    });
 
     return {
       deletedStageSlug: stage.slug,
