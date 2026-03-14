@@ -110,13 +110,13 @@ function OverviewMetricCardSkeleton({
       value={
         <SkeletonPlaceholder
           className="block rounded-lg"
-          content={<p className="text-2xl font-semibold tracking-tight">88,888 / 999,999</p>}
+          content={<span className="text-2xl font-semibold tracking-tight">88,888 / 999,999</span>}
         />
       }
       hint={
         <SkeletonPlaceholder
           className="inline-block rounded-md"
-          content={<p className="text-xs text-muted-foreground">Overages enabled</p>}
+          content={<span className="text-xs text-muted-foreground">Overages enabled</span>}
         />
       }
     />

@@ -10,7 +10,6 @@ const posthogApiHost = runtimeConfig.posthogHost;
 const posthogUiHost = runtimeConfig.posthogUiHost;
 
 let hasInitializedPostHog = false;
-let hasWarnedPostHogDisabled = false;
 
 function isOfficialPostHogHost(value: string) {
   try {
@@ -53,12 +52,6 @@ function shouldInitializePostHog() {
   // Local development should not boot PostHog against a custom proxy host that
   // doesn't fully implement PostHog's config/flags endpoints.
   if (import.meta.env.DEV && !isOfficialPostHogHost(posthogApiHost)) {
-    if (!hasWarnedPostHogDisabled) {
-      console.warn(
-        `[PostHog] Disabled in development because the configured host "${posthogApiHost}" is not an official PostHog ingest host.`,
-      );
-      hasWarnedPostHogDisabled = true;
-    }
     return false;
   }
 

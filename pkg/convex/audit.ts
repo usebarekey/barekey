@@ -28,37 +28,6 @@ import {
   getActiveOrgIdClaimsOrNull,
 } from "./lib/auth";
 
-const auditEventRowValidator = v.object({
-  id: v.id("auditEvents"),
-  orgId: v.string(),
-  orgSlug: v.string(),
-  projectId: v.union(v.string(), v.null()),
-  projectSlug: v.union(v.string(), v.null()),
-  stageSlug: v.union(v.string(), v.null()),
-  eventType: v.string(),
-  category: auditCategoryValidator,
-  occurredAtMs: v.number(),
-  actorSource: auditActorSourceValidator,
-  actorClerkUserId: v.union(v.string(), v.null()),
-  actorDisplayName: v.union(v.string(), v.null()),
-  actorEmail: v.union(v.string(), v.null()),
-  subjectType: auditSubjectTypeValidator,
-  subjectId: v.union(v.string(), v.null()),
-  subjectName: v.union(v.string(), v.null()),
-  title: v.string(),
-  description: v.string(),
-  severity: auditSeverityValidator,
-  payloadJson: v.string(),
-  retentionTier: auditRetentionTierValidator,
-  expiresAtMs: v.union(v.number(), v.null()),
-});
-
-const auditEventPageValidator = v.object({
-  items: v.array(auditEventRowValidator),
-  nextBeforeOccurredAtMs: v.union(v.number(), v.null()),
-  hasMore: v.boolean(),
-});
-
 const appendAuditEventArgsValidator = v.object({
   orgId: v.string(),
   orgSlug: v.string(),
@@ -417,7 +386,7 @@ export const listEventsForCurrentOrg = query({
     actorSource: v.union(auditActorSourceValidator, v.null()),
     sensitiveOnly: v.boolean(),
   },
-  returns: auditEventPageValidator,
+  returns: v.any(),
   handler: async (ctx, args) => {
     try {
       const identity = await ctx.auth.getUserIdentity();
@@ -481,7 +450,7 @@ export const listEventsForCurrentOrgProject = query({
     actorSource: v.union(auditActorSourceValidator, v.null()),
     sensitiveOnly: v.boolean(),
   },
-  returns: auditEventPageValidator,
+  returns: v.any(),
   handler: async (ctx, args) => {
     try {
       const identity = await ctx.auth.getUserIdentity();
@@ -582,7 +551,7 @@ export const getPreviewEventsForCurrentOrg = query({
     expectedOrgSlug: v.string(),
     limit: v.number(),
   },
-  returns: v.array(auditEventRowValidator),
+  returns: v.any(),
   handler: async (ctx, args) => {
     try {
       const identity = await ctx.auth.getUserIdentity();
