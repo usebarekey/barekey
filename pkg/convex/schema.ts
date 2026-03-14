@@ -2,6 +2,12 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 import { declaredTypeValidator } from "./lib/declared_types";
+import {
+  projectVariablePreparedCreateValidator,
+  projectVariablePreparedUpdateValidator,
+  projectVariableScheduleStatusValidator,
+  projectVariableScheduleUpdateTargetValidator,
+} from "./lib/project_variable_schedules";
 import { rolloutFunctionValidator, rolloutMilestoneValidator } from "./lib/rollout";
 import { variableVisibilityValidator } from "./lib/visibility";
 
@@ -105,6 +111,33 @@ export default defineSchema({
       "visibility",
       "name",
     ])
+    .index("by_org_id_and_project_id", ["orgId", "projectId"]),
+  projectVariableSchedules: defineTable({
+    projectId: v.id("projects"),
+    orgId: v.string(),
+    stageSlug: v.string(),
+    timezone: v.string(),
+    runAtMs: v.number(),
+    status: projectVariableScheduleStatusValidator,
+    scheduledFunctionId: v.union(v.id("_scheduled_functions"), v.null()),
+    preparedCreates: v.array(projectVariablePreparedCreateValidator),
+    preparedUpdates: v.array(projectVariablePreparedUpdateValidator),
+    updateTargets: v.array(projectVariableScheduleUpdateTargetValidator),
+    createdCount: v.number(),
+    updatedCount: v.number(),
+    createdByClerkUserId: v.string(),
+    updatedByClerkUserId: v.string(),
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+    executedAtMs: v.union(v.number(), v.null()),
+    canceledAtMs: v.union(v.number(), v.null()),
+    failedAtMs: v.union(v.number(), v.null()),
+    failureMessage: v.union(v.string(), v.null()),
+  })
+    .index("by_project_id", ["projectId"])
+    .index("by_project_id_and_stage_slug", ["projectId", "stageSlug"])
+    .index("by_project_id_and_status", ["projectId", "status"])
+    .index("by_project_id_and_run_at_ms", ["projectId", "runAtMs"])
     .index("by_org_id_and_project_id", ["orgId", "projectId"]),
   orgStorageUsage: defineTable({
     orgId: v.string(),

@@ -703,12 +703,14 @@ async function deterministicBucket(input: string): Promise<number> {
 
 async function resolveVariableValue(input: {
   variable: DecryptedVariable;
+  visibility: EnvVisibility;
   seed?: string;
   key?: string;
 }): Promise<{
   name: string;
   kind: "secret" | "ab_roll" | "rollout";
   declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+  visibility: EnvVisibility;
   value: string;
   decision?: {
     bucket: number;
@@ -723,6 +725,7 @@ async function resolveVariableValue(input: {
       name: input.variable.name,
       kind: "secret",
       declaredType: input.variable.declaredType,
+      visibility: input.visibility,
       value: input.variable.value,
     };
   }
@@ -740,6 +743,7 @@ async function resolveVariableValue(input: {
       name: input.variable.name,
       kind: "ab_roll",
       declaredType: input.variable.declaredType,
+      visibility: input.visibility,
       value: bucket < chance ? input.variable.valueA : input.variable.valueB,
       decision: {
         bucket,
@@ -760,6 +764,7 @@ async function resolveVariableValue(input: {
     name: input.variable.name,
     kind: "rollout",
     declaredType: input.variable.declaredType,
+    visibility: input.visibility,
     value: bucket < chance ? input.variable.valueB : input.variable.valueA,
     decision: {
       bucket,
@@ -771,17 +776,22 @@ async function resolveVariableValue(input: {
   };
 }
 
-function buildVariableDefinition(variable: DecryptedVariable):
+function buildVariableDefinition(
+  variable: DecryptedVariable,
+  visibility: EnvVisibility,
+):
   | {
       name: string;
       kind: "secret";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      visibility: EnvVisibility;
       value: string;
     }
   | {
       name: string;
       kind: "ab_roll";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      visibility: EnvVisibility;
       valueA: string;
       valueB: string;
       chance: number;
@@ -800,6 +810,7 @@ function buildVariableDefinition(variable: DecryptedVariable):
       name: variable.name,
       kind: "secret",
       declaredType: variable.declaredType,
+      visibility,
       value: variable.value,
     };
   }
@@ -809,6 +820,7 @@ function buildVariableDefinition(variable: DecryptedVariable):
       name: variable.name,
       kind: "ab_roll",
       declaredType: variable.declaredType,
+      visibility,
       valueA: variable.valueA,
       valueB: variable.valueB,
       chance: variable.chance,
@@ -819,6 +831,7 @@ function buildVariableDefinition(variable: DecryptedVariable):
     name: variable.name,
     kind: "rollout",
     declaredType: variable.declaredType,
+    visibility,
     valueA: variable.valueA,
     valueB: variable.valueB,
     rolloutFunction: variable.rolloutFunction,
@@ -848,7 +861,7 @@ async function resolveDefinitionsForRows(
         variableId: row.id,
       },
     )) as DecryptedVariable;
-    definitions.push(buildVariableDefinition(decrypted));
+    definitions.push(buildVariableDefinition(decrypted, row.visibility));
   }
   return definitions;
 }
@@ -944,6 +957,7 @@ const evaluateOne = httpAction(async (ctx, request) => {
     )) as DecryptedVariable;
     const resolved = await resolveVariableValue({
       variable: decrypted,
+      visibility: row.visibility,
       seed: parsed.seed,
       key: parsed.key,
     });
@@ -969,6 +983,7 @@ const evaluateOne = httpAction(async (ctx, request) => {
       name: resolved.name,
       kind: resolved.kind,
       declaredType: resolved.declaredType,
+      visibility: resolved.visibility,
       value: resolved.value,
       decision: resolved.decision,
     });
@@ -1079,6 +1094,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       name: string;
       kind: "secret" | "ab_roll" | "rollout";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      visibility: EnvVisibility;
       value: string;
       decision?: {
         bucket: number;
@@ -1105,6 +1121,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
       )) as DecryptedVariable;
       const resolved = await resolveVariableValue({
         variable: decrypted,
+        visibility: row.visibility,
         seed: parsed.seed,
         key: parsed.key,
       });
@@ -1112,6 +1129,7 @@ const evaluateBatch = httpAction(async (ctx, request) => {
         name: resolved.name,
         kind: resolved.kind,
         declaredType: resolved.declaredType,
+        visibility: resolved.visibility,
         value: resolved.value,
         decision: resolved.decision,
       });
@@ -1378,6 +1396,7 @@ const envPull = httpAction(async (ctx, request) => {
       name: string;
       kind: "secret" | "ab_roll" | "rollout";
       declaredType: "string" | "boolean" | "int64" | "float" | "date" | "json";
+      visibility: EnvVisibility;
       value: string;
       decision?: {
         bucket: number;
@@ -1399,6 +1418,7 @@ const envPull = httpAction(async (ctx, request) => {
       )) as DecryptedVariable;
       const resolved = await resolveVariableValue({
         variable: decrypted,
+        visibility: row.visibility,
         seed,
         key,
       });

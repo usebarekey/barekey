@@ -8,10 +8,6 @@ const defaultStages = [
     name: "Development",
   },
   {
-    slug: "staging",
-    name: "Staging",
-  },
-  {
     slug: "production",
     name: "Production",
   },

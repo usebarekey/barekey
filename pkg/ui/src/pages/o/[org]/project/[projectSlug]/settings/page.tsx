@@ -330,7 +330,7 @@ export function Page() {
       <div className="space-y-4">
         <OrgSectionCard
           title="Environments"
-          description="Every project starts with development, staging, and production. Add more environments as needed."
+          description="Every project starts with development and production. Add more environments as needed."
         >
           <div className="space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row">

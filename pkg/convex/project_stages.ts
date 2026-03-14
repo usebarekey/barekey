@@ -80,10 +80,6 @@ const DEFAULT_STAGE_DEFINITIONS = [
     name: "Development",
   },
   {
-    slug: "staging",
-    name: "Staging",
-  },
-  {
     slug: "production",
     name: "Production",
   },

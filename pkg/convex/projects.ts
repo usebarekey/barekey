@@ -36,9 +36,7 @@ async function allocateUniqueProjectSlug(
       const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
       const existing = await ctx.db
         .query("projects")
-        .withIndex("by_org_id_and_slug", (q) =>
-          q.eq("orgId", args.orgId).eq("slug", candidate),
-        )
+        .withIndex("by_org_id_and_slug", (q) => q.eq("orgId", args.orgId).eq("slug", candidate))
         .unique();
 
       if (existing === null) {
@@ -91,10 +89,6 @@ const DEFAULT_PROJECT_STAGES = [
   {
     slug: "development",
     name: "Development",
-  },
-  {
-    slug: "staging",
-    name: "Staging",
   },
   {
     slug: "production",
