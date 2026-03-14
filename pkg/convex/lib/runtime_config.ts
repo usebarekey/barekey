@@ -26,8 +26,25 @@ function requireGeneratedValue(name: string, value: string): string {
   return value;
 }
 
+function requireGeneratedOrProcessEnv(
+  generatedName: string,
+  processEnvName: string,
+  generatedValue: string,
+): string {
+  const processValue = readOptionalProcessEnv(processEnvName);
+  if (processValue !== null) {
+    return processValue;
+  }
+
+  return requireGeneratedValue(generatedName, generatedValue);
+}
+
 export const runtimeConfig = {
-  autumnSecretKey: requireGeneratedValue("autumnSecretKey", convexPrivateConfig.autumnSecretKey),
+  autumnSecretKey: requireGeneratedOrProcessEnv(
+    "autumnSecretKey",
+    "AUTUMN_SECRET_KEY",
+    convexPrivateConfig.autumnSecretKey,
+  ),
   barekeyMasterKeyBase64: requireProcessEnv("BAREKEY_MASTER_KEY_B64"),
   barekeyUiOrigin: requireGeneratedValue("barekeyUiOrigin", convexPrivateConfig.barekeyUiOrigin),
   clerkWebhookSigningSecret: readOptionalProcessEnv("CLERK_WEBHOOK_SIGNING_SECRET"),
