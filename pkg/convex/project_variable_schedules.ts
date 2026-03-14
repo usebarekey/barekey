@@ -206,7 +206,13 @@ function validateRunAtMs(value: number): number {
   if (!Number.isFinite(value)) {
     throw new Error("Schedule time is invalid.");
   }
-  return Math.trunc(value);
+
+  const runAtMs = Math.trunc(value);
+  if (runAtMs <= Date.now()) {
+    throw new Error("Schedule time must be in the future.");
+  }
+
+  return runAtMs;
 }
 
 async function buildPreparedScheduleSnapshot(input: {

@@ -1669,45 +1669,6 @@ const publicEnvDefinitions = httpAction(async (ctx, request) => {
     });
   }
 
-  const units = parsed.names?.length ?? resolved.rows.length;
-  let reservedUnits = 0;
-  try {
-    if (units > 0) {
-      const reservation = await ctx.runAction(internal.payments.reserveFeatureUnitsForOrgInternal, {
-        orgId: resolved.orgId,
-        orgSlug: parsed.orgSlug,
-        featureId: "static_requests",
-        units,
-        reason: "http_public_env_definitions",
-      });
-      if (reservation.errorCode === "USAGE_LIMIT_EXCEEDED") {
-        return errorResponse({
-          status: 402,
-          code: "USAGE_LIMIT_EXCEEDED",
-          message: "Usage limit exceeded for this workspace plan.",
-          requestId,
-        });
-      }
-      if (reservation.errorCode === "BILLING_UNAVAILABLE") {
-        return errorResponse({
-          status: 503,
-          code: "BILLING_UNAVAILABLE",
-          message: "Billing service is temporarily unavailable.",
-          requestId,
-        });
-      }
-      reservedUnits = reservation.reservedUnits;
-    }
-  } catch (error: unknown) {
-    const classified = classifyReserveError(error);
-    return errorResponse({
-      status: classified.status,
-      code: classified.code,
-      message: classified.message,
-      requestId,
-    });
-  }
-
   try {
     const definitions = await resolveDefinitionsForRows(ctx, {
       orgId: resolved.orgId,
@@ -1716,46 +1677,11 @@ const publicEnvDefinitions = httpAction(async (ctx, request) => {
       rows: resolved.rows,
     });
 
-    if (units > 0) {
-      const billingLogResult = await ctx.runMutation(internal.payments.logBillingRequestInternal, {
-        orgId: resolved.orgId,
-        requestKey: readBillingRequestKey(request, requestId, "public_env_definitions"),
-        featureId: "static_requests",
-        units,
-      });
-      if (!billingLogResult.inserted && reservedUnits > 0) {
-        const unitsToCompensate = reservedUnits;
-        reservedUnits = 0;
-        await ctx.runAction(internal.payments.compensateFeatureUnitsForOrgInternal, {
-          orgId: resolved.orgId,
-          orgSlug: parsed.orgSlug,
-          featureId: "static_requests",
-          units: unitsToCompensate,
-          reason: "http_public_env_definitions_duplicate_request",
-        });
-      }
-    }
-
     return buildJsonResponse(200, {
       definitions,
       requestId,
     });
   } catch (error: unknown) {
-    if (reservedUnits > 0) {
-      try {
-        const unitsToCompensate = reservedUnits;
-        reservedUnits = 0;
-        await ctx.runAction(internal.payments.compensateFeatureUnitsForOrgInternal, {
-          orgId: resolved.orgId,
-          orgSlug: parsed.orgSlug,
-          featureId: "static_requests",
-          units: unitsToCompensate,
-          reason: "http_public_env_definitions_rollback",
-        });
-      } catch (rollbackError: unknown) {
-        console.error("HTTP public definitions rollback failed.", rollbackError);
-      }
-    }
     console.error("HTTP public definitions failed.", error);
     return errorResponse({
       status: 500,
