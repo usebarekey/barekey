@@ -1,14 +1,11 @@
 import { Logo } from "@/components/custom/logo";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { IconBrandGithubFilled, IconBrandGoogleFilled, IconKeyFilled } from "@tabler/icons-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { IconBrandGithubFilled, IconBrandGoogleFilled } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { SkeletonPlaceholder } from "@/components/ui/skeleton-placeholder";
 import { useSignIn } from "@clerk/react-router";
 import { useState } from "react";
-import { Link } from "react-router-dom";
 
-type PendingAction = "passkey" | "google" | "github" | null;
+type PendingAction = "google" | "github" | null;
 
 const CALLBACK_PATH = "/auth/sso/callback";
 const COMPLETE_REDIRECT_PATH = "/";
@@ -30,7 +27,7 @@ function getErrorMessage(error: unknown) {
 }
 
 export function Page() {
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const { isLoaded, signIn } = useSignIn();
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
   const isBusy = pendingAction !== null;
@@ -53,91 +50,39 @@ export function Page() {
     }
   }
 
-  async function signInWithPasskey() {
-    if (!isLoaded) return;
-
-    if (!("PublicKeyCredential" in window)) {
-      setError("Passkeys are not supported in this browser.");
-      return;
-    }
-
-    setError(null);
-    setPendingAction("passkey");
-
-    try {
-      const result = await signIn.authenticateWithPasskey({
-        flow: "discoverable",
-      });
-
-      if (result.status === "complete" && result.createdSessionId) {
-        await setActive({
-          session: result.createdSessionId,
-          redirectUrl: COMPLETE_REDIRECT_PATH,
-        });
-        return;
-      }
-
-      setError("Passkey sign-in requires additional steps. Try another method.");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError));
-    } finally {
-      setPendingAction(null);
-    }
-  }
-
   return (
     <Card className="w-full max-w-md">
-      <CardHeader>
-        <Logo className="h-8" />
+      <CardHeader className="gap-4">
+        <div className="space-y-3">
+          <Logo className="h-8" />
+          <div className="space-y-1">
+            <CardTitle>Sign in</CardTitle>
+            <CardDescription>Choose the account you want to use to continue.</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Button className="w-full" disabled={!isLoaded || isBusy} onClick={signInWithPasskey}>
-          <IconKeyFilled />
-          {pendingAction === "passkey" ? (
-            <SkeletonPlaceholder
-              className="inline-block rounded-md"
-              content={<span>Continue using Passkey</span>}
-            />
-          ) : (
-            "Continue using Passkey"
-          )}
-        </Button>
-        <div className="flex flex-row items-center gap-2">
-          <Separator className="flex-1" />
-          or
-          <Separator className="flex-1" />
-        </div>
         <Button
           variant="outline"
-          className="w-full"
+          className="h-10 w-full"
           disabled={!isLoaded || isBusy}
           onClick={() => signInWithOAuth("oauth_google")}
         >
           <IconBrandGoogleFilled />
-          {pendingAction === "google" ? (
-            <SkeletonPlaceholder
-              className="inline-block rounded-md"
-              content={<span>Continue using Google</span>}
-            />
-          ) : (
-            "Continue using Google"
-          )}
+          {pendingAction === "google"
+            ? "Continuing with Google..."
+            : "Continue using Google"}
         </Button>
         <Button
           variant="outline"
-          className="w-full"
+          className="h-10 w-full"
           disabled={!isLoaded || isBusy}
           onClick={() => signInWithOAuth("oauth_github")}
         >
           <IconBrandGithubFilled />
-          {pendingAction === "github" ? (
-            <SkeletonPlaceholder
-              className="inline-block rounded-md"
-              content={<span>Continue using GitHub</span>}
-            />
-          ) : (
-            "Continue using GitHub"
-          )}
+          {pendingAction === "github"
+            ? "Continuing with GitHub..."
+            : "Continue using GitHub"}
         </Button>
         {error ? (
           <p className="text-sm text-destructive" role="alert">
@@ -145,12 +90,6 @@ export function Page() {
           </p>
         ) : null}
       </CardContent>
-      <CardFooter className="text-xs text-muted-foreground">
-        Forgot your password?{" "}
-        <Link to="/auth/sso" className="text-primary">
-          Reset it
-        </Link>
-      </CardFooter>
     </Card>
   );
 }
