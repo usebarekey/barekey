@@ -22,6 +22,11 @@ Common commands:
 - `bun run convex:deploy`
 - `bun test tests`
 
+Effect reference:
+
+- For Effect / Confect / Layer work, consult `vendor/effect` for upstream patterns, API usage, and examples before inventing local conventions
+- `effect-upstream` is the git remote for refreshing `vendor/effect`
+
 Notes:
 
 - Keep secrets out of git
