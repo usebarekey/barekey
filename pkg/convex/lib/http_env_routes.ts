@@ -456,16 +456,11 @@ export const envWrite = httpAction(async (ctx, request) => {
       requestId,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to write variables.";
-    const isReserveRelated =
-      message === "Usage limit exceeded for this workspace plan." ||
-      message === "This workspace is without a plan. Choose a billing plan to enable projects." ||
-      message === "Billing service is temporarily unavailable.";
-    const classified = isReserveRelated ? classifyReserveError(error) : null;
+    const classified = classifyReserveError(error);
     return errorResponse({
-      status: classified?.status ?? 400,
-      code: classified?.code ?? "WRITE_FAILED",
-      message: classified?.message ?? message,
+      status: classified.isBillingRelated ? classified.status : 400,
+      code: classified.isBillingRelated ? classified.code : "WRITE_FAILED",
+      message: classified.isBillingRelated ? classified.message : "Failed to write variables.",
       requestId,
     });
   }

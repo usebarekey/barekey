@@ -88,17 +88,10 @@ export const clerkWebhook = httpAction(async (ctx, request) => {
     });
   }
 
+  let event: unknown;
   try {
-    const event = await verifyWebhook(request, {
+    event = await verifyWebhook(request, {
       signingSecret: runtimeConfig.clerkWebhookSigningSecret,
-    });
-    const result = await ctx.runAction(internal.audit.ingestClerkWebhookEventInternal, {
-      payloadJson: JSON.stringify(event),
-    });
-
-    return buildJsonResponse(200, {
-      accepted: result.accepted,
-      requestId,
     });
   } catch (error) {
     const message =
@@ -112,6 +105,15 @@ export const clerkWebhook = httpAction(async (ctx, request) => {
       requestId,
     });
   }
+
+  const result = await ctx.runAction(internal.audit.ingestClerkWebhookEventInternal, {
+    payloadJson: JSON.stringify(event),
+  });
+
+  return buildJsonResponse(200, {
+    accepted: result.accepted,
+    requestId,
+  });
 });
 
 export const corsPreflight = httpAction(async () => buildCorsPreflightResponse());

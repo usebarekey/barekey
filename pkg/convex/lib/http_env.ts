@@ -169,6 +169,7 @@ export type VariableDefinition =
     };
 
 export type ReserveErrorClassification = {
+  isBillingRelated: boolean;
   status: number;
   code: "USAGE_LIMIT_EXCEEDED" | "BILLING_UNAVAILABLE";
   message: string;
@@ -471,12 +472,22 @@ export function classifyReserveError(error: unknown): ReserveErrorClassification
     message === "This workspace is without a plan. Choose a billing plan to enable projects."
   ) {
     return {
+      isBillingRelated: true,
       status: 402,
       code: "USAGE_LIMIT_EXCEEDED",
       message,
     };
   }
+  if (message === "Billing service is temporarily unavailable.") {
+    return {
+      isBillingRelated: true,
+      status: 503,
+      code: "BILLING_UNAVAILABLE",
+      message,
+    };
+  }
   return {
+    isBillingRelated: false,
     status: 503,
     code: "BILLING_UNAVAILABLE",
     message: "Billing service is temporarily unavailable.",

@@ -379,9 +379,33 @@ export async function revokeCurrentUserFreePlanCreditHandler(
   });
 
   if (revokeResult.revoked) {
+    const auditOrgSlug = previousAssignedOrgSlug ?? previousAssignedOrgId;
     await ctx.runMutation(internal.payments.upsertOrgBillingSnapshotForOrgInternal, {
       orgId: previousAssignedOrgId,
       currentTier: null,
+    });
+    await ctx.runMutation(internal.audit.appendEventInternal, {
+      orgId: previousAssignedOrgId,
+      orgSlug: auditOrgSlug,
+      projectId: null,
+      projectSlug: null,
+      stageSlug: null,
+      eventType: "billing.free_credit_revoked",
+      category: "billing",
+      actorSource: "barekey_user",
+      actorClerkUserId: identity.subject,
+      actorDisplayName: identity.name ?? identity.nickname ?? identity.preferredUsername ?? null,
+      actorEmail: identity.email ?? null,
+      subjectType: "billing",
+      subjectId: previousAssignedOrgId,
+      subjectName: auditOrgSlug,
+      title: "Revoked free workspace credit",
+      description: `The free plan credit was revoked from ${auditOrgSlug}.`,
+      severity: "warning",
+      payloadJson: JSON.stringify({
+        reason: args.reason ?? "manual_revoke",
+      }),
+      retentionTierOverride: null,
     });
   }
 

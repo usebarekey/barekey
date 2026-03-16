@@ -35,11 +35,7 @@ export type AuthResolutionCtx = {
 export async function readIdentityOrNull(
   auth: AuthResolutionCtx["auth"],
 ): Promise<UserIdentity | null> {
-  try {
-    return await auth.getUserIdentity();
-  } catch {
-    return null;
-  }
+  return await auth.getUserIdentity();
 }
 
 function extractBearerToken(request: Request): string | null {
@@ -66,6 +62,7 @@ export async function resolveAuthContext(
   request: Request,
   requestedOrgSlug?: string,
 ): Promise<AuthResolutionResult> {
+  const normalizedRequestedOrgSlug = requestedOrgSlug?.trim() || undefined;
   const identity = await readIdentityOrNull(ctx.auth);
   if (identity !== null) {
     const orgClaims = getOrgClaimsFromIdentity(identity);
@@ -77,7 +74,10 @@ export async function resolveAuthContext(
         message: "No active organization selected for this token.",
       };
     }
-    if (requestedOrgSlug && requestedOrgSlug !== orgClaims.orgSlug) {
+    if (
+      normalizedRequestedOrgSlug &&
+      normalizedRequestedOrgSlug !== orgClaims.orgSlug
+    ) {
       return {
         ok: false,
         status: 403,
@@ -123,7 +123,7 @@ export async function resolveAuthContext(
     };
   }
 
-  const effectiveOrgSlug = requestedOrgSlug?.trim() || session.orgSlug;
+  const effectiveOrgSlug = normalizedRequestedOrgSlug ?? session.orgSlug;
   const resolvedOrg =
     effectiveOrgSlug === session.orgSlug
       ? {

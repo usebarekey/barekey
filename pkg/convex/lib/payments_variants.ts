@@ -58,7 +58,7 @@ export function hasForceCheckoutUpgradeDowngradeError(error: unknown): boolean {
       ? error
       : error instanceof Error
         ? error.message
-        : JSON.stringify(error);
+        : JSON.stringify(error) ?? "";
   const normalized = text.toLowerCase();
   return (
     normalized.includes("force_checkout") &&

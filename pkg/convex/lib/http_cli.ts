@@ -15,7 +15,21 @@ import {
 } from "./http_responses";
 import { runtimeConfig } from "./runtime_config";
 
-function getCliUiOrigin(request: Request): string {
+function isTrustedCliUiHost(host: string): boolean {
+  const normalizedHost = host.trim().toLowerCase();
+  return (
+    normalizedHost === "barekey.dev" ||
+    normalizedHost.endsWith(".barekey.dev") ||
+    normalizedHost === "localhost" ||
+    normalizedHost.startsWith("localhost:") ||
+    normalizedHost === "127.0.0.1" ||
+    normalizedHost.startsWith("127.0.0.1:") ||
+    normalizedHost === "[::1]" ||
+    normalizedHost.startsWith("[::1]:")
+  );
+}
+
+export function getCliUiOrigin(request: Request): string {
   const defaultPublicUiOrigin = "https://barekey.dev";
   const configured = runtimeConfig.barekeyUiOrigin;
   if (configured && configured.trim().length > 0) {
@@ -37,13 +51,15 @@ function getCliUiOrigin(request: Request): string {
   const forwardedProto = request.headers.get("x-forwarded-proto")?.trim();
   if (forwardedHost && forwardedHost.length > 0) {
     const derivedHost = forwardedHost.replace(/^api\./, "");
-    const protocol =
-      forwardedProto && forwardedProto.length > 0 ? forwardedProto.replace(/:$/, "") : "https";
-    return `${protocol}://${derivedHost}`;
+    if (isTrustedCliUiHost(derivedHost)) {
+      const protocol =
+        forwardedProto && forwardedProto.length > 0 ? forwardedProto.replace(/:$/, "") : "https";
+      return `${protocol}://${derivedHost}`;
+    }
   }
   const requestUrl = new URL(request.url);
   const derivedHost = requestUrl.host.replace(/^api\./, "");
-  if (derivedHost !== requestUrl.host) {
+  if (derivedHost !== requestUrl.host && isTrustedCliUiHost(derivedHost)) {
     return `${requestUrl.protocol}//${derivedHost}`;
   }
   if (
@@ -52,7 +68,7 @@ function getCliUiOrigin(request: Request): string {
   ) {
     return defaultPublicUiOrigin;
   }
-  return requestUrl.origin;
+  return isTrustedCliUiHost(requestUrl.host) ? requestUrl.origin : defaultPublicUiOrigin;
 }
 
 export const cliDeviceStart = httpAction(async (ctx, request) => {
@@ -302,12 +318,26 @@ export const cliTokenRefresh = httpAction(async (ctx, request) => {
     });
   }
 
-  const access = await ctx.runAction(internal.clerk.resolveOrganizationAccessForCliUserInternal, {
-    clerkUserId: refreshed.clerkUserId,
-    requestedOrgSlug: refreshed.orgSlug,
-    fallbackOrgId: refreshed.orgId,
-    fallbackOrgSlug: refreshed.orgSlug,
-  });
+  let access: {
+    orgId: string;
+    orgSlug: string;
+  } | null;
+  try {
+    access = (await ctx.runAction(internal.clerk.resolveOrganizationAccessForCliUserInternal, {
+      clerkUserId: refreshed.clerkUserId,
+      requestedOrgSlug: refreshed.orgSlug,
+      fallbackOrgId: refreshed.orgId,
+      fallbackOrgSlug: refreshed.orgSlug,
+    })) as {
+      orgId: string;
+      orgSlug: string;
+    } | null;
+  } catch {
+    access = {
+      orgId: refreshed.orgId,
+      orgSlug: refreshed.orgSlug,
+    };
+  }
 
   if (access === null) {
     await ctx.runMutation(internal.cli_auth.revokeSessionInternal, {

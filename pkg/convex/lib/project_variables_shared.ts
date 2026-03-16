@@ -308,6 +308,9 @@ export function mapVariableMetadataRow(row: VariableStorageRow) {
     updatedAtMs: row.updatedAtMs,
     chance: null,
     rolloutFunction: row.rolloutFunction ?? "linear",
-    rolloutMilestones: validateRolloutMilestones(row.rolloutMilestones ?? []),
+    rolloutMilestones:
+      row.rolloutMilestones && row.rolloutMilestones.length > 0
+        ? validateRolloutMilestones(row.rolloutMilestones)
+        : [],
   };
 }
