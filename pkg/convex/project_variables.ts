@@ -9,7 +9,7 @@ import {
   internalQuery,
   mutation,
   query,
-} from "./_generated/server";
+} from "./confect";
 import {
   assertExpectedOrgSlug,
   getActiveOrgIdClaimsOrNull,
@@ -19,7 +19,6 @@ import {
 import { decryptSecretValueForProject, encryptSecretValueForProject } from "./lib/encryption";
 import {
   declaredTypeValidator,
-  fallbackDeclaredType,
   type DeclaredVariableType,
   validateAndNormalizeDeclaredAbRoll,
   validateAndNormalizeDeclaredValue,
@@ -35,104 +34,28 @@ import {
   projectVariablePreparedCreateValidator as preparedWriteCreateValidator,
   projectVariablePreparedUpdateValidator as preparedWriteUpdateValidator,
 } from "./lib/project_variable_schedules";
+import { getVariableVisibility, type VariableVisibility } from "./lib/visibility";
 import {
-  getVariableVisibility,
-  type VariableVisibility,
-  variableVisibilityValidator,
-} from "./lib/visibility";
-
-function validateVariableName(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new Error("Variable name is required.");
-  }
-
-  if (trimmed.length > 160) {
-    throw new Error("Variable name must be 160 characters or fewer.");
-  }
-
-  return trimmed;
-}
-
-function utf8ByteLength(value: string): number {
-  return new TextEncoder().encode(value).length;
-}
-
-const variableKindValidator = v.union(
-  v.literal("secret"),
-  v.literal("ab_roll"),
-  v.literal("rollout"),
-);
-
-const secretVariableMetadataValidator = v.object({
-  id: v.id("projectVariables"),
-  projectId: v.id("projects"),
-  orgId: v.string(),
-  stageSlug: v.string(),
-  name: v.string(),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("secret"),
-  declaredType: declaredTypeValidator,
-  createdAtMs: v.number(),
-  updatedAtMs: v.number(),
-  chance: v.null(),
-  rolloutFunction: v.null(),
-  rolloutMilestones: v.null(),
-});
-
-const abRollVariableMetadataValidator = v.object({
-  id: v.id("projectVariables"),
-  projectId: v.id("projects"),
-  orgId: v.string(),
-  stageSlug: v.string(),
-  name: v.string(),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("ab_roll"),
-  declaredType: declaredTypeValidator,
-  createdAtMs: v.number(),
-  updatedAtMs: v.number(),
-  chance: v.number(),
-  rolloutFunction: v.null(),
-  rolloutMilestones: v.null(),
-});
-
-const rolloutVariableMetadataValidator = v.object({
-  id: v.id("projectVariables"),
-  projectId: v.id("projects"),
-  orgId: v.string(),
-  stageSlug: v.string(),
-  name: v.string(),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("rollout"),
-  declaredType: declaredTypeValidator,
-  createdAtMs: v.number(),
-  updatedAtMs: v.number(),
-  chance: v.null(),
-  rolloutFunction: rolloutFunctionValidator,
-  rolloutMilestones: v.array(rolloutMilestoneValidator),
-});
-
-const variableMetadataValidator = v.union(
-  secretVariableMetadataValidator,
-  abRollVariableMetadataValidator,
-  rolloutVariableMetadataValidator,
-);
-
-const preparedCreateValidator = v.object({
-  name: v.string(),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("secret"),
-  declaredType: declaredTypeValidator,
-  encryptedValue: v.string(),
-});
-
-const preparedUpdateValidator = v.object({
-  id: v.id("projectVariables"),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("secret"),
-  declaredType: declaredTypeValidator,
-  encryptedValue: v.string(),
-});
+  draftUpdateValidator,
+  encryptedPayloadByteLength,
+  getRowDeclaredType,
+  mapVariableMetadataRow,
+  mapVariableResolverRow,
+  preparedDraftCreateValidator,
+  preparedDraftUpdateValidator,
+  validateChance,
+  validateVariableName,
+  variableMetadataValidator,
+  variableResolverRowValidator,
+  writeEntryValidator,
+  writeModeValidator,
+} from "./lib/project_variables_shared";
+import {
+  findProjectStageByOrgIdAndSlug,
+  findProjectStageByOrgSlugAndSlug,
+  listProjectVariableRowsForStage,
+  requireProjectStageByOrgIdAndSlug,
+} from "./lib/project_scope";
 
 type DraftWriteResult = {
   createdCount: number;
@@ -253,178 +176,6 @@ type PreparedDraft = {
   deletedCount: number;
 };
 
-const writeModeValidator = v.union(v.literal("create_only"), v.literal("upsert"));
-
-const writeSecretEntryValidator = v.object({
-  name: v.string(),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("secret"),
-  declaredType: declaredTypeValidator,
-  value: v.string(),
-});
-
-const writeAbRollEntryValidator = v.object({
-  name: v.string(),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("ab_roll"),
-  declaredType: declaredTypeValidator,
-  valueA: v.string(),
-  valueB: v.string(),
-  chance: v.number(),
-});
-
-const writeRolloutEntryValidator = v.object({
-  name: v.string(),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("rollout"),
-  declaredType: declaredTypeValidator,
-  valueA: v.string(),
-  valueB: v.string(),
-  rolloutFunction: rolloutFunctionValidator,
-  rolloutMilestones: v.array(rolloutMilestoneValidator),
-});
-
-const writeEntryValidator = v.union(
-  writeSecretEntryValidator,
-  writeAbRollEntryValidator,
-  writeRolloutEntryValidator,
-);
-
-const draftUpdateSecretValidator = v.object({
-  id: v.id("projectVariables"),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("secret"),
-  declaredType: declaredTypeValidator,
-  value: v.string(),
-});
-
-const draftUpdateAbRollValidator = v.object({
-  id: v.id("projectVariables"),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("ab_roll"),
-  declaredType: declaredTypeValidator,
-  valueA: v.string(),
-  valueB: v.string(),
-  chance: v.number(),
-});
-
-const draftUpdateRolloutValidator = v.object({
-  id: v.id("projectVariables"),
-  visibility: variableVisibilityValidator,
-  kind: v.literal("rollout"),
-  declaredType: declaredTypeValidator,
-  valueA: v.string(),
-  valueB: v.string(),
-  rolloutFunction: rolloutFunctionValidator,
-  rolloutMilestones: v.array(rolloutMilestoneValidator),
-});
-
-const draftUpdateValidator = v.union(
-  draftUpdateSecretValidator,
-  draftUpdateAbRollValidator,
-  draftUpdateRolloutValidator,
-);
-
-function validateChance(value: number): number {
-  if (!Number.isFinite(value) || value < 0 || value > 1) {
-    throw new Error("ab_roll chance must be a finite number between 0 and 1.");
-  }
-  return value;
-}
-
-function encryptedPayloadByteLength(input: {
-  encryptedValue: string | null;
-  encryptedValueA: string | null;
-  encryptedValueB: string | null;
-}): number {
-  let total = 0;
-  if (input.encryptedValue !== null) {
-    total += utf8ByteLength(input.encryptedValue);
-  }
-  if (input.encryptedValueA !== null) {
-    total += utf8ByteLength(input.encryptedValueA);
-  }
-  if (input.encryptedValueB !== null) {
-    total += utf8ByteLength(input.encryptedValueB);
-  }
-  return total;
-}
-
-function getRowDeclaredType(input: { declaredType?: string | null }): DeclaredVariableType {
-  return fallbackDeclaredType(input.declaredType);
-}
-
-type VariableStorageRow = {
-  _id: Id<"projectVariables">;
-  projectId: Id<"projects">;
-  orgId: string;
-  stageSlug: string;
-  name: string;
-  visibility?: VariableVisibility | null;
-  kind: "secret" | "ab_roll" | "rollout";
-  declaredType?: string | null;
-  createdAtMs: number;
-  updatedAtMs: number;
-  chance?: number | null;
-  rolloutFunction?: RolloutFunction | null;
-  rolloutMilestones?: Array<RolloutMilestone> | null;
-};
-
-function mapVariableMetadataRow(row: VariableStorageRow) {
-  const visibility = getVariableVisibility(row);
-  if (row.kind === "secret") {
-    return {
-      id: row._id,
-      projectId: row.projectId,
-      orgId: row.orgId,
-      stageSlug: row.stageSlug,
-      name: row.name,
-      visibility,
-      kind: "secret" as const,
-      declaredType: getRowDeclaredType(row),
-      createdAtMs: row.createdAtMs,
-      updatedAtMs: row.updatedAtMs,
-      chance: null,
-      rolloutFunction: null,
-      rolloutMilestones: null,
-    };
-  }
-
-  if (row.kind === "ab_roll") {
-    return {
-      id: row._id,
-      projectId: row.projectId,
-      orgId: row.orgId,
-      stageSlug: row.stageSlug,
-      name: row.name,
-      visibility,
-      kind: "ab_roll" as const,
-      declaredType: getRowDeclaredType(row),
-      createdAtMs: row.createdAtMs,
-      updatedAtMs: row.updatedAtMs,
-      chance: validateChance(row.chance ?? 0),
-      rolloutFunction: null,
-      rolloutMilestones: null,
-    };
-  }
-
-  return {
-    id: row._id,
-    projectId: row.projectId,
-    orgId: row.orgId,
-    stageSlug: row.stageSlug,
-    name: row.name,
-    visibility,
-    kind: "rollout" as const,
-    declaredType: getRowDeclaredType(row),
-    createdAtMs: row.createdAtMs,
-    updatedAtMs: row.updatedAtMs,
-    chance: null,
-    rolloutFunction: row.rolloutFunction ?? "linear",
-    rolloutMilestones: validateRolloutMilestones(row.rolloutMilestones ?? []),
-  };
-}
-
 /**
  * Lists variables for a single project stage.
  *
@@ -453,48 +204,24 @@ export const listForCurrentOrgProjectStage = query({
       return [];
     }
 
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", activeOrg.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
+    const projectStage = await findProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: activeOrg.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
+    if (projectStage === null) {
       return [];
     }
 
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      return [];
-    }
-
-    const rows = await ctx.db
-      .query("projectVariables")
-      .withIndex("by_project_id_and_stage_slug", (q) =>
-        q.eq("projectId", project._id).eq("stageSlug", args.stageSlug),
-      )
-      .collect();
+    const rows = await listProjectVariableRowsForStage(ctx.db, {
+      projectId: projectStage.project._id,
+      stageSlug: projectStage.stage.slug,
+    });
 
     return rows
       .map(mapVariableMetadataRow)
       .sort((left, right) => left.name.localeCompare(right.name));
   },
-});
-
-const variableResolverRowValidator = v.object({
-  id: v.id("projectVariables"),
-  projectId: v.id("projects"),
-  orgId: v.string(),
-  stageSlug: v.string(),
-  name: v.string(),
-  visibility: variableVisibilityValidator,
-  kind: variableKindValidator,
-  declaredType: declaredTypeValidator,
 });
 
 /**
@@ -509,23 +236,12 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
   },
   returns: v.array(variableResolverRowValidator),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      return [];
-    }
-
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
+    const projectStage = await findProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: args.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
+    if (projectStage === null) {
       return [];
     }
 
@@ -550,20 +266,14 @@ export const resolveVariableRowsForOrgProjectStageInternal = internalQuery({
       const row = await ctx.db
         .query("projectVariables")
         .withIndex("by_project_id_and_stage_slug_and_name", (q) =>
-          q.eq("projectId", project._id).eq("stageSlug", args.stageSlug).eq("name", name),
+          q
+            .eq("projectId", projectStage.project._id)
+            .eq("stageSlug", projectStage.stage.slug)
+            .eq("name", name),
         )
         .unique();
       if (row !== null) {
-        rowsByName.set(name, {
-          id: row._id,
-          projectId: row.projectId,
-          orgId: row.orgId,
-          stageSlug: row.stageSlug,
-          name: row.name,
-          visibility: getVariableVisibility(row),
-          kind: row.kind,
-          declaredType: getRowDeclaredType(row),
-        });
+        rowsByName.set(name, mapVariableResolverRow(row));
       }
     }
 
@@ -602,23 +312,12 @@ export const resolvePublicVariableRowsForOrgProjectStageInternal = internalQuery
     v.null(),
   ),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_slug_and_slug", (q) =>
-        q.eq("orgSlug", args.orgSlug).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      return null;
-    }
-
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
+    const projectStage = await findProjectStageByOrgSlugAndSlug(ctx.db, {
+      orgSlug: args.orgSlug,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
+    if (projectStage === null) {
       return null;
     }
 
@@ -628,7 +327,10 @@ export const resolvePublicVariableRowsForOrgProjectStageInternal = internalQuery
         ? await ctx.db
             .query("projectVariables")
             .withIndex("by_project_id_and_stage_slug_and_visibility", (q) =>
-              q.eq("projectId", project._id).eq("stageSlug", stage.slug).eq("visibility", "public"),
+              q
+                .eq("projectId", projectStage.project._id)
+                .eq("stageSlug", projectStage.stage.slug)
+                .eq("visibility", "public"),
             )
             .collect()
         : await Promise.all(
@@ -637,8 +339,8 @@ export const resolvePublicVariableRowsForOrgProjectStageInternal = internalQuery
                 .query("projectVariables")
                 .withIndex("by_project_id_and_stage_slug_and_visibility_and_name", (q) =>
                   q
-                    .eq("projectId", project._id)
-                    .eq("stageSlug", stage.slug)
+                    .eq("projectId", projectStage.project._id)
+                    .eq("stageSlug", projectStage.stage.slug)
                     .eq("visibility", "public")
                     .eq("name", name),
                 )
@@ -648,19 +350,10 @@ export const resolvePublicVariableRowsForOrgProjectStageInternal = internalQuery
 
     const resolvedRows = rows
       .filter((row): row is NonNullable<(typeof rows)[number]> => row !== null)
-      .map((row) => ({
-        id: row._id,
-        projectId: row.projectId,
-        orgId: row.orgId,
-        stageSlug: row.stageSlug,
-        name: row.name,
-        visibility: "public" as const,
-        kind: row.kind,
-        declaredType: getRowDeclaredType(row),
-      }));
+      .map(mapVariableResolverRow);
 
     return {
-      orgId: project.orgId,
+      orgId: projectStage.project.orgId,
       rows:
         normalizedNames === undefined
           ? resolvedRows.sort((left, right) => left.name.localeCompare(right.name))
@@ -682,32 +375,19 @@ export const listVariableMetadataForOrgProjectStageInternal = internalQuery({
   },
   returns: v.array(variableMetadataValidator),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
+    const projectStage = await findProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: args.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
+    if (projectStage === null) {
       return [];
     }
 
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      return [];
-    }
-
-    const rows = await ctx.db
-      .query("projectVariables")
-      .withIndex("by_project_id_and_stage_slug", (q) =>
-        q.eq("projectId", project._id).eq("stageSlug", stage.slug),
-      )
-      .collect();
+    const rows = await listProjectVariableRowsForStage(ctx.db, {
+      projectId: projectStage.project._id,
+      stageSlug: projectStage.stage.slug,
+    });
 
     return rows
       .map(mapVariableMetadataRow)
@@ -738,32 +418,16 @@ export const prepareVariableWritesForOrgProjectStageInternal = internalMutation(
     deletes: v.array(v.id("projectVariables")),
   }),
   handler: async (ctx, args): Promise<PreparedWriteMutationResult> => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      throw new Error("Project not found.");
-    }
+    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: args.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
 
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      throw new Error("Stage not found.");
-    }
-
-    const rows = await ctx.db
-      .query("projectVariables")
-      .withIndex("by_project_id_and_stage_slug", (q) =>
-        q.eq("projectId", project._id).eq("stageSlug", stage.slug),
-      )
-      .collect();
+    const rows = await listProjectVariableRowsForStage(ctx.db, {
+      projectId: project._id,
+      stageSlug: stage.slug,
+    });
     const rowsByName = new Map(rows.map((row) => [row.name, row]));
 
     const seenEntryNames = new Set<string>();
@@ -1073,32 +737,16 @@ export const measurePreparedVariableWritesForOrgProjectStageInternal = internalM
     storageDeltaBytes: v.number(),
   }),
   handler: async (ctx, args) => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      throw new Error("Project not found.");
-    }
+    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: args.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
 
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      throw new Error("Stage not found.");
-    }
-
-    const existingRows = await ctx.db
-      .query("projectVariables")
-      .withIndex("by_project_id_and_stage_slug", (q) =>
-        q.eq("projectId", project._id).eq("stageSlug", stage.slug),
-      )
-      .collect();
+    const existingRows = await listProjectVariableRowsForStage(ctx.db, {
+      projectId: project._id,
+      stageSlug: stage.slug,
+    });
 
     return summarizePreparedWriteApplication({
       existingRows,
@@ -1128,32 +776,16 @@ export const applyPreparedVariableWritesForOrgProjectStageInternal = internalMut
     deletedCount: v.number(),
   }),
   handler: async (ctx, args): Promise<WriteWithUsageResult> => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      throw new Error("Project not found.");
-    }
+    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: args.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
 
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      throw new Error("Stage not found.");
-    }
-
-    const existingRows = await ctx.db
-      .query("projectVariables")
-      .withIndex("by_project_id_and_stage_slug", (q) =>
-        q.eq("projectId", project._id).eq("stageSlug", stage.slug),
-      )
-      .collect();
+    const existingRows = await listProjectVariableRowsForStage(ctx.db, {
+      projectId: project._id,
+      stageSlug: stage.slug,
+    });
     const byId = new Map(existingRows.map((row) => [row._id, row]));
     const stageVariableNames = new Set(existingRows.map((row) => row.name));
     const deletedIds = new Set(args.deletes);
@@ -1603,8 +1235,8 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
   returns: v.object({
     orgId: v.string(),
     storageDeltaBytes: v.number(),
-    creates: v.array(preparedCreateValidator),
-    updates: v.array(preparedUpdateValidator),
+    creates: v.array(preparedDraftCreateValidator),
+    updates: v.array(preparedDraftUpdateValidator),
     deletes: v.array(v.id("projectVariables")),
     createdCount: v.number(),
     updatedCount: v.number(),
@@ -1617,32 +1249,16 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
       assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
     }
 
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", activeOrg.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      throw new Error("Project not found.");
-    }
+    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: activeOrg.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
 
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      throw new Error("Stage not found.");
-    }
-
-    const existingRows = await ctx.db
-      .query("projectVariables")
-      .withIndex("by_project_id_and_stage_slug", (q) =>
-        q.eq("projectId", project._id).eq("stageSlug", args.stageSlug),
-      )
-      .collect();
+    const existingRows = await listProjectVariableRowsForStage(ctx.db, {
+      projectId: project._id,
+      stageSlug: stage.slug,
+    });
     const byId = new Map(existingRows.map((row) => [row._id, row]));
     const stageVariableNames = new Set(existingRows.map((row) => row.name));
 
@@ -1684,7 +1300,11 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
       });
 
       storageDeltaBytes +=
-        utf8ByteLength(encryptedValue) -
+        encryptedPayloadByteLength({
+          encryptedValue,
+          encryptedValueA: null,
+          encryptedValueB: null,
+        }) -
         encryptedPayloadByteLength({
           encryptedValue: existing.encryptedValue,
           encryptedValueA: existing.encryptedValueA,
@@ -1717,7 +1337,11 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
         orgId: project.orgId,
         plaintext: create.value,
       });
-      storageDeltaBytes += utf8ByteLength(encryptedValue);
+      storageDeltaBytes += encryptedPayloadByteLength({
+        encryptedValue,
+        encryptedValueA: null,
+        encryptedValueB: null,
+      });
       preparedCreates.push({
         name,
         visibility: "private",
@@ -1749,8 +1373,8 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
     expectedOrgSlug: v.string(),
     projectSlug: v.string(),
     stageSlug: v.string(),
-    creates: v.array(preparedCreateValidator),
-    updates: v.array(preparedUpdateValidator),
+    creates: v.array(preparedDraftCreateValidator),
+    updates: v.array(preparedDraftUpdateValidator),
     deletes: v.array(v.id("projectVariables")),
   },
   returns: v.object({
@@ -1765,32 +1389,16 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
       assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
     }
 
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", activeOrg.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      throw new Error("Project not found.");
-    }
+    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: activeOrg.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
 
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      throw new Error("Stage not found.");
-    }
-
-    const existingRows = await ctx.db
-      .query("projectVariables")
-      .withIndex("by_project_id_and_stage_slug", (q) =>
-        q.eq("projectId", project._id).eq("stageSlug", args.stageSlug),
-      )
-      .collect();
+    const existingRows = await listProjectVariableRowsForStage(ctx.db, {
+      projectId: project._id,
+      stageSlug: stage.slug,
+    });
     const byId = new Map(existingRows.map((row) => [row._id, row]));
     const stageVariableNames = new Set(existingRows.map((row) => row.name));
 
@@ -1835,7 +1443,7 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
       await ctx.db.insert("projectVariables", {
         projectId: project._id,
         orgId: project.orgId,
-        stageSlug: args.stageSlug,
+        stageSlug: stage.slug,
         name: create.name,
         visibility: create.visibility,
         kind: create.kind,
@@ -1934,25 +1542,11 @@ export const decryptValueForOrgProjectStageInternal = internalMutation({
         rolloutMilestones: Array<RolloutMilestone>;
       }
   > => {
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", args.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      throw new Error("Project not found.");
-    }
-
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      throw new Error("Stage not found.");
-    }
+    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: args.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
 
     const variable = await ctx.db.get(args.variableId);
     if (
@@ -2101,25 +1695,11 @@ export const decryptValueForCurrentOrgProjectStage = mutation({
       assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
     }
 
-    const project = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", activeOrg.orgId).eq("slug", args.projectSlug),
-      )
-      .unique();
-    if (project === null) {
-      throw new Error("Project not found.");
-    }
-
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      throw new Error("Stage not found.");
-    }
+    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
+      orgId: activeOrg.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+    });
 
     const variable = await ctx.db.get(args.variableId);
     if (

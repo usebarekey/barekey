@@ -86,12 +86,19 @@ const SECRETISH_KEY_PATTERN =
   /(value|secret|cipher|encrypt|decrypt|plaintext|payload|token|rolloutmilestones|rolloutfunction)/i;
 
 function normalizeJsonLike(value: unknown): JsonLike {
-  if (
-    value === null ||
-    typeof value === "boolean" ||
-    typeof value === "number" ||
-    typeof value === "string"
-  ) {
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
     return value;
   }
 

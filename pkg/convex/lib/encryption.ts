@@ -1,15 +1,14 @@
+import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
+import { Effect } from "effect";
+
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { runtimeConfig } from "./runtime_config";
+import { EncryptionError } from "./effect_errors";
 
-const AES_GCM_ALGORITHM = "AES-GCM";
+const CIPHERTEXT_VERSION = "xcp1";
 const DEK_BYTES_LENGTH = 32;
-const GCM_IV_BYTES_LENGTH = 12;
+const XCHACHA20_NONCE_BYTES_LENGTH = 24;
 const MASTER_KEY_ENV_NAME = "BAREKEY_MASTER_KEY_B64";
-
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-}
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -20,28 +19,19 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function base64ToBytes(value: string): Uint8Array {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
+  try {
+    const binary = atob(value);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  } catch (cause: unknown) {
+    throw new EncryptionError({
+      message: "Encrypted payload contains invalid base64 data.",
+      cause,
+    });
   }
-  return bytes;
-}
-
-function encodeCiphertext(ivBytes: Uint8Array, encryptedBytes: Uint8Array): string {
-  return `${bytesToBase64(ivBytes)}.${bytesToBase64(encryptedBytes)}`;
-}
-
-function decodeCiphertext(payload: string): { ivBytes: Uint8Array; encryptedBytes: Uint8Array } {
-  const [ivBase64, encryptedBase64] = payload.split(".", 2);
-  if (!ivBase64 || !encryptedBase64) {
-    throw new Error("Encrypted payload format is invalid.");
-  }
-
-  return {
-    ivBytes: base64ToBytes(ivBase64),
-    encryptedBytes: base64ToBytes(encryptedBase64),
-  };
 }
 
 function randomBytes(length: number): Uint8Array {
@@ -50,54 +40,127 @@ function randomBytes(length: number): Uint8Array {
   return bytes;
 }
 
-function getMasterKeyBytes(): Uint8Array {
-  const bytes = base64ToBytes(runtimeConfig.barekeyMasterKeyBase64);
+function requireKeyLength(rawKey: Uint8Array, label: string): Uint8Array {
+  if (rawKey.length !== DEK_BYTES_LENGTH) {
+    throw new EncryptionError({
+      message: `${label} must be exactly 32 bytes.`,
+    });
+  }
+
+  return rawKey;
+}
+
+export function encodeCiphertextEnvelope(
+  nonceBytes: Uint8Array,
+  encryptedBytes: Uint8Array,
+): string {
+  if (nonceBytes.length !== XCHACHA20_NONCE_BYTES_LENGTH) {
+    throw new EncryptionError({
+      message: `XChaCha20 nonce must be exactly ${XCHACHA20_NONCE_BYTES_LENGTH} bytes.`,
+    });
+  }
+
+  return `${CIPHERTEXT_VERSION}.${bytesToBase64(nonceBytes)}.${bytesToBase64(encryptedBytes)}`;
+}
+
+export function decodeCiphertextEnvelope(payload: string): {
+  version: typeof CIPHERTEXT_VERSION;
+  nonceBytes: Uint8Array;
+  encryptedBytes: Uint8Array;
+} {
+  const [version, nonceBase64, encryptedBase64] = payload.split(".", 3);
+  if (
+    version !== CIPHERTEXT_VERSION ||
+    !nonceBase64 ||
+    !encryptedBase64 ||
+    payload.split(".").length !== 3
+  ) {
+    throw new EncryptionError({
+      message: "Encrypted payload format is invalid.",
+    });
+  }
+
+  const nonceBytes = base64ToBytes(nonceBase64);
+  if (nonceBytes.length !== XCHACHA20_NONCE_BYTES_LENGTH) {
+    throw new EncryptionError({
+      message: `XChaCha20 nonce must be exactly ${XCHACHA20_NONCE_BYTES_LENGTH} bytes.`,
+    });
+  }
+
+  return {
+    version,
+    nonceBytes,
+    encryptedBytes: base64ToBytes(encryptedBase64),
+  };
+}
+
+export function getMasterKeyBytes(): Uint8Array {
+  const masterKeyBase64 = process.env.BAREKEY_MASTER_KEY_B64?.trim();
+  if (!masterKeyBase64) {
+    throw new EncryptionError({
+      message: `Missing ${MASTER_KEY_ENV_NAME}.`,
+    });
+  }
+
+  const bytes = base64ToBytes(masterKeyBase64);
   if (bytes.length !== DEK_BYTES_LENGTH) {
-    throw new Error(`${MASTER_KEY_ENV_NAME} must decode to exactly 32 bytes.`);
+    throw new EncryptionError({
+      message: `${MASTER_KEY_ENV_NAME} must decode to exactly 32 bytes.`,
+    });
   }
 
   return bytes;
 }
 
-async function importAesKey(rawKey: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    "raw",
-    toArrayBuffer(rawKey),
-    {
-      name: AES_GCM_ALGORITHM,
+function encryptBytesWithKeyEffect(rawKey: Uint8Array, plaintextBytes: Uint8Array) {
+  return Effect.try({
+    try: () => {
+      const keyBytes = requireKeyLength(rawKey, "Encryption key");
+      const nonceBytes = randomBytes(XCHACHA20_NONCE_BYTES_LENGTH);
+      const encryptedBytes = xchacha20poly1305(keyBytes, nonceBytes).encrypt(plaintextBytes);
+      return encodeCiphertextEnvelope(nonceBytes, encryptedBytes);
     },
-    false,
-    ["encrypt", "decrypt"],
-  );
+    catch: (cause) =>
+      new EncryptionError({
+        message: "Failed to encrypt payload.",
+        cause,
+      }),
+  });
 }
 
-async function encryptStringWithKey(key: CryptoKey, plaintext: string): Promise<string> {
-  const ivBytes = randomBytes(GCM_IV_BYTES_LENGTH);
-  const plaintextBytes = new TextEncoder().encode(plaintext);
-  const encryptedBuffer = await crypto.subtle.encrypt(
-    {
-      name: AES_GCM_ALGORITHM,
-      iv: toArrayBuffer(ivBytes),
+function decryptBytesWithKeyEffect(rawKey: Uint8Array, payload: string) {
+  return Effect.try({
+    try: () => {
+      const keyBytes = requireKeyLength(rawKey, "Encryption key");
+      const { nonceBytes, encryptedBytes } = decodeCiphertextEnvelope(payload);
+      return xchacha20poly1305(keyBytes, nonceBytes).decrypt(encryptedBytes);
     },
-    key,
-    toArrayBuffer(plaintextBytes),
-  );
-
-  return encodeCiphertext(ivBytes, new Uint8Array(encryptedBuffer));
+    catch: (cause) =>
+      new EncryptionError({
+        message: "Failed to decrypt payload.",
+        cause,
+      }),
+  });
 }
 
-async function decryptStringWithKey(key: CryptoKey, payload: string): Promise<string> {
-  const { ivBytes, encryptedBytes } = decodeCiphertext(payload);
-  const plaintextBuffer = await crypto.subtle.decrypt(
-    {
-      name: AES_GCM_ALGORITHM,
-      iv: toArrayBuffer(ivBytes),
-    },
-    key,
-    toArrayBuffer(encryptedBytes),
-  );
+export function encryptUtf8WithKey(rawKey: Uint8Array, plaintext: string): string {
+  return Effect.runSync(encryptBytesWithKeyEffect(rawKey, new TextEncoder().encode(plaintext)));
+}
 
-  return new TextDecoder().decode(plaintextBuffer);
+export function decryptUtf8WithKey(rawKey: Uint8Array, payload: string): string {
+  const plaintextBytes = Effect.runSync(decryptBytesWithKeyEffect(rawKey, payload));
+  return new TextDecoder().decode(plaintextBytes);
+}
+
+export function wrapDekWithMasterKey(masterKeyBytes: Uint8Array, dekBytes: Uint8Array): string {
+  return Effect.runSync(encryptBytesWithKeyEffect(masterKeyBytes, requireKeyLength(dekBytes, "DEK")));
+}
+
+export function unwrapDekWithMasterKey(masterKeyBytes: Uint8Array, payload: string): Uint8Array {
+  return requireKeyLength(
+    Effect.runSync(decryptBytesWithKeyEffect(masterKeyBytes, payload)),
+    "Unwrapped DEK",
+  );
 }
 
 type ProjectKeyRow = {
@@ -131,17 +194,9 @@ async function listProjectKeyRows(
     .collect();
 }
 
-async function unwrapProjectDek(masterKey: CryptoKey, encryptedDek: string): Promise<CryptoKey> {
-  const dekBytesBase64 = await decryptStringWithKey(masterKey, encryptedDek);
-  return importAesKey(base64ToBytes(dekBytesBase64));
-}
-
 /**
  * Ensures a project has a DEK wrapped by the master KEK and returns the
- * unwrapped DEK key for one request.
- *
- * The returned DEK must never be cached or persisted. This helper unwraps on
- * demand so requests remain stateless and key material stays ephemeral.
+ * unwrapped DEK key bytes for one request.
  */
 export async function ensureProjectDek(
   ctx: MutationCtx,
@@ -149,18 +204,18 @@ export async function ensureProjectDek(
     projectId: Id<"projects">;
     orgId: string;
   },
-): Promise<CryptoKey> {
+): Promise<Uint8Array> {
   const existingKeyRows = await listProjectKeyRows(ctx, args.projectId);
   const existingKeyRow = pickCanonicalProjectKeyRow(existingKeyRows);
-  const masterKey = await importAesKey(getMasterKeyBytes());
+  const masterKeyBytes = getMasterKeyBytes();
 
   if (existingKeyRow !== null) {
-    return unwrapProjectDek(masterKey, existingKeyRow.encryptedDek);
+    return unwrapDekWithMasterKey(masterKeyBytes, existingKeyRow.encryptedDek);
   }
 
   const now = Date.now();
   const dekBytes = randomBytes(DEK_BYTES_LENGTH);
-  const encryptedDek = await encryptStringWithKey(masterKey, bytesToBase64(dekBytes));
+  const encryptedDek = wrapDekWithMasterKey(masterKeyBytes, dekBytes);
 
   await ctx.db.insert("projectKeys", {
     projectId: args.projectId,
@@ -172,14 +227,11 @@ export async function ensureProjectDek(
     updatedAtMs: now,
   });
 
-  return importAesKey(dekBytes);
+  return dekBytes;
 }
 
 /**
  * Encrypts a variable plaintext value using the project's DEK.
- *
- * This enforces envelope encryption: values are encrypted with a per-project
- * DEK while the DEK itself is wrapped by the master KEK in the key table.
  */
 export async function encryptSecretValueForProject(
   ctx: MutationCtx,
@@ -189,19 +241,16 @@ export async function encryptSecretValueForProject(
     plaintext: string;
   },
 ): Promise<string> {
-  const dek = await ensureProjectDek(ctx, {
+  const dekBytes = await ensureProjectDek(ctx, {
     projectId: args.projectId,
     orgId: args.orgId,
   });
 
-  return encryptStringWithKey(dek, args.plaintext);
+  return encryptUtf8WithKey(dekBytes, args.plaintext);
 }
 
 /**
  * Decrypts a variable ciphertext value using the current project DEK.
- *
- * Decryption is request-scoped and returns plaintext only for immediate UI/API
- * response needs. Callers must not persist the returned plaintext.
  */
 export async function decryptSecretValueForProject(
   ctx: MutationCtx,
@@ -211,10 +260,12 @@ export async function decryptSecretValueForProject(
     encryptedValue: string;
   },
 ): Promise<string> {
-  const masterKey = await importAesKey(getMasterKeyBytes());
+  const masterKeyBytes = getMasterKeyBytes();
   const keyRows = await listProjectKeyRows(ctx, args.projectId);
   if (keyRows.length === 0) {
-    throw new Error("Project DEK is missing.");
+    throw new EncryptionError({
+      message: "Project DEK is missing.",
+    });
   }
 
   const canonical = pickCanonicalProjectKeyRow(keyRows);
@@ -226,12 +277,17 @@ export async function decryptSecretValueForProject(
   let lastError: unknown = null;
   for (const row of orderedRows) {
     try {
-      const dek = await unwrapProjectDek(masterKey, row.encryptedDek);
-      return await decryptStringWithKey(dek, args.encryptedValue);
+      const dekBytes = unwrapDekWithMasterKey(masterKeyBytes, row.encryptedDek);
+      return decryptUtf8WithKey(dekBytes, args.encryptedValue);
     } catch (error: unknown) {
       lastError = error;
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error("Failed to decrypt project secret.");
+  throw (
+    lastError ??
+    new EncryptionError({
+      message: "Failed to decrypt project secret.",
+    })
+  );
 }

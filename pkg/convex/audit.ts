@@ -6,9 +6,8 @@ import {
   internalAction,
   internalMutation,
   query,
-  type MutationCtx,
-  type QueryCtx,
-} from "./_generated/server";
+} from "./confect";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   auditActorSourceValidator,
   auditCategoryValidator,

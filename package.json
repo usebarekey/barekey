@@ -23,10 +23,14 @@
   },
   "dependencies": {
     "@clerk/backend": "^2.32.1",
+    "@effect/platform": "^0.94.5",
+    "@noble/ciphers": "^2.1.1",
     "@noble/hashes": "^2.0.1",
+    "@rjdellecese/confect": "^0.0.35",
     "@useautumn/convex": "^0.0.23",
     "autumn-js": "^0.1.81",
-    "convex": "^1.32.0"
+    "convex": "^1.32.0",
+    "effect": "^3.19.19"
   },
   "devDependencies": {
     "oxfmt": "^0.34.0",

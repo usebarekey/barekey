@@ -3,7 +3,7 @@
 import { createClerkClient } from "@clerk/backend";
 import { v } from "convex/values";
 
-import { internalAction } from "./_generated/server";
+import { internalAction } from "./confect";
 import { runtimeConfig } from "./lib/runtime_config";
 
 const clerkOrgAccessValidator = v.object({

@@ -2,7 +2,8 @@ import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { mutation, query } from "./confect";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { getOrgClaimsFromIdentity, requireIdentity } from "./lib/auth";
 
 const RESERVED_USER_SLUG_BASES = new Set([

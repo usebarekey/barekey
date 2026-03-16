@@ -8,8 +8,8 @@ import {
   internalQuery,
   mutation,
   query,
-  type MutationCtx,
-} from "./_generated/server";
+} from "./confect";
+import type { MutationCtx } from "./_generated/server";
 import {
   assertExpectedOrgSlug,
   getActiveOrgIdClaimsOrNull,

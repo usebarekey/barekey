@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
-import { internalMutation, mutation } from "./_generated/server";
+import { internalMutation, mutation } from "./confect";
 import { requireActiveOrgClaims, requireIdentity } from "./lib/auth";
 
 const DEVICE_CODE_BYTES = 32;
