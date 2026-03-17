@@ -104,7 +104,9 @@ export const getBillingStateForCurrentOrg = action({
       allProducts.find((entry) => entry.status === "scheduled" && entry.id !== currentProductId) ??
       null;
     const scheduledVariantFromCatalog =
-      variants.find((variant) => variant.productId === (scheduledProduct?.id ?? "")) ?? null;
+      variants.find(
+        (variant: BillingVariant) => variant.productId === (scheduledProduct?.id ?? ""),
+      ) ?? null;
     const scheduledVariantFromFallback = readCurrentVariantFromProductId(
       scheduledProduct?.id ?? null,
     );
@@ -126,7 +128,7 @@ export const getBillingStateForCurrentOrg = action({
           }
         : null;
     const currentVariantFromCatalog: BillingVariant | null =
-      variants.find((variant) => variant.productId === currentProductId) ?? null;
+      variants.find((variant: BillingVariant) => variant.productId === currentProductId) ?? null;
     const currentVariantFromFallback = readCurrentVariantFromProductId(currentProductId);
     const currentTier = currentVariantFromCatalog?.tier ?? currentVariantFromFallback?.tier ?? null;
     const hasAssignedFreePlanCredit =

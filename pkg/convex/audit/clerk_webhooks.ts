@@ -270,10 +270,22 @@ export const ingestClerkWebhookEventInternal = internalAction({
       };
     }
 
-    await ctx.runMutation(internal.audit.appendEventInternal, {
+    const auditEventInput: AuditEventInput = {
       ...input,
       retentionTierOverride: null,
-    });
+    };
+
+    const runMutation = ctx.runMutation as (
+      functionReference: unknown,
+      args: Record<string, unknown>,
+    ) => Promise<unknown>;
+    // @ts-expect-error TypeScript exhausts itself expanding this generated Convex reference.
+    const internalApi = internal as any;
+    const appendEventInternalReference = internalApi.audit.appendEventInternal as unknown;
+    await runMutation(
+      appendEventInternalReference,
+      auditEventInput as Record<string, unknown>,
+    );
 
     return {
       accepted: true,

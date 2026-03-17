@@ -65,7 +65,17 @@ export const envList = httpAction(async (ctx, request) => {
   );
 
   return buildJsonResponse(200, {
-    variables: variables.map((row) => ({
+    variables: variables.map((row: {
+      name: string;
+      visibility: string | null;
+      kind: string;
+      declaredType: string | null;
+      createdAtMs: number;
+      updatedAtMs: number;
+      chance: number | null;
+      rolloutFunction: string | null;
+      rolloutMilestones: unknown;
+    }) => ({
       name: row.name,
       visibility: row.visibility,
       kind: row.kind,

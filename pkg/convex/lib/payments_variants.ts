@@ -161,7 +161,17 @@ function readProductCatalog(products: Array<Record<string, unknown>>): Array<Pro
 }
 
 export async function resolvePricingVariants(ctx: ActionCtx): Promise<Array<BillingVariant>> {
-  const autumnProductsResult = await ctx.runAction(api.autumn.listProducts, {});
+  const runAction = ctx.runAction as (
+    functionReference: unknown,
+    args: Record<string, unknown>,
+  ) => Promise<unknown>;
+  // @ts-expect-error TypeScript exhausts itself expanding this generated Convex reference.
+  const autumnApi = api as any;
+  const listProductsReference = autumnApi.autumn.listProducts as unknown;
+  const autumnProductsResult = (await runAction(listProductsReference, {})) as {
+    error: unknown;
+    data: unknown;
+  };
   const rawProducts =
     autumnProductsResult.error === null &&
     autumnProductsResult.data &&

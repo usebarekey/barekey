@@ -57,7 +57,7 @@ export const publicEnvDefinitions = httpAction(async (ctx, request) => {
   }
 
   if (parsed.names !== undefined && resolved.rows.length !== parsed.names.length) {
-    const returnedNames = new Set(resolved.rows.map((row) => row.name));
+    const returnedNames = new Set(resolved.rows.map((row: { name: string }) => row.name));
     const missingName = parsed.names.find((name) => !returnedNames.has(name)) ?? parsed.names[0];
     return errorResponse({
       status: 404,

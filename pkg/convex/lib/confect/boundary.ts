@@ -1,17 +1,17 @@
 import { Effect } from "effect";
 
-import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
+import type { ActionCtx, MutationCtx, QueryCtx } from "../../_generated/server";
 import {
   BarekeyConfectActionCtx,
   BarekeyConfectMutationCtx,
   BarekeyConfectQueryCtx,
-} from "./confect_schema";
+} from "./schema";
 import {
   type BarekeyRuntimeCtx,
   makeRuntimeLayer,
-} from "./confect_runtime_layer";
-import type { ConvexValidatorLike } from "./confect_validator_schemas";
-import { LegacyHandlerError, toLegacyHandlerError } from "./effect_errors";
+} from "./runtime_layer";
+import type { ConvexValidatorLike } from "./validator_schemas";
+import { LegacyHandlerError, toLegacyHandlerError } from "../effect_errors";
 
 type LegacyHandler<Ctx extends BarekeyRuntimeCtx, Args, Returns> = (
   ctx: Ctx,
