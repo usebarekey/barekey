@@ -1,0 +1,102 @@
+import { internal } from "../../_generated/api";
+import { httpAction } from "../../confect";
+import { readOptionalString } from "../http_env";
+import { buildJsonResponse, errorResponse, readRequestId } from "../http_responses";
+import { readJsonBody } from "./shared";
+
+/**
+ * Polls a CLI device authorization flow.
+ *
+ * @param ctx The HTTP action context.
+ * @param request The incoming HTTP request.
+ * @returns The device polling state or issued CLI session tokens.
+ * @remarks This normalizes invalid, expired, and already-consumed device states into explicit HTTP responses.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export const cliDevicePoll = httpAction(async (ctx, request) => {
+  const requestId = readRequestId(request);
+  let payload: unknown;
+  try {
+    payload = await readJsonBody(request);
+  } catch {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_JSON",
+      message: "Request body must be valid JSON.",
+      requestId,
+    });
+  }
+
+  if (typeof payload !== "object" || payload === null) {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_REQUEST",
+      message: "deviceCode is required.",
+      requestId,
+    });
+  }
+
+  const input = payload as Record<string, unknown>;
+  const deviceCode = readOptionalString(input, "deviceCode");
+  if (deviceCode === null) {
+    return errorResponse({
+      status: 400,
+      code: "INVALID_REQUEST",
+      message: "deviceCode is required.",
+      requestId,
+    });
+  }
+
+  const pollResult = await ctx.runMutation(internal.cli_auth.pollDeviceCodeInternal, {
+    deviceCode,
+  });
+
+  if (pollResult.status === "invalid") {
+    return errorResponse({
+      status: 404,
+      code: "INVALID_DEVICE_CODE",
+      message: "Device code is invalid.",
+      requestId,
+    });
+  }
+
+  if (pollResult.status === "expired") {
+    return errorResponse({
+      status: 410,
+      code: "DEVICE_CODE_EXPIRED",
+      message: "Device code expired before approval.",
+      requestId,
+    });
+  }
+
+  if (pollResult.status === "already_exchanged") {
+    return errorResponse({
+      status: 409,
+      code: "DEVICE_CODE_ALREADY_CONSUMED",
+      message: "Device code has already been consumed.",
+      requestId,
+    });
+  }
+
+  if (pollResult.status === "pending") {
+    return buildJsonResponse(200, {
+      status: "pending",
+      intervalSec: pollResult.intervalSec,
+      requestId,
+    });
+  }
+
+  return buildJsonResponse(200, {
+    status: "approved",
+    intervalSec: pollResult.intervalSec,
+    accessToken: pollResult.accessToken,
+    refreshToken: pollResult.refreshToken,
+    accessTokenExpiresAtMs: pollResult.accessTokenExpiresAtMs,
+    refreshTokenExpiresAtMs: pollResult.refreshTokenExpiresAtMs,
+    orgId: pollResult.orgId,
+    orgSlug: pollResult.orgSlug,
+    clerkUserId: pollResult.clerkUserId,
+    requestId,
+  });
+});
