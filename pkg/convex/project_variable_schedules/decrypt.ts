@@ -1,52 +1,66 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
-import { mutation } from "../confect";
+import type { Doc, Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
+import {
+  BarekeyConfectMutationCtx,
+  effectMutation,
+} from "../confect";
 import { decryptSecretValueForProject } from "../lib/encryption";
-import { requireCurrentOrgProjectAccess } from "./access";
+import { NotFoundError, ValidationError } from "../lib/errors/effect";
+import { requireCurrentOrgProjectAccessEffect } from "./access";
+import { toScheduleExternalServiceError } from "./errors";
 import {
   decryptedScheduleValidator,
 } from "./validators";
 
-/**
- * Decrypts a scheduled variable batch for display in the workspace UI.
- *
- * @param ctx The Convex public mutation context.
- * @param args The workspace, project, and schedule identifier to decrypt.
- * @returns The decrypted scheduled batch payload.
- * @remarks This reveals plaintext values only for the duration of the current user interaction.
- * @lastModified 2026-03-17
- * @author GPT-5.4
- */
-export const decryptForCurrentOrgProject = mutation({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-    scheduleId: v.id("projectVariableSchedules"),
-  },
-  returns: decryptedScheduleValidator,
-  handler: async (ctx, args) => {
-    const { project } = await requireCurrentOrgProjectAccess(
+type DecryptForCurrentOrgProjectArgs = {
+  expectedOrgSlug: string;
+  projectSlug: string;
+  scheduleId: Id<"projectVariableSchedules">;
+};
+
+function decryptForCurrentOrgProjectEffect(
+  args: DecryptForCurrentOrgProjectArgs,
+): Effect.Effect<unknown, unknown, any> {
+  return Effect.gen(function* () {
+    const confectCtx = yield* BarekeyConfectMutationCtx;
+    const ctx = confectCtx.ctx as unknown as MutationCtx;
+    const { project } = yield* requireCurrentOrgProjectAccessEffect(
       ctx,
       args.expectedOrgSlug,
       args.projectSlug,
     );
 
-    const schedule = await ctx.db.get(args.scheduleId);
+    const schedule: Doc<"projectVariableSchedules"> | null = yield* Effect.tryPromise({
+      try: () => ctx.db.get(args.scheduleId),
+      catch: (error) =>
+        toScheduleExternalServiceError("Failed to load the scheduled variable batch.", error),
+    });
     if (schedule === null || schedule.projectId !== project._id) {
-      throw new Error("Scheduled update not found.");
+      return yield* Effect.fail(new NotFoundError({ message: "Scheduled update not found." }));
     }
 
     const updatesById = new Map(
       schedule.updateTargets.map((entry) => [entry.id, entry.name] as const),
     );
 
-    const creates = await Promise.all(
-      schedule.preparedCreates.map(async (entry) => {
+    const creates = yield* Effect.forEach(schedule.preparedCreates, (entry) =>
+      Effect.gen(function* () {
         if (entry.kind === "secret") {
-          const value = await decryptSecretValueForProject(ctx, {
-            projectId: project._id,
-            orgId: project.orgId,
-            encryptedValue: entry.encryptedValue,
+          const value = yield* Effect.tryPromise({
+            try: () =>
+              decryptSecretValueForProject(ctx, {
+                projectId: project._id,
+                orgId: project.orgId,
+                encryptedValue: entry.encryptedValue,
+              }),
+            catch: (error) =>
+              toScheduleExternalServiceError(
+                "Failed to decrypt a scheduled secret value.",
+                error,
+              ),
           });
           return {
             name: entry.name,
@@ -57,15 +71,31 @@ export const decryptForCurrentOrgProject = mutation({
           };
         }
 
-        const valueA = await decryptSecretValueForProject(ctx, {
-          projectId: project._id,
-          orgId: project.orgId,
-          encryptedValue: entry.encryptedValueA,
+        const valueA = yield* Effect.tryPromise({
+          try: () =>
+            decryptSecretValueForProject(ctx, {
+              projectId: project._id,
+              orgId: project.orgId,
+              encryptedValue: entry.encryptedValueA,
+            }),
+          catch: (error) =>
+            toScheduleExternalServiceError(
+              "Failed to decrypt a scheduled variant value.",
+              error,
+            ),
         });
-        const valueB = await decryptSecretValueForProject(ctx, {
-          projectId: project._id,
-          orgId: project.orgId,
-          encryptedValue: entry.encryptedValueB,
+        const valueB = yield* Effect.tryPromise({
+          try: () =>
+            decryptSecretValueForProject(ctx, {
+              projectId: project._id,
+              orgId: project.orgId,
+              encryptedValue: entry.encryptedValueB,
+            }),
+          catch: (error) =>
+            toScheduleExternalServiceError(
+              "Failed to decrypt a scheduled variant value.",
+              error,
+            ),
         });
 
         if (entry.kind === "ab_roll") {
@@ -93,18 +123,30 @@ export const decryptForCurrentOrgProject = mutation({
       }),
     );
 
-    const updates = await Promise.all(
-      schedule.preparedUpdates.map(async (entry) => {
+    const updates = yield* Effect.forEach(schedule.preparedUpdates, (entry) =>
+      Effect.gen(function* () {
         const name = updatesById.get(entry.id);
         if (name === undefined) {
-          throw new Error("Scheduled update metadata is corrupted.");
+          return yield* Effect.fail(
+            new ValidationError({
+              message: "Scheduled update metadata is corrupted.",
+            }),
+          );
         }
 
         if (entry.kind === "secret") {
-          const value = await decryptSecretValueForProject(ctx, {
-            projectId: project._id,
-            orgId: project.orgId,
-            encryptedValue: entry.encryptedValue,
+          const value = yield* Effect.tryPromise({
+            try: () =>
+              decryptSecretValueForProject(ctx, {
+                projectId: project._id,
+                orgId: project.orgId,
+                encryptedValue: entry.encryptedValue,
+              }),
+            catch: (error) =>
+              toScheduleExternalServiceError(
+                "Failed to decrypt a scheduled secret value.",
+                error,
+              ),
           });
           return {
             id: entry.id,
@@ -116,15 +158,31 @@ export const decryptForCurrentOrgProject = mutation({
           };
         }
 
-        const valueA = await decryptSecretValueForProject(ctx, {
-          projectId: project._id,
-          orgId: project.orgId,
-          encryptedValue: entry.encryptedValueA,
+        const valueA = yield* Effect.tryPromise({
+          try: () =>
+            decryptSecretValueForProject(ctx, {
+              projectId: project._id,
+              orgId: project.orgId,
+              encryptedValue: entry.encryptedValueA,
+            }),
+          catch: (error) =>
+            toScheduleExternalServiceError(
+              "Failed to decrypt a scheduled variant value.",
+              error,
+            ),
         });
-        const valueB = await decryptSecretValueForProject(ctx, {
-          projectId: project._id,
-          orgId: project.orgId,
-          encryptedValue: entry.encryptedValueB,
+        const valueB = yield* Effect.tryPromise({
+          try: () =>
+            decryptSecretValueForProject(ctx, {
+              projectId: project._id,
+              orgId: project.orgId,
+              encryptedValue: entry.encryptedValueB,
+            }),
+          catch: (error) =>
+            toScheduleExternalServiceError(
+              "Failed to decrypt a scheduled variant value.",
+              error,
+            ),
         });
 
         if (entry.kind === "ab_roll") {
@@ -163,5 +221,29 @@ export const decryptForCurrentOrgProject = mutation({
       creates,
       updates,
     };
+  });
+}
+
+/**
+ * Decrypts a scheduled variable batch for display in the workspace UI.
+ *
+ * @param ctx The Convex public mutation context.
+ * @param args The workspace, project, and schedule identifier to decrypt.
+ * @returns The decrypted scheduled batch payload.
+ * @remarks This reveals plaintext values only for the duration of the current user interaction.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export const decryptForCurrentOrgProject = effectMutation<
+  DecryptForCurrentOrgProjectArgs,
+  unknown,
+  any
+>({
+  args: {
+    expectedOrgSlug: v.string(),
+    projectSlug: v.string(),
+    scheduleId: v.id("projectVariableSchedules"),
   },
+  returns: decryptedScheduleValidator,
+  handler: decryptForCurrentOrgProjectEffect,
 });

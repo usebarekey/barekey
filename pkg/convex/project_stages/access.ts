@@ -1,5 +1,18 @@
+import { Effect } from "effect";
+
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { ExternalServiceError, NotFoundError } from "../lib/errors/effect";
+
+function toProjectStageAccessError(
+  fallbackMessage: string,
+  error: unknown,
+): ExternalServiceError {
+  return new ExternalServiceError({
+    message: error instanceof Error ? error.message : fallbackMessage,
+    cause: error,
+  });
+}
 
 /**
  * Finds a project by slug within an organization.
@@ -25,27 +38,53 @@ export async function findProjectBySlugForOrg(
 }
 
 /**
- * Requires a project by slug within an organization.
+ * Finds a project by slug within an organization as an Effect program.
  *
  * @param ctx The Convex query or mutation context.
  * @param args The organization id and project slug.
- * @returns The matching project row.
- * @remarks This throws the legacy project-not-found error used by the existing project-stage API surface.
+ * @returns An Effect that succeeds with the matching project row, or `null`.
+ * @remarks This wraps Convex DB access in the shared external-service error model.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export async function requireProjectBySlugForOrg(
+export function findProjectBySlugForOrgEffect(
   ctx: QueryCtx | MutationCtx,
   args: {
     orgId: string;
     projectSlug: string;
   },
-): Promise<Doc<"projects">> {
-  const project = await findProjectBySlugForOrg(ctx, args);
-  if (project === null) {
-    throw new Error("Project not found.");
-  }
-  return project;
+): Effect.Effect<Doc<"projects"> | null, ExternalServiceError> {
+  return Effect.tryPromise({
+    try: () => findProjectBySlugForOrg(ctx, args),
+    catch: (error) =>
+      toProjectStageAccessError("Failed to look up the requested project.", error),
+  });
+}
+
+/**
+ * Requires a project by slug within an organization as an Effect program.
+ *
+ * @param ctx The Convex query or mutation context.
+ * @param args The organization id and project slug.
+ * @returns An Effect that succeeds with the matching project row.
+ * @remarks This fails with a typed not-found error instead of throwing.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export function requireProjectBySlugForOrgEffect(
+  ctx: QueryCtx | MutationCtx,
+  args: {
+    orgId: string;
+    projectSlug: string;
+  },
+): Effect.Effect<Doc<"projects">, ExternalServiceError | NotFoundError> {
+  return findProjectBySlugForOrgEffect(ctx, args).pipe(
+    Effect.flatMap((project) =>
+      project === null
+        ? Effect.fail(new NotFoundError({ message: "Project not found." }))
+        : Effect.succeed(project),
+    ),
+  );
 }
 
 /**
@@ -73,4 +112,28 @@ export async function countVariablesForStage(
       )
       .collect()
   ).length;
+}
+
+/**
+ * Counts variables for a project stage as an Effect program.
+ *
+ * @param ctx The Convex query or mutation context.
+ * @param args The project id and stage slug.
+ * @returns An Effect that succeeds with the number of variables assigned to the stage.
+ * @remarks This wraps the shared variable-count lookup in the external-service error model.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export function countVariablesForStageEffect(
+  ctx: QueryCtx | MutationCtx,
+  args: {
+    projectId: Doc<"projects">["_id"];
+    stageSlug: string;
+  },
+): Effect.Effect<number, ExternalServiceError> {
+  return Effect.tryPromise({
+    try: () => countVariablesForStage(ctx, args),
+    catch: (error) =>
+      toProjectStageAccessError("Failed to count variables for the stage.", error),
+  });
 }

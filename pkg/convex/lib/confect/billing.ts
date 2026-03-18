@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { ReserveFeatureUnitsResult } from "../../payments/types";
-import type { BillingError } from "../effect_errors";
+import type { BillingError } from "../errors/effect";
 import {
   BillingService,
   type BillingCompensationResult,

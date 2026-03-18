@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildRuntimeConfig } from "../../pkg/convex/lib/runtime_config_loader";
+import { buildRuntimeConfig } from "../../pkg/convex/lib/runtime/config/loader";
 
 const generated = {
   autumnSecretKey: "generated-autumn",

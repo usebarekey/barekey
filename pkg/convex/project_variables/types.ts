@@ -1,9 +1,9 @@
 import type { Id } from "../_generated/dataModel";
-import type { DeclaredVariableType } from "../lib/declared_types";
+import type { DeclaredVariableType } from "../lib/declared/types";
 import type {
   ProjectVariablePreparedCreateEntry,
   ProjectVariablePreparedUpdateEntry,
-} from "../lib/project_variable_schedules";
+} from "../lib/project_variables/schedules";
 import type { RolloutFunction, RolloutMilestone } from "../lib/rollout";
 import type { VariableVisibility } from "../lib/visibility";
 
@@ -11,6 +11,32 @@ export type DraftWriteResult = {
   createdCount: number;
   updatedCount: number;
   deletedCount: number;
+};
+
+export type PrepareDraftArgs = {
+  expectedOrgSlug: string;
+  projectSlug: string;
+  stageSlug: string;
+  creates: Array<{
+    name: string;
+    kind: "secret";
+    value: string;
+  }>;
+  updates: Array<{
+    id: Id<"projectVariables">;
+    kind: "secret";
+    value: string;
+  }>;
+  deletes: Array<Id<"projectVariables">>;
+};
+
+export type ApplyPreparedDraftArgs = {
+  expectedOrgSlug: string;
+  projectSlug: string;
+  stageSlug: string;
+  creates: Array<PreparedDraftCreateEntry>;
+  updates: Array<PreparedDraftUpdateEntry>;
+  deletes: Array<Id<"projectVariables">>;
 };
 
 export type PreparedWriteCreateEntry = ProjectVariablePreparedCreateEntry;
@@ -25,6 +51,16 @@ export type PreparedWriteMutationResult = {
   creates: Array<PreparedWriteCreateEntry>;
   updates: Array<PreparedWriteUpdateEntry>;
   deletes: Array<Id<"projectVariables">>;
+};
+
+export type PrepareVariableWritesArgs = {
+  orgId: string;
+  clerkUserId: string;
+  projectSlug: string;
+  stageSlug: string;
+  mode: "create_only" | "upsert";
+  entries: Array<any>;
+  deletes: Array<string>;
 };
 
 export type WriteWithUsageResult = {

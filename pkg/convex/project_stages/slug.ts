@@ -1,5 +1,9 @@
+import { Effect } from "effect";
+
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { ExternalServiceError } from "../lib/errors/effect";
+import { toProjectStageExternalServiceError } from "./errors";
 
 /**
  * Normalizes a stage name into the base slug stem used for allocation.
@@ -37,46 +41,66 @@ function randomNumericSuffix(length: number): string {
 }
 
 /**
- * Allocates a unique stage slug within a project.
+ * Allocates a unique stage slug within a project as an Effect program.
  *
  * @param ctx The Convex mutation context.
  * @param args The project id and desired slug base.
- * @returns The allocated unique stage slug.
- * @remarks This prefers the base slug directly before falling back to numeric suffix retries.
+ * @returns An Effect that succeeds with the allocated unique stage slug.
+ * @remarks This wraps the slug allocation retry loop in the shared external-service error model.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export async function allocateUniqueStageSlug(
+export function allocateUniqueStageSlugEffect(
   ctx: MutationCtx,
   args: {
     projectId: Id<"projects">;
     slugBase: string;
   },
-): Promise<string> {
-  const baseCandidate = await ctx.db
-    .query("projectStages")
-    .withIndex("by_project_id_and_slug", (q) =>
-      q.eq("projectId", args.projectId).eq("slug", args.slugBase),
-    )
-    .unique();
-  if (baseCandidate === null) {
-    return args.slugBase;
-  }
+): Effect.Effect<string, ExternalServiceError> {
+  return Effect.gen(function* () {
+    const baseCandidate = yield* Effect.tryPromise({
+      try: () =>
+        ctx.db
+          .query("projectStages")
+          .withIndex("by_project_id_and_slug", (q) =>
+            q.eq("projectId", args.projectId).eq("slug", args.slugBase),
+          )
+          .unique(),
+      catch: (error) =>
+        toProjectStageExternalServiceError("Failed to check the base stage slug.", error),
+    });
+    if (baseCandidate === null) {
+      return args.slugBase;
+    }
 
-  for (const suffixLength of [2, 4] as const) {
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
-      const existing = await ctx.db
-        .query("projectStages")
-        .withIndex("by_project_id_and_slug", (q) =>
-          q.eq("projectId", args.projectId).eq("slug", candidate),
-        )
-        .unique();
-      if (existing === null) {
-        return candidate;
+    for (const suffixLength of [2, 4] as const) {
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
+        const existing = yield* Effect.tryPromise({
+          try: () =>
+            ctx.db
+              .query("projectStages")
+              .withIndex("by_project_id_and_slug", (q) =>
+                q.eq("projectId", args.projectId).eq("slug", candidate),
+              )
+              .unique(),
+          catch: (error) =>
+            toProjectStageExternalServiceError(
+              `Failed while checking candidate stage slug ${candidate}.`,
+              error,
+            ),
+        });
+        if (existing === null) {
+          return candidate;
+        }
       }
     }
-  }
 
-  throw new Error("Unable to allocate a unique stage slug.");
+    return yield* Effect.fail(
+      toProjectStageExternalServiceError(
+        "Unable to allocate a unique stage slug.",
+        null,
+      ),
+    );
+  });
 }

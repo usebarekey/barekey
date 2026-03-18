@@ -1,0 +1,4 @@
+export const CIPHERTEXT_VERSION = "xcp1";
+export const DEK_BYTES_LENGTH = 32;
+export const XCHACHA20_NONCE_BYTES_LENGTH = 24;
+export const MASTER_KEY_ENV_NAME = "BAREKEY_MASTER_KEY_B64";

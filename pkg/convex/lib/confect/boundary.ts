@@ -9,9 +9,9 @@ import {
 import {
   type BarekeyRuntimeCtx,
   makeRuntimeLayer,
-} from "./runtime_layer";
-import type { ConvexValidatorLike } from "./validator_schemas";
-import { LegacyHandlerError, toLegacyHandlerError } from "../effect_errors";
+} from "./runtime/layer";
+import type { ConvexValidatorLike } from "./validators";
+import { LegacyHandlerError, toLegacyHandlerError } from "../errors/effect";
 
 type LegacyHandler<Ctx extends BarekeyRuntimeCtx, Args, Returns> = (
   ctx: Ctx,

@@ -14,8 +14,8 @@ import {
   ExternalServiceError,
   NotFoundError,
   ValidationError,
-} from "../lib/effect_errors";
-import { findProjectByOrgIdAndSlugEffect } from "../lib/project_scope";
+} from "../lib/errors/effect";
+import { findProjectByOrgIdAndSlugEffect } from "../lib/projects/scope";
 
 /**
  * Normalizes unknown project-deletion failures into the shared external-service error model.

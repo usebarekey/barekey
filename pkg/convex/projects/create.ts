@@ -1,7 +1,7 @@
 import { Effect } from "effect";
+import { makeFunctionReference } from "convex/server";
 import { v } from "convex/values";
 
-import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import {
   BarekeyConfectActionCtx,
@@ -15,9 +15,19 @@ import {
   requireIdentityEffect,
 } from "../lib/auth";
 import { appendAuditEventEffect } from "../lib/confect/audit";
-import { AuthError, ExternalServiceError, ValidationError } from "../lib/effect_errors";
-import { allocateUniqueProjectSlug, normalizeProjectSlugBase } from "./slug";
+import { AuthError, ExternalServiceError, ValidationError } from "../lib/errors/effect";
+import { assertWorkspacePlanForCurrentOrgInternalReference } from "../payments/refs";
+import { allocateUniqueProjectSlugEffect, normalizeProjectSlugBase } from "./slug";
 import { DEFAULT_PROJECT_STAGES, projectSummaryValidator, type ProjectSummary } from "./types";
+
+const createForCurrentOrgInternalReference = makeFunctionReference<
+  "mutation",
+  {
+    expectedOrgSlug: string;
+    name: string;
+  },
+  ProjectSummary
+>("projects:createForCurrentOrgInternal") as any;
 
 /**
  * Normalizes unknown project-write failures into the shared external-service error model.
@@ -96,7 +106,7 @@ function createForCurrentOrgEffect(
 
     yield* Effect.tryPromise({
       try: () =>
-        ctx.runAction(internal.payments.assertWorkspacePlanForCurrentOrgInternal, {
+        ctx.runAction(assertWorkspacePlanForCurrentOrgInternalReference, {
           expectedOrgSlug: args.expectedOrgSlug,
         }),
       catch: (error) => toProjectWriteError("Failed to validate workspace billing.", error),
@@ -104,7 +114,7 @@ function createForCurrentOrgEffect(
 
     return yield* Effect.tryPromise({
       try: () =>
-        ctx.runMutation(internal.projects.createForCurrentOrgInternal, {
+        ctx.runMutation(createForCurrentOrgInternalReference, {
           expectedOrgSlug: args.expectedOrgSlug,
           name: trimmedName,
         }) as Promise<ProjectSummary>,
@@ -140,13 +150,9 @@ function createForCurrentOrgInternalEffect(
 
     const trimmedName = yield* validateProjectNameEffect(args.name);
     const slugBase = normalizeProjectSlugBase(trimmedName);
-    const slug = yield* Effect.tryPromise({
-      try: () =>
-        allocateUniqueProjectSlug(ctx, {
-          orgId: activeOrg.orgId,
-          slugBase,
-        }),
-      catch: (error) => toProjectWriteError("Failed to allocate a project slug.", error),
+    const slug = yield* allocateUniqueProjectSlugEffect(ctx, {
+      orgId: activeOrg.orgId,
+      slugBase,
     });
     const now = Date.now();
 

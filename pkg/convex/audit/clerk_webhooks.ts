@@ -1,7 +1,8 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
-import { internal } from "../_generated/api";
-import { internalAction } from "../confect";
+import { BarekeyConfectActionCtx, effectInternalAction } from "../confect";
+import { appendAuditEventEffect } from "../lib/confect/audit";
 import { readOptionalStringField, safeParseJson } from "./normalization";
 import type { AuditEventInput } from "./types";
 
@@ -108,18 +109,29 @@ function readMembershipSubject(data: Record<string, unknown>): {
  * @param ctx The Convex internal action context.
  * @param args The raw webhook payload JSON.
  * @returns Whether the payload was accepted and converted into an audit event.
- * @remarks This delegates persistence to `internal.audit.appendEventInternal` and drops unsupported events silently.
+ * @remarks This delegates persistence to the shared audit service and drops unsupported events silently.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const ingestClerkWebhookEventInternal = internalAction({
+export const ingestClerkWebhookEventInternal = effectInternalAction<
+  {
+    payloadJson: string;
+  },
+  {
+    accepted: boolean;
+  },
+  any
+>({
   args: {
     payloadJson: v.string(),
   },
   returns: v.object({
     accepted: v.boolean(),
   }),
-  handler: async (ctx, args) => {
+  handler: (args) =>
+    Effect.gen(function* () {
+      yield* BarekeyConfectActionCtx;
+
     const event = safeParseJson(args.payloadJson);
     if (typeof event !== "object" || event === null) {
       return {
@@ -141,9 +153,11 @@ export const ingestClerkWebhookEventInternal = internalAction({
 
     const org = readOrgInfoFromClerkWebhook(rawData);
     if (org === null) {
-      console.warn("Dropping Clerk webhook audit event without resolvable organization.", {
-        type,
-      });
+      yield* Effect.sync(() =>
+        console.warn("Dropping Clerk webhook audit event without resolvable organization.", {
+          type,
+        }),
+      );
       return {
         accepted: false,
       };
@@ -275,20 +289,10 @@ export const ingestClerkWebhookEventInternal = internalAction({
       retentionTierOverride: null,
     };
 
-    const runMutation = ctx.runMutation as (
-      functionReference: unknown,
-      args: Record<string, unknown>,
-    ) => Promise<unknown>;
-    // @ts-expect-error TypeScript exhausts itself expanding this generated Convex reference.
-    const internalApi = internal as any;
-    const appendEventInternalReference = internalApi.audit.appendEventInternal as unknown;
-    await runMutation(
-      appendEventInternalReference,
-      auditEventInput as Record<string, unknown>,
-    );
+    yield* appendAuditEventEffect(auditEventInput);
 
     return {
       accepted: true,
     };
-  },
+    }),
 });

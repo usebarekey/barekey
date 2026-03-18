@@ -1,107 +1,133 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
-import { internal } from "../_generated/api";
-import { mutation } from "../confect";
+import type { Doc } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
 import {
-  requireCurrentOrgProjectAccess,
-  requireStageInProject,
+  BarekeyConfectMutationCtx,
+  ClockService,
+  effectMutation,
+} from "../confect";
+import { appendAuditEventEffect } from "../lib/confect/audit";
+import {
+  requireCurrentOrgProjectAccessEffect,
+  requireStageInProjectEffect,
 } from "./access";
+import { toScheduleExternalServiceError } from "./errors";
 import {
-  attachScheduledFunctionIdIfStillPending,
-  buildPreparedScheduleSnapshot,
+  attachScheduledFunctionIdIfStillPendingEffect,
+  buildPreparedScheduleSnapshotEffect,
+} from "./snapshot";
+import {
   scheduleBatchNames,
   summarizeScheduleEntries,
   toScheduledScheduleSummary,
-} from "./snapshot";
+} from "./summary";
+import { executeScheduledVariableScheduleInternalReference } from "./refs";
 import type { ScheduledCreateEntry, ScheduledUpdateEntry } from "./types";
 import {
   projectVariableScheduleCreateEntryValidator,
   projectVariableScheduleUpdateEntryValidator,
   scheduledScheduleSummaryValidator,
-  validateRunAtMs,
-  validateTimeZone,
+  validateRunAtMsEffect,
+  validateTimeZoneEffect,
 } from "./validators";
 
-/**
- * Creates a new scheduled variable batch for a project stage.
- *
- * @param ctx The Convex public mutation context.
- * @param args The workspace, project, stage, schedule timing, and pending variable changes.
- * @returns The persisted scheduled batch summary.
- * @remarks This stores the encrypted prepared snapshot, schedules execution, and appends an audit event.
- * @lastModified 2026-03-17
- * @author GPT-5.4
- */
-export const createForCurrentOrgProject = mutation({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-    stageSlug: v.string(),
-    timezone: v.string(),
-    runAtMs: v.number(),
-    creates: v.array(projectVariableScheduleCreateEntryValidator),
-    updates: v.array(projectVariableScheduleUpdateEntryValidator),
-  },
-  returns: scheduledScheduleSummaryValidator,
-  handler: async (ctx, args) => {
-    const { activeOrg, project } = await requireCurrentOrgProjectAccess(
+type CreateForCurrentOrgProjectArgs = {
+  expectedOrgSlug: string;
+  projectSlug: string;
+  stageSlug: string;
+  timezone: string;
+  runAtMs: number;
+  creates: Array<ScheduledCreateEntry>;
+  updates: Array<ScheduledUpdateEntry>;
+};
+
+function createForCurrentOrgProjectEffect(
+  args: CreateForCurrentOrgProjectArgs,
+): Effect.Effect<ReturnType<typeof toScheduledScheduleSummary>, unknown, any> {
+  return Effect.gen(function* () {
+    const confectCtx = yield* BarekeyConfectMutationCtx;
+    const clock = yield* ClockService;
+    const ctx = confectCtx.ctx as unknown as MutationCtx;
+    const { activeOrg, project } = yield* requireCurrentOrgProjectAccessEffect(
       ctx,
       args.expectedOrgSlug,
       args.projectSlug,
     );
 
-    const stage = await requireStageInProject(ctx, project._id, args.stageSlug);
-    const timezone = validateTimeZone(args.timezone);
-    const runAtMs = validateRunAtMs(args.runAtMs);
-    const now = Date.now();
+    const stage = yield* requireStageInProjectEffect(ctx, project._id, args.stageSlug);
+    const timezone = yield* validateTimeZoneEffect(args.timezone);
+    const runAtMs = yield* validateRunAtMsEffect(args.runAtMs);
+    const now = clock.nowMs();
 
-    const snapshot = await buildPreparedScheduleSnapshot({
+    const snapshot = yield* buildPreparedScheduleSnapshotEffect({
       ctx,
       orgId: activeOrg.orgId,
       clerkUserId: activeOrg.clerkUserId,
       projectSlug: args.projectSlug,
       stageSlug: stage.slug,
-      creates: args.creates as Array<ScheduledCreateEntry>,
-      updates: args.updates as Array<ScheduledUpdateEntry>,
+      creates: args.creates,
+      updates: args.updates,
     });
 
-    const scheduleId = await ctx.db.insert("projectVariableSchedules", {
-      projectId: project._id,
-      orgId: activeOrg.orgId,
-      stageSlug: stage.slug,
-      timezone,
-      runAtMs,
-      status: "scheduled",
-      scheduledFunctionId: null,
-      preparedCreates: snapshot.preparedCreates,
-      preparedUpdates: snapshot.preparedUpdates,
-      updateTargets: snapshot.updateTargets,
-      createdCount: snapshot.createdCount,
-      updatedCount: snapshot.updatedCount,
-      createdByClerkUserId: activeOrg.clerkUserId,
-      updatedByClerkUserId: activeOrg.clerkUserId,
-      createdAtMs: now,
-      updatedAtMs: now,
-      executedAtMs: null,
-      canceledAtMs: null,
-      failedAtMs: null,
-      failureMessage: null,
+    const scheduleId = yield* Effect.tryPromise({
+      try: () =>
+        ctx.db.insert("projectVariableSchedules", {
+          projectId: project._id,
+          orgId: activeOrg.orgId,
+          stageSlug: stage.slug,
+          timezone,
+          runAtMs,
+          status: "scheduled",
+          scheduledFunctionId: null,
+          preparedCreates: snapshot.preparedCreates,
+          preparedUpdates: snapshot.preparedUpdates,
+          updateTargets: snapshot.updateTargets,
+          createdCount: snapshot.createdCount,
+          updatedCount: snapshot.updatedCount,
+          createdByClerkUserId: activeOrg.clerkUserId,
+          updatedByClerkUserId: activeOrg.clerkUserId,
+          createdAtMs: now,
+          updatedAtMs: now,
+          executedAtMs: null,
+          canceledAtMs: null,
+          failedAtMs: null,
+          failureMessage: null,
+        }),
+      catch: (error) =>
+        toScheduleExternalServiceError("Failed to create the scheduled variable batch.", error),
     });
 
-    const scheduledFunctionId = await ctx.scheduler.runAt(
-      runAtMs,
-      internal.project_variable_schedules.executeScheduledVariableScheduleInternal,
-      {
-        scheduleId,
-      },
-    );
+    const scheduledFunctionId = yield* Effect.tryPromise({
+      try: () =>
+        ctx.scheduler.runAt(
+          runAtMs,
+          executeScheduledVariableScheduleInternalReference,
+          {
+            scheduleId,
+          },
+        ),
+      catch: (error) =>
+        toScheduleExternalServiceError("Failed to schedule the variable batch execution.", error),
+    });
 
-    const persistedSchedule = await attachScheduledFunctionIdIfStillPending({
+    const persistedSchedule: Doc<"projectVariableSchedules"> | null =
+      yield* attachScheduledFunctionIdIfStillPendingEffect({
       ctx,
       scheduleId,
       scheduledFunctionId,
     });
-    const currentSchedule = persistedSchedule ?? (await ctx.db.get(scheduleId));
+    const currentSchedule: Doc<"projectVariableSchedules"> | null =
+      persistedSchedule ??
+      (yield* Effect.tryPromise({
+        try: () => ctx.db.get(scheduleId),
+        catch: (error) =>
+          toScheduleExternalServiceError(
+            "Failed to reload the scheduled batch after scheduling it.",
+            error,
+          ),
+      }));
     const currentStatus = currentSchedule?.status ?? "scheduled";
     const currentExecutedAtMs = currentSchedule?.executedAtMs ?? null;
     const currentCanceledAtMs = currentSchedule?.canceledAtMs ?? null;
@@ -114,7 +140,7 @@ export const createForCurrentOrgProject = mutation({
       updateTargets: snapshot.updateTargets,
     });
 
-    await ctx.runMutation(internal.audit.appendEventInternal, {
+    yield* appendAuditEventEffect({
       orgId: activeOrg.orgId,
       orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
       projectId: project._id,
@@ -166,5 +192,33 @@ export const createForCurrentOrgProject = mutation({
       failedAtMs: currentFailedAtMs,
       failureMessage: currentFailureMessage,
     });
+  });
+}
+
+/**
+ * Creates a new scheduled variable batch for a project stage.
+ *
+ * @param ctx The Convex public mutation context.
+ * @param args The workspace, project, stage, schedule timing, and pending variable changes.
+ * @returns The persisted scheduled batch summary.
+ * @remarks This stores the encrypted prepared snapshot, schedules execution, and appends an audit event.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export const createForCurrentOrgProject = effectMutation<
+  CreateForCurrentOrgProjectArgs,
+  ReturnType<typeof toScheduledScheduleSummary>,
+  any
+>({
+  args: {
+    expectedOrgSlug: v.string(),
+    projectSlug: v.string(),
+    stageSlug: v.string(),
+    timezone: v.string(),
+    runAtMs: v.number(),
+    creates: v.array(projectVariableScheduleCreateEntryValidator),
+    updates: v.array(projectVariableScheduleUpdateEntryValidator),
   },
+  returns: scheduledScheduleSummaryValidator,
+  handler: createForCurrentOrgProjectEffect,
 });

@@ -15,31 +15,12 @@ import {
   ExternalServiceError,
   NotFoundError,
   ValidationError,
-} from "../lib/effect_errors";
+} from "../lib/errors/effect";
 import {
   findProjectByOrgIdAndSlugEffect,
   findStageByProjectIdAndSlugEffect,
-} from "../lib/project_scope";
-
-/**
- * Normalizes unknown stage-deletion failures into the shared external-service error model.
- *
- * @param fallbackMessage The message to use when the failure has no useful `Error` message.
- * @param error The unknown thrown failure value.
- * @returns A typed external-service error.
- * @remarks This keeps stage delete workflows from leaking raw thrown values into Effect programs.
- * @lastModified 2026-03-17
- * @author GPT-5.4
- */
-function toStageDeleteError(
-  fallbackMessage: string,
-  error: unknown,
-): ExternalServiceError {
-  return new ExternalServiceError({
-    message: error instanceof Error ? error.message : fallbackMessage,
-    cause: error,
-  });
-}
+} from "../lib/projects/scope";
+import { toProjectStageExternalServiceError } from "./errors";
 
 /**
  * Deletes a project stage for the current authenticated organization as an Effect program.
@@ -97,7 +78,8 @@ function deleteForCurrentOrgProjectEffect(
             q.eq("projectId", project._id).eq("stageSlug", stage.slug),
           )
           .collect(),
-      catch: (error) => toStageDeleteError("Failed to load stage variables.", error),
+      catch: (error) =>
+        toProjectStageExternalServiceError("Failed to load stage variables.", error),
     });
     if (existingVariables.length > 0) {
       return yield* Effect.fail(
@@ -109,7 +91,8 @@ function deleteForCurrentOrgProjectEffect(
 
     yield* Effect.tryPromise({
       try: () => ctx.db.delete(stage._id),
-      catch: (error) => toStageDeleteError("Failed to delete the stage row.", error),
+      catch: (error) =>
+        toProjectStageExternalServiceError("Failed to delete the stage row.", error),
     });
 
     yield* appendAuditEventEffect({

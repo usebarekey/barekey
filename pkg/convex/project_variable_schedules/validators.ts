@@ -1,15 +1,17 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
 import {
   declaredTypeValidator,
-} from "../lib/declared_types";
+} from "../lib/declared/types";
+import { ValidationError } from "../lib/errors/effect";
 import {
   projectVariablePreparedCreateValidator,
   projectVariablePreparedUpdateValidator,
   projectVariableScheduleCreateEntryValidator,
   projectVariableScheduleStatusValidator,
   projectVariableScheduleUpdateEntryValidator,
-} from "../lib/project_variable_schedules";
+} from "../lib/project_variables/schedules";
 import {
   rolloutFunctionValidator,
   rolloutMilestoneValidator,
@@ -115,6 +117,20 @@ export const scheduleExecutionRowValidator = v.union(
 );
 
 /**
+ * Converts a typed schedule validation error back into a standard `Error` for
+ * legacy callers.
+ *
+ * @param error The typed validation error.
+ * @returns A standard `Error` carrying the same message.
+ * @remarks This compatibility helper should disappear as schedule callers move to Effect-native validators.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+function toThrownScheduleValidationError(error: ValidationError): Error {
+  return new Error(error.message);
+}
+
+/**
  * Validates and normalizes a timezone identifier.
  *
  * @param value The timezone identifier supplied by the caller.
@@ -124,18 +140,37 @@ export const scheduleExecutionRowValidator = v.union(
  * @author GPT-5.4
  */
 export function validateTimeZone(value: string): string {
+  return Effect.runSync(
+    validateTimeZoneEffect(value).pipe(
+      Effect.mapError(toThrownScheduleValidationError),
+    ),
+  );
+}
+
+/**
+ * Validates and normalizes a timezone identifier.
+ *
+ * @param value The timezone identifier supplied by the caller.
+ * @returns An Effect that yields the trimmed timezone identifier.
+ * @remarks This is the Effect-native validation path for scheduled run timezones.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export function validateTimeZoneEffect(
+  value: string,
+): Effect.Effect<string, ValidationError> {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
-    throw new Error("Timezone is required.");
+    return Effect.fail(new ValidationError({ message: "Timezone is required." }));
   }
 
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: trimmed }).format(new Date());
-  } catch {
-    throw new Error("Timezone is invalid.");
-  }
-
-  return trimmed;
+  return Effect.try({
+    try: () => {
+      new Intl.DateTimeFormat("en-US", { timeZone: trimmed }).format(new Date());
+      return trimmed;
+    },
+    catch: () => new ValidationError({ message: "Timezone is invalid." }),
+  });
 }
 
 /**
@@ -148,14 +183,35 @@ export function validateTimeZone(value: string): string {
  * @author GPT-5.4
  */
 export function validateRunAtMs(value: number): number {
+  return Effect.runSync(
+    validateRunAtMsEffect(value).pipe(
+      Effect.mapError(toThrownScheduleValidationError),
+    ),
+  );
+}
+
+/**
+ * Validates that a scheduled run time is a finite timestamp in the future.
+ *
+ * @param value The timestamp in milliseconds supplied by the caller.
+ * @returns An Effect that yields the normalized integer millisecond timestamp.
+ * @remarks This is the Effect-native validation path for schedule execution times.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export function validateRunAtMsEffect(
+  value: number,
+): Effect.Effect<number, ValidationError> {
   if (!Number.isFinite(value)) {
-    throw new Error("Schedule time is invalid.");
+    return Effect.fail(new ValidationError({ message: "Schedule time is invalid." }));
   }
 
   const runAtMs = Math.trunc(value);
   if (runAtMs <= Date.now()) {
-    throw new Error("Schedule time must be in the future.");
+    return Effect.fail(
+      new ValidationError({ message: "Schedule time must be in the future." }),
+    );
   }
 
-  return runAtMs;
+  return Effect.succeed(runAtMs);
 }

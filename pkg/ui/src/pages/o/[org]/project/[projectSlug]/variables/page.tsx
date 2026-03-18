@@ -1094,13 +1094,25 @@ export function Page() {
     expectedOrgSlug: project.orgSlug,
     projectSlug: project.projectSlug,
   });
+  const activeStageSlug = useMemo(() => {
+    if (!stages) {
+      return null;
+    }
+
+    if (selectedStageSlug !== null && stages.some((stage) => stage.slug === selectedStageSlug)) {
+      return selectedStageSlug;
+    }
+
+    const developmentStage = stages.find((stage) => stage.slug === "development");
+    return developmentStage?.slug ?? stages[0]?.slug ?? null;
+  }, [selectedStageSlug, stages]);
   const variables = useQuery(
     api.project_variables.listForCurrentOrgProjectStage,
-    selectedStageSlug
+    activeStageSlug
       ? {
           expectedOrgSlug: project.orgSlug,
           projectSlug: project.projectSlug,
-          stageSlug: selectedStageSlug,
+          stageSlug: activeStageSlug,
         }
       : "skip",
   );
@@ -1111,24 +1123,13 @@ export function Page() {
   );
 
   const currentDraft =
-    selectedStageSlug === null
+    activeStageSlug === null
       ? createEmptyDraftState()
-      : (draftByStage[selectedStageSlug] ?? createEmptyDraftState());
+      : (draftByStage[activeStageSlug] ?? createEmptyDraftState());
   const persistedRows = variables ?? [];
-  const selectedEnvironment = stages?.find((s) => s.slug === selectedStageSlug) ?? null;
+  const selectedEnvironment = stages?.find((s) => s.slug === activeStageSlug) ?? null;
 
   // ─── Stage initialization ───────────────────────────────────────
-
-  useEffect(() => {
-    if (!stages) return;
-    const dev = stages.find((s) => s.slug === "development");
-    const fallback = dev?.slug ?? stages[0]?.slug ?? null;
-    if (selectedStageSlug === null) {
-      if (fallback !== null) setSelectedStageSlug(fallback);
-      return;
-    }
-    if (!stages.some((s) => s.slug === selectedStageSlug)) setSelectedStageSlug(fallback);
-  }, [selectedStageSlug, stages]);
 
   useEffect(() => {
     if (!stages || stages.length > 0) return;
@@ -1147,7 +1148,7 @@ export function Page() {
 
   useEffect(() => {
     function handlePaste(event: ClipboardEvent): void {
-      if (!selectedStageSlug) return;
+      if (!activeStageSlug) return;
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -1161,7 +1162,7 @@ export function Page() {
     }
     window.addEventListener("paste", handlePaste, true);
     return () => window.removeEventListener("paste", handlePaste, true);
-  }, [selectedStageSlug, persistedRows]);
+  }, [activeStageSlug, persistedRows]);
 
   // ─── Rows ───────────────────────────────────────────────────────
 
@@ -1232,24 +1233,24 @@ export function Page() {
 
   const updateCurrentStageDraft = useCallback(
     (updater: (current: StageDraftState) => StageDraftState): void => {
-      if (!selectedStageSlug) return;
+      if (!activeStageSlug) return;
       setDraftByStage((prev) => {
-        const current = prev[selectedStageSlug] ?? createEmptyDraftState();
+        const current = prev[activeStageSlug] ?? createEmptyDraftState();
         const next = updater(cloneDraft(current));
         if (!hasStoredStageState(next)) {
-          const { [selectedStageSlug]: _, ...rest } = prev;
+          const { [activeStageSlug]: _, ...rest } = prev;
           return rest;
         }
-        return { ...prev, [selectedStageSlug]: next };
+        return { ...prev, [activeStageSlug]: next };
       });
     },
-    [selectedStageSlug],
+    [activeStageSlug],
   );
 
   function clearCurrentStageDraft(): void {
-    if (!selectedStageSlug) return;
+    if (!activeStageSlug) return;
     setDraftByStage((prev) => {
-      const { [selectedStageSlug]: _, ...rest } = prev;
+      const { [activeStageSlug]: _, ...rest } = prev;
       return rest;
     });
   }
@@ -1276,7 +1277,7 @@ export function Page() {
       const decrypted = await decryptVariable({
         expectedOrgSlug: project.orgSlug,
         projectSlug: project.projectSlug,
-        stageSlug: selectedStageSlug!,
+        stageSlug: activeStageSlug!,
         variableId: row.id,
       });
 
@@ -1556,7 +1557,7 @@ export function Page() {
   // ─── Save all ───────────────────────────────────────────────────
 
   async function handleSaveAll(): Promise<void> {
-    if (!selectedStageSlug || isSaving) return;
+    if (!activeStageSlug || isSaving) return;
 
     const invalidNewRow = currentDraft.newRows.find((r) => r.name.trim().length === 0);
     if (invalidNewRow) {
@@ -1707,7 +1708,7 @@ export function Page() {
       const result = await applyDraft({
         expectedOrgSlug: project.orgSlug,
         projectSlug: project.projectSlug,
-        stageSlug: selectedStageSlug,
+        stageSlug: activeStageSlug,
         creates,
         updates,
         deletes,
@@ -1761,7 +1762,7 @@ export function Page() {
               Environment
             </span>
             <Select
-              value={selectedStageSlug ?? ""}
+              value={activeStageSlug ?? ""}
               onValueChange={(next) => setSelectedStageSlug(next)}
             >
               <SelectTrigger className="h-8 min-w-56 border-transparent bg-transparent shadow-none">
@@ -1804,7 +1805,7 @@ export function Page() {
             </div>
           )}
 
-          {!selectedStageSlug ? (
+          {!activeStageSlug ? (
             <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
               No environment is available for this project. Add one in Project settings.
             </div>
@@ -1899,7 +1900,7 @@ export function Page() {
                 size="sm"
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={!selectedStageSlug}
+                disabled={!activeStageSlug}
               >
                 <IconFolderOpen />
                 Select env files
@@ -1944,7 +1945,7 @@ export function Page() {
         isSaving={isSaving}
         discardLabel="Discard all"
         saveLabel="Save all"
-        saveDisabled={!selectedStageSlug}
+        saveDisabled={!activeStageSlug}
         onDiscard={() => {
           clearCurrentStageDraft();
           setImportSummary(null);

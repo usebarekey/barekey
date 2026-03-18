@@ -170,14 +170,8 @@ export function RolloutTimelineEditor({
 			percentage: clamp(milestone.percentage, 0, 100),
 		}));
 	}, [sortedMilestones]);
-
-	useEffect(() => {
-		if (milestonePoints.length === 0) {
-			setSelectedPointIndex(0);
-			return;
-		}
-		setSelectedPointIndex((current) => clamp(current, 0, milestonePoints.length - 1));
-	}, [milestonePoints.length]);
+	const activeSelectedPointIndex =
+		milestonePoints.length === 0 ? 0 : clamp(selectedPointIndex, 0, milestonePoints.length - 1);
 
 	const timelineDomain = useMemo(() => {
 		const first = milestonePoints[0];
@@ -332,8 +326,8 @@ export function RolloutTimelineEditor({
 		};
 	}, [milestonePoints, timelineDomain.endMs, timelineDomain.startMs, rolloutFunction, sortedMilestones]);
 
-	const selectedMilestone = sortedMilestones[selectedPointIndex] ?? null;
-	const selectedPoint = milestonePoints[selectedPointIndex] ?? null;
+	const selectedMilestone = sortedMilestones[activeSelectedPointIndex] ?? null;
+	const selectedPoint = milestonePoints[activeSelectedPointIndex] ?? null;
 
 	function handleCreatePoint(): void {
 		const lastPoint = milestonePoints[milestonePoints.length - 1];
@@ -355,9 +349,9 @@ export function RolloutTimelineEditor({
 		if (selectedMilestone === null || sortedMilestones.length <= 1) {
 			return;
 		}
-		const nextMilestones = sortedMilestones.filter((_, index) => index !== selectedPointIndex);
+		const nextMilestones = sortedMilestones.filter((_, index) => index !== activeSelectedPointIndex);
 		commitMilestones(nextMilestones);
-		setSelectedPointIndex(Math.max(0, selectedPointIndex - 1));
+		setSelectedPointIndex(Math.max(0, activeSelectedPointIndex - 1));
 	}
 
 	return (
@@ -512,7 +506,7 @@ export function RolloutTimelineEditor({
 						) : null}
 
 						{milestonePoints.map((point, index) => {
-							const isSelected = index === selectedPointIndex;
+							const isSelected = index === activeSelectedPointIndex;
 							return (
 								<g key={`${point.atMs}-${point.percentage}-${index}`}>
 									<circle
@@ -558,7 +552,7 @@ export function RolloutTimelineEditor({
 							if (selectedMilestone === null) {
 								return;
 							}
-							updatePoint(selectedPointIndex, {
+							updatePoint(activeSelectedPointIndex, {
 								atMs: Date.parse(
 									fromLocalDateTimeInputValue(
 										event.currentTarget.value,
@@ -583,7 +577,7 @@ export function RolloutTimelineEditor({
 							if (selectedMilestone === null) {
 								return;
 							}
-							updatePoint(selectedPointIndex, {
+							updatePoint(activeSelectedPointIndex, {
 								percentage: Number(event.currentTarget.value),
 							});
 						}}

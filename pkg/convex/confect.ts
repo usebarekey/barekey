@@ -1,16 +1,17 @@
 import { makeFunctions } from "@rjdellecese/confect/server";
-import { Effect } from "effect";
 
 import {
   action as generatedAction,
-  httpAction as generatedHttpAction,
   internalAction as generatedInternalAction,
   internalMutation as generatedInternalMutation,
   internalQuery as generatedInternalQuery,
   mutation as generatedMutation,
   query as generatedQuery,
 } from "./_generated/server";
-import type { ActionCtx } from "./_generated/server";
+import {
+  type EffectDefinition,
+  normalizeEffectHandler,
+} from "./lib/confect/effect";
 import { confectSchema } from "./lib/confect/schema";
 import {
   AuthService,
@@ -31,45 +32,14 @@ import {
   liftLegacyActionHandler,
   liftLegacyMutationHandler,
   liftLegacyQueryHandler,
-  runLegacyHttpHandler,
 } from "./lib/confect/boundary";
 import {
   argsObjectToSchema,
   returnsValidatorToSchema,
   type ConvexValidatorLike,
-} from "./lib/confect/validator_schemas";
-import { toLegacyHandlerError } from "./lib/effect_errors";
+} from "./lib/confect/validators";
 
 const confectFunctions = makeFunctions(confectSchema);
-
-type EffectDefinition<Args, Returns, Requirements> = {
-  args: Record<string, ConvexValidatorLike>;
-  returns: ConvexValidatorLike;
-  handler: (args: Args) => Effect.Effect<Returns, unknown, Requirements>;
-};
-
-/**
- * Normalizes Effect-native handler failures so they surface through the same
- * compatibility error boundary as legacy handlers.
- *
- * @param handler The Effect-native handler to normalize.
- * @returns A Confect-compatible handler with shared error normalization.
- * @remarks This keeps new Effect programs and legacy handlers consistent at the Convex boundary.
- * @lastModified 2026-03-17
- * @author GPT-5.4
- */
-function normalizeEffectHandler<Args, Returns, Requirements>(
-  handler: (args: Args) => Effect.Effect<Returns, unknown, Requirements>,
-) {
-  const normalizedHandler = handler as unknown as (
-    args: unknown,
-  ) => Effect.Effect<unknown, unknown, never>;
-
-  return ((args: unknown) =>
-    normalizedHandler(args).pipe(
-      Effect.catchAll((error) => Effect.fail(toLegacyHandlerError(error))),
-    )) as (args: unknown) => Effect.Effect<unknown, unknown, never>;
-}
 
 /**
  * Registers a public Convex query using the Confect boundary while keeping the
@@ -293,29 +263,12 @@ export function effectInternalAction<Args, Returns, Requirements = never>(
   });
 }
 
-/**
- * Registers an HTTP action while normalizing legacy handler failures through the
- * shared Effect runtime.
- *
- * @param handler The legacy HTTP handler.
- * @returns A generated Convex HTTP action.
- * @remarks This delegates runtime provisioning to `makeRuntimeLayer` but keeps the existing route registration surface unchanged.
- * @lastModified 2026-03-17
- * @author GPT-5.4
- */
-export const httpAction: typeof generatedHttpAction = ((handler: (
-  ctx: ActionCtx,
-  request: Request,
-) => Promise<Response>) =>
-  generatedHttpAction(async (ctx, request) => {
-    return await runLegacyHttpHandler(handler, ctx as unknown as ActionCtx, request);
-  })) as typeof generatedHttpAction;
-
 export {
   BarekeyConfectActionCtx,
   BarekeyConfectMutationCtx,
   BarekeyConfectQueryCtx,
 } from "./lib/confect/schema";
+export { httpAction } from "./lib/confect/http";
 export {
   AuthService,
   AuditService,
@@ -328,4 +281,4 @@ export {
   RandomService,
   RuntimeConfigService,
 } from "./lib/confect/services";
-export type { ConvexValidatorLike } from "./lib/confect/validator_schemas";
+export type { ConvexValidatorLike } from "./lib/confect/validators";

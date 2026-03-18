@@ -1,5 +1,5 @@
 import type { Id } from "../_generated/dataModel";
-import type { DeclaredVariableType } from "../lib/declared_types";
+import type { DeclaredVariableType } from "../lib/declared/types";
 import type { RolloutFunction, RolloutMilestone } from "../lib/rollout";
 import type { VariableVisibility } from "../lib/visibility";
 

@@ -1,7 +1,139 @@
+import { Effect } from "effect";
+import { makeFunctionReference } from "convex/server";
 import { v } from "convex/values";
 
-import { internal } from "../_generated/api";
-import { internalAction, internalMutation } from "../confect";
+import type { ActionCtx, MutationCtx } from "../_generated/server";
+import {
+  BarekeyConfectActionCtx,
+  BarekeyConfectMutationCtx,
+  effectInternalAction,
+  effectInternalMutation,
+} from "../confect";
+import { ExternalServiceError } from "../lib/errors/effect";
+
+type PruneBatchArgs = {
+  nowMs: number;
+  batchSize: number;
+};
+
+type PruneBatchResult = {
+  deletedCount: number;
+  hasMore: boolean;
+};
+
+type PruneResult = {
+  deletedCount: number;
+};
+
+const pruneExpiredEventsBatchInternalReference = makeFunctionReference<
+  "mutation",
+  PruneBatchArgs,
+  PruneBatchResult
+>("audit/prune:pruneExpiredEventsBatchInternal") as unknown;
+
+/**
+ * Normalizes audit prune failures into typed external-service errors.
+ *
+ * @param fallbackMessage The fallback message to use when the failure is not an `Error`.
+ * @param error The unknown failure value.
+ * @returns A typed external-service error.
+ * @remarks Audit pruning is maintenance infrastructure and should stay on the shared Effect error channel.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+function toAuditPruneError(
+  fallbackMessage: string,
+  error: unknown,
+): ExternalServiceError {
+  return new ExternalServiceError({
+    message: error instanceof Error ? error.message : fallbackMessage,
+    cause: error,
+  });
+}
+
+/**
+ * Deletes one bounded batch of expired audit events.
+ *
+ * @param ctx The Convex mutation context.
+ * @param args The current time and requested batch size.
+ * @returns An Effect that succeeds with the deleted count and whether another batch likely remains.
+ * @remarks This clamps the batch size to a safe range and deletes rows one by one.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+function pruneExpiredEventsBatchInternalEffect(
+  ctx: MutationCtx,
+  args: PruneBatchArgs,
+): Effect.Effect<PruneBatchResult, ExternalServiceError> {
+  return Effect.gen(function* () {
+    const safeBatchSize = Math.min(Math.max(args.batchSize, 1), 500);
+    const rows = yield* Effect.tryPromise({
+      try: () =>
+        ctx.db
+          .query("auditEvents")
+          .withIndex("by_expires_at_ms", (q) => q.lt("expiresAtMs", args.nowMs))
+          .take(safeBatchSize),
+      catch: (error) =>
+        toAuditPruneError("Failed to load expired audit events for pruning.", error),
+    });
+
+    yield* Effect.forEach(
+      rows,
+      (row) =>
+        Effect.tryPromise({
+          try: () => ctx.db.delete(row._id),
+          catch: (error) =>
+            toAuditPruneError("Failed to delete an expired audit event.", error),
+        }),
+      { concurrency: 1, discard: true },
+    );
+
+    return {
+      deletedCount: rows.length,
+      hasMore: rows.length === safeBatchSize,
+    };
+  });
+}
+
+/**
+ * Prunes expired audit events across multiple internal batches.
+ *
+ * @param ctx The Convex action context.
+ * @returns An Effect that succeeds with the total number of deleted audit events.
+ * @remarks This loops through at most 20 internal prune batches per invocation.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+function pruneExpiredEventsInternalEffect(
+  ctx: ActionCtx,
+): Effect.Effect<PruneResult, ExternalServiceError> {
+  return Effect.gen(function* () {
+    const runMutation = ctx.runMutation as (
+      functionReference: unknown,
+      args: Record<string, unknown>,
+    ) => Promise<unknown>;
+    let deletedCount = 0;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const batch = (yield* Effect.tryPromise({
+        try: () =>
+          runMutation(pruneExpiredEventsBatchInternalReference, {
+            nowMs: Date.now(),
+            batchSize: 250,
+          }),
+        catch: (error) =>
+          toAuditPruneError("Failed to run an internal audit prune batch.", error),
+      })) as PruneBatchResult;
+      deletedCount += batch.deletedCount;
+      if (!batch.hasMore) {
+        break;
+      }
+    }
+
+    return {
+      deletedCount,
+    };
+  });
+}
 
 /**
  * Deletes one batch of expired audit events.
@@ -13,7 +145,11 @@ import { internalAction, internalMutation } from "../confect";
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const pruneExpiredEventsBatchInternal = internalMutation({
+export const pruneExpiredEventsBatchInternal = effectInternalMutation<
+  PruneBatchArgs,
+  PruneBatchResult,
+  any
+>({
   args: {
     nowMs: v.number(),
     batchSize: v.number(),
@@ -22,21 +158,12 @@ export const pruneExpiredEventsBatchInternal = internalMutation({
     deletedCount: v.number(),
     hasMore: v.boolean(),
   }),
-  handler: async (ctx, args) => {
-    const rows = await ctx.db
-      .query("auditEvents")
-      .withIndex("by_expires_at_ms", (q) => q.lt("expiresAtMs", args.nowMs))
-      .take(Math.min(Math.max(args.batchSize, 1), 500));
-
-    for (const row of rows) {
-      await ctx.db.delete(row._id);
-    }
-
-    return {
-      deletedCount: rows.length,
-      hasMore: rows.length === Math.min(Math.max(args.batchSize, 1), 500),
-    };
-  },
+  handler: (args) =>
+    Effect.gen(function* () {
+      const confectCtx = yield* BarekeyConfectMutationCtx;
+      const ctx = confectCtx.ctx as unknown as MutationCtx;
+      return yield* pruneExpiredEventsBatchInternalEffect(ctx, args);
+    }),
 });
 
 /**
@@ -48,26 +175,15 @@ export const pruneExpiredEventsBatchInternal = internalMutation({
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const pruneExpiredEventsInternal = internalAction({
+export const pruneExpiredEventsInternal = effectInternalAction<{}, PruneResult, any>({
   args: {},
   returns: v.object({
     deletedCount: v.number(),
   }),
-  handler: async (ctx) => {
-    let deletedCount = 0;
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const batch = await ctx.runMutation(internal.audit.pruneExpiredEventsBatchInternal, {
-        nowMs: Date.now(),
-        batchSize: 250,
-      });
-      deletedCount += batch.deletedCount;
-      if (!batch.hasMore) {
-        break;
-      }
-    }
-
-    return {
-      deletedCount,
-    };
-  },
+  handler: () =>
+    Effect.gen(function* () {
+      const confectCtx = yield* BarekeyConfectActionCtx;
+      const ctx = confectCtx.ctx as unknown as ActionCtx;
+      return yield* pruneExpiredEventsInternalEffect(ctx);
+    }),
 });

@@ -55,28 +55,26 @@ export function Page() {
   const upsertPreferences = useMutation(upsertCurrentUserPreferencesRef);
 
   const [preferredTheme, setPreferredTheme] = useState<string>(PreferredTheme.System);
+  const [hasInitializedPreferences, setHasInitializedPreferences] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isRevokeDialogOpen, setIsRevokeDialogOpen] = useState(false);
   const [revokeCountdown, setRevokeCountdown] = useState(5);
   const [isRevokingCredit, setIsRevokingCredit] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
-  const hasInitializedRef = useRef(false);
   const draftToolbarRef = useRef<HTMLDivElement | null>(null);
 
   const memberships = userMemberships.data ?? [];
   const selectableMemberships = memberships.filter((membership) =>
     Boolean(membership.organization.slug),
   );
+  const isPreferencesLoading = preferences === undefined;
+  const savedPreferredTheme = preferences?.preferredTheme ?? PreferredTheme.System;
 
-  useEffect(() => {
-    if (preferences === undefined || hasInitializedRef.current) {
-      return;
-    }
-
-    hasInitializedRef.current = true;
-    setPreferredTheme(preferences?.preferredTheme ?? PreferredTheme.System);
-  }, [preferences]);
+  if (!hasInitializedPreferences && !isPreferencesLoading) {
+    setHasInitializedPreferences(true);
+    setPreferredTheme(savedPreferredTheme);
+  }
 
   useEffect(() => {
     if (!isRevokeDialogOpen) {
@@ -95,9 +93,7 @@ export function Page() {
     return () => window.clearTimeout(timeout);
   }, [isRevokeDialogOpen, revokeCountdown]);
 
-  const isPreferencesLoading = preferences === undefined;
   const isDisabled = isSaving || isPreferencesLoading;
-  const savedPreferredTheme = preferences?.preferredTheme ?? PreferredTheme.System;
   const isDirty = !isPreferencesLoading && savedPreferredTheme !== preferredTheme;
   const isFreePlanCreditInUse = Boolean(freePlanCredit?.assignedOrgId);
 

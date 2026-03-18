@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 describe("hasForceCheckoutUpgradeDowngradeError", () => {
   async function loadSubject() {
     process.env.BAREKEY_MASTER_KEY_B64 ||= "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-    return await import("../../pkg/convex/lib/payments_variants");
+    return await import("../../pkg/convex/lib/payments/variants");
   }
 
   test("returns false for undefined values", async () => {

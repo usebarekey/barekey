@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { UserIdentity } from "convex/server";
 
-import { resolveAuthContext } from "../../pkg/convex/lib/http_auth";
+import { resolveAuthContext } from "../../pkg/convex/lib/http/auth";
 
 function makeIdentity(overrides: Record<string, unknown> = {}): UserIdentity {
   return {

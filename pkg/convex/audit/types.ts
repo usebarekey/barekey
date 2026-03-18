@@ -14,7 +14,7 @@ import {
   type AuditSubjectType,
 } from "../lib/audit";
 
-export const appendAuditEventArgsValidator = v.object({
+export const appendAuditEventArgsFields = {
   orgId: v.string(),
   orgSlug: v.string(),
   projectId: v.union(v.id("projects"), v.null()),
@@ -35,7 +35,9 @@ export const appendAuditEventArgsValidator = v.object({
   payloadJson: v.string(),
   retentionTierOverride: v.optional(v.union(auditRetentionTierValidator, v.null())),
   occurredAtMs: v.optional(v.number()),
-});
+} as const;
+
+export const appendAuditEventArgsValidator = v.object(appendAuditEventArgsFields);
 
 export type AuditEventInput = {
   orgId: string;

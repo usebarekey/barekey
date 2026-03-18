@@ -9,8 +9,8 @@ import {
   unwrapDekWithMasterKey,
   wrapDekWithMasterKey,
 } from "../encryption";
-import type { BillingError, ExternalServiceError, NotFoundError } from "../effect_errors";
-import { runtimeConfig } from "../runtime_config";
+import type { BillingError, ExternalServiceError, NotFoundError } from "../errors/effect";
+import { runtimeConfig } from "../runtime/config";
 
 export type BillingCurrentOrgUnitsInput = {
   scope: "currentOrg";

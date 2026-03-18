@@ -5,8 +5,8 @@ import type { Doc, Id } from "../../../pkg/convex/_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../../../pkg/convex/_generated/server";
 import { appendAuditEventEffect } from "../../../pkg/convex/lib/confect/audit";
 import { reserveFeatureUnitsEffect } from "../../../pkg/convex/lib/confect/billing";
-import { requireProjectStageEffect } from "../../../pkg/convex/lib/confect/project_scope";
-import { makeRuntimeLayer } from "../../../pkg/convex/lib/confect/runtime_layer";
+import { requireProjectStageEffect } from "../../../pkg/convex/lib/confect/project/scope";
+import { makeRuntimeLayer } from "../../../pkg/convex/lib/confect/runtime/layer";
 
 type TableRows = {
   readonly orgBillingSnapshots?: ReadonlyArray<Doc<"orgBillingSnapshots">>;

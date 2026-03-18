@@ -7,7 +7,7 @@ import {
   findProjectStageByOrgIdAndSlugEffect,
   listProjectVariableRowsForStageEffect,
   requireProjectStageByOrgIdAndSlugEffect,
-} from "../../pkg/convex/lib/project_scope";
+} from "../../pkg/convex/lib/projects/scope";
 
 type TableRows = {
   readonly projectStages?: ReadonlyArray<Doc<"projectStages">>;

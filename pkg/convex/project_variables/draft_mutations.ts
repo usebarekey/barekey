@@ -1,24 +1,17 @@
 import { v } from "convex/values";
 
-import { internalMutation } from "../confect";
-import { encryptSecretValueForProject } from "../lib/encryption";
+import { effectInternalMutation } from "../confect";
 import {
-  encryptedPayloadByteLength,
   preparedDraftCreateValidator,
   preparedDraftUpdateValidator,
-  validateVariableName,
-} from "../lib/project_variables_shared";
-import {
-  listProjectVariableRowsForStage,
-  requireProjectStageByOrgIdAndSlug,
-} from "../lib/project_scope";
-import { getVariableVisibility } from "../lib/visibility";
-import { requireCurrentOrgAccess } from "./access";
+} from "../lib/project_variables/contracts";
+import { applyPreparedDraftForCurrentOrgProjectStageInternalEffect } from "./draft/apply";
+import { prepareDraftForCurrentOrgProjectStageInternalEffect } from "./draft/prepare";
 import type {
+  ApplyPreparedDraftArgs,
   DraftWriteResult,
+  PrepareDraftArgs,
   PreparedDraft,
-  PreparedDraftCreateEntry,
-  PreparedDraftUpdateEntry,
 } from "./types";
 
 /**
@@ -32,7 +25,11 @@ import type {
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
+export const prepareDraftForCurrentOrgProjectStageInternal = effectInternalMutation<
+  PrepareDraftArgs,
+  PreparedDraft,
+  any
+>({
   args: {
     expectedOrgSlug: v.string(),
     projectSlug: v.string(),
@@ -63,111 +60,7 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
     updatedCount: v.number(),
     deletedCount: v.number(),
   }),
-  handler: async (ctx, args): Promise<PreparedDraft> => {
-    const activeOrg = await requireCurrentOrgAccess(ctx, args.expectedOrgSlug);
-
-    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
-      orgId: activeOrg.orgId,
-      projectSlug: args.projectSlug,
-      stageSlug: args.stageSlug,
-    });
-
-    const existingRows = await listProjectVariableRowsForStage(ctx.db, {
-      projectId: project._id,
-      stageSlug: stage.slug,
-    });
-    const byId = new Map(existingRows.map((row) => [row._id, row] as const));
-    const stageVariableNames = new Set(existingRows.map((row) => row.name));
-
-    let storageDeltaBytes = 0;
-    const deletedIds = new Set(args.deletes);
-    for (const variableId of deletedIds) {
-      const existing = byId.get(variableId);
-      if (!existing) {
-        throw new Error("Variable delete target does not exist.");
-      }
-      stageVariableNames.delete(existing.name);
-      storageDeltaBytes -= encryptedPayloadByteLength({
-        encryptedValue: existing.encryptedValue,
-        encryptedValueA: existing.encryptedValueA,
-        encryptedValueB: existing.encryptedValueB,
-      });
-    }
-
-    const preparedUpdates: Array<PreparedDraftUpdateEntry> = [];
-    for (const update of args.updates) {
-      const existing = byId.get(update.id);
-      if (!existing) {
-        throw new Error("Variable update target does not exist.");
-      }
-      if (deletedIds.has(update.id)) {
-        throw new Error("Cannot update a variable that is marked for deletion.");
-      }
-
-      const encryptedValue = await encryptSecretValueForProject(ctx, {
-        projectId: project._id,
-        orgId: project.orgId,
-        plaintext: update.value,
-      });
-
-      storageDeltaBytes +=
-        encryptedPayloadByteLength({
-          encryptedValue,
-          encryptedValueA: null,
-          encryptedValueB: null,
-        }) -
-        encryptedPayloadByteLength({
-          encryptedValue: existing.encryptedValue,
-          encryptedValueA: existing.encryptedValueA,
-          encryptedValueB: existing.encryptedValueB,
-        });
-      preparedUpdates.push({
-        id: update.id,
-        visibility: getVariableVisibility(existing),
-        kind: update.kind,
-        declaredType: "string",
-        encryptedValue,
-      });
-    }
-
-    const preparedCreates: Array<PreparedDraftCreateEntry> = [];
-    for (const create of args.creates) {
-      const name = validateVariableName(create.name);
-      if (stageVariableNames.has(name)) {
-        throw new Error(`Variable ${name} already exists in this stage.`);
-      }
-
-      const encryptedValue = await encryptSecretValueForProject(ctx, {
-        projectId: project._id,
-        orgId: project.orgId,
-        plaintext: create.value,
-      });
-      storageDeltaBytes += encryptedPayloadByteLength({
-        encryptedValue,
-        encryptedValueA: null,
-        encryptedValueB: null,
-      });
-      preparedCreates.push({
-        name,
-        visibility: "private",
-        kind: create.kind,
-        declaredType: "string",
-        encryptedValue,
-      });
-      stageVariableNames.add(name);
-    }
-
-    return {
-      orgId: project.orgId,
-      storageDeltaBytes,
-      creates: preparedCreates,
-      updates: preparedUpdates,
-      deletes: Array.from(deletedIds),
-      createdCount: preparedCreates.length,
-      updatedCount: preparedUpdates.length,
-      deletedCount: deletedIds.size,
-    };
-  },
+  handler: prepareDraftForCurrentOrgProjectStageInternalEffect,
 });
 
 /**
@@ -180,7 +73,11 @@ export const prepareDraftForCurrentOrgProjectStageInternal = internalMutation({
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutation({
+export const applyPreparedDraftForCurrentOrgProjectStageInternal = effectInternalMutation<
+  ApplyPreparedDraftArgs,
+  DraftWriteResult,
+  any
+>({
   args: {
     expectedOrgSlug: v.string(),
     projectSlug: v.string(),
@@ -194,89 +91,5 @@ export const applyPreparedDraftForCurrentOrgProjectStageInternal = internalMutat
     updatedCount: v.number(),
     deletedCount: v.number(),
   }),
-  handler: async (ctx, args): Promise<DraftWriteResult> => {
-    const activeOrg = await requireCurrentOrgAccess(ctx, args.expectedOrgSlug);
-
-    const { project, stage } = await requireProjectStageByOrgIdAndSlug(ctx.db, {
-      orgId: activeOrg.orgId,
-      projectSlug: args.projectSlug,
-      stageSlug: args.stageSlug,
-    });
-
-    const existingRows = await listProjectVariableRowsForStage(ctx.db, {
-      projectId: project._id,
-      stageSlug: stage.slug,
-    });
-    const byId = new Map(existingRows.map((row) => [row._id, row] as const));
-    const stageVariableNames = new Set(existingRows.map((row) => row.name));
-
-    const deletedIds = new Set(args.deletes);
-    for (const variableId of deletedIds) {
-      const existing = byId.get(variableId);
-      if (!existing) {
-        throw new Error("Variable delete target does not exist.");
-      }
-      stageVariableNames.delete(existing.name);
-    }
-
-    const now = Date.now();
-    for (const update of args.updates) {
-      const existing = byId.get(update.id);
-      if (!existing) {
-        throw new Error("Variable update target does not exist.");
-      }
-      if (deletedIds.has(update.id)) {
-        throw new Error("Cannot update a variable that is marked for deletion.");
-      }
-
-      await ctx.db.patch(update.id, {
-        visibility: update.visibility,
-        kind: update.kind,
-        declaredType: update.declaredType,
-        encryptedValue: update.encryptedValue,
-        encryptedValueA: null,
-        encryptedValueB: null,
-        chance: null,
-        rolloutFunction: null,
-        rolloutMilestones: null,
-        updatedAtMs: now,
-      });
-    }
-
-    for (const create of args.creates) {
-      if (stageVariableNames.has(create.name)) {
-        throw new Error(`Variable ${create.name} already exists in this stage.`);
-      }
-
-      await ctx.db.insert("projectVariables", {
-        projectId: project._id,
-        orgId: project.orgId,
-        stageSlug: stage.slug,
-        name: create.name,
-        visibility: create.visibility,
-        kind: create.kind,
-        declaredType: create.declaredType,
-        encryptedValue: create.encryptedValue,
-        encryptedValueA: null,
-        encryptedValueB: null,
-        chance: null,
-        rolloutFunction: null,
-        rolloutMilestones: null,
-        createdByClerkUserId: activeOrg.clerkUserId,
-        createdAtMs: now,
-        updatedAtMs: now,
-      });
-      stageVariableNames.add(create.name);
-    }
-
-    for (const variableId of deletedIds) {
-      await ctx.db.delete(variableId);
-    }
-
-    return {
-      createdCount: args.creates.length,
-      updatedCount: args.updates.length,
-      deletedCount: deletedIds.size,
-    };
-  },
+  handler: applyPreparedDraftForCurrentOrgProjectStageInternalEffect,
 });

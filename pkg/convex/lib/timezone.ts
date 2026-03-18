@@ -1,3 +1,5 @@
+import { throwValidationError } from "./errors/effect";
+
 type TimeZoneDateParts = {
   year: number;
   month: number;
@@ -40,7 +42,7 @@ function parseDateValue(value: string): {
 } {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
   if (match === null) {
-    throw new Error("Date must use YYYY-MM-DD format.");
+    return throwValidationError("Date must use YYYY-MM-DD format.");
   }
 
   const year = Number(match[1]);
@@ -52,7 +54,7 @@ function parseDateValue(value: string): {
     candidate.getUTCMonth() + 1 !== month ||
     candidate.getUTCDate() !== day
   ) {
-    throw new Error("Date is invalid.");
+    return throwValidationError("Date is invalid.");
   }
 
   return { year, month, day };
@@ -64,16 +66,16 @@ function parseTimeValue(value: string): {
 } {
   const match = /^(\d{2}):(\d{2})$/.exec(value.trim());
   if (match === null) {
-    throw new Error("Time must use HH:mm format.");
+    return throwValidationError("Time must use HH:mm format.");
   }
 
   const hour = Number(match[1]);
   const minute = Number(match[2]);
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
-    throw new Error("Hour must be between 00 and 23.");
+    return throwValidationError("Hour must be between 00 and 23.");
   }
   if (!Number.isInteger(minute) || minute < 0 || minute > 59) {
-    throw new Error("Minute must be between 00 and 59.");
+    return throwValidationError("Minute must be between 00 and 59.");
   }
 
   return { hour, minute };
@@ -114,7 +116,7 @@ function getFormattedTimeZoneDateParts(input: {
     minute === undefined ||
     second === undefined
   ) {
-    throw new Error(`Unable to resolve timezone parts for ${input.timeZone}.`);
+    return throwValidationError(`Unable to resolve timezone parts for ${input.timeZone}.`);
   }
 
   return {
@@ -183,7 +185,7 @@ export function timeZoneDateTimeToUtcMs(input: {
     verification.dateValue !== input.dateValue ||
     verification.timeValue !== `${padTwo(time.hour)}:${padTwo(time.minute)}`
   ) {
-    throw new Error("Selected time does not exist in the chosen timezone.");
+    return throwValidationError("Selected time does not exist in the chosen timezone.");
   }
 
   return resolvedUtcMs;

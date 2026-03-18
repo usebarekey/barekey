@@ -1,11 +1,35 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
-import { query } from "../confect";
+import type { QueryCtx } from "../_generated/server";
+import { BarekeyConfectQueryCtx, effectQuery } from "../confect";
+import { ExternalServiceError } from "../lib/errors/effect";
 import { getActiveOrgIdClaimsOrNull } from "../lib/auth";
 import {
   projectListItemValidator,
   projectSummaryValidator,
 } from "./types";
+
+function toProjectQueryError(error: unknown): ExternalServiceError {
+  return new ExternalServiceError({
+    message: error instanceof Error ? error.message : "Failed to load project query data.",
+    cause: error,
+  });
+}
+
+function withProjectQueryCtx<Args, Result>(
+  handler: (ctx: QueryCtx, args: Args) => Promise<Result>,
+  args: Args,
+): Effect.Effect<Result, ExternalServiceError, any> {
+  return Effect.gen(function* () {
+    const confectCtx = yield* BarekeyConfectQueryCtx;
+    const ctx = confectCtx.ctx as unknown as QueryCtx;
+    return yield* Effect.tryPromise({
+      try: () => handler(ctx, args),
+      catch: toProjectQueryError,
+    });
+  });
+}
 
 /**
  * Lists projects for the current authenticated organization.
@@ -17,12 +41,30 @@ import {
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const listForCurrentOrg = query({
+export const listForCurrentOrg = effectQuery<
+  {
+    expectedOrgSlug: string;
+  },
+  Array<{
+    id: string;
+    orgId: string;
+    orgSlug: string;
+    name: string;
+    slug: string;
+    slugBase: string;
+    createdByClerkUserId: string;
+    createdAtMs: number;
+    updatedAtMs: number;
+    secretCount: number;
+  }>,
+  any
+>({
   args: {
     expectedOrgSlug: v.string(),
   },
   returns: v.array(projectListItemValidator),
-  handler: async (ctx, args) => {
+  handler: (args) =>
+    withProjectQueryCtx(async (ctx, innerArgs) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
       return [];
@@ -33,7 +75,7 @@ export const listForCurrentOrg = query({
       return [];
     }
 
-    if (activeOrg.orgSlug !== null && activeOrg.orgSlug !== args.expectedOrgSlug) {
+    if (activeOrg.orgSlug !== null && activeOrg.orgSlug !== innerArgs.expectedOrgSlug) {
       return [];
     }
 
@@ -68,7 +110,7 @@ export const listForCurrentOrg = query({
         };
       }),
     );
-  },
+  }, args),
 });
 
 /**
@@ -81,13 +123,31 @@ export const listForCurrentOrg = query({
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const getBySlugForCurrentOrg = query({
+export const getBySlugForCurrentOrg = effectQuery<
+  {
+    expectedOrgSlug: string;
+    projectSlug: string;
+  },
+  {
+    id: string;
+    orgId: string;
+    orgSlug: string;
+    name: string;
+    slug: string;
+    slugBase: string;
+    createdByClerkUserId: string;
+    createdAtMs: number;
+    updatedAtMs: number;
+  } | null,
+  any
+>({
   args: {
     expectedOrgSlug: v.string(),
     projectSlug: v.string(),
   },
   returns: v.union(projectSummaryValidator, v.null()),
-  handler: async (ctx, args) => {
+  handler: (args) =>
+    withProjectQueryCtx(async (ctx, innerArgs) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
       return null;
@@ -98,14 +158,14 @@ export const getBySlugForCurrentOrg = query({
       return null;
     }
 
-    if (activeOrg.orgSlug !== null && activeOrg.orgSlug !== args.expectedOrgSlug) {
+    if (activeOrg.orgSlug !== null && activeOrg.orgSlug !== innerArgs.expectedOrgSlug) {
       return null;
     }
 
     const row = await ctx.db
       .query("projects")
       .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", activeOrg.orgId).eq("slug", args.projectSlug),
+        q.eq("orgId", activeOrg.orgId).eq("slug", innerArgs.projectSlug),
       )
       .unique();
 
@@ -124,5 +184,5 @@ export const getBySlugForCurrentOrg = query({
       createdAtMs: row.createdAtMs,
       updatedAtMs: row.updatedAtMs,
     };
-  },
+  }, args),
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   IconLock,
@@ -15,6 +15,7 @@ import {
 
 import { Logo } from "@/components/custom/logo";
 import { CodeBlock } from "@/components/custom/code-block";
+import { useScrollPastThreshold } from "@/hooks/use-scroll-past-threshold";
 import { useAnalytics } from "@/lib/posthog";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -494,18 +495,8 @@ export function LandingPage({
   isSignedIn: boolean;
   dashboardPath: string;
 }) {
-  const [scrolled, setScrolled] = useState(false);
+  const scrolled = useScrollPastThreshold(16);
   const primaryCtaPath = isSignedIn ? dashboardPath : "/auth/sso";
-
-  useEffect(() => {
-    function onScroll() {
-      setScrolled(window.scrollY > 16);
-    }
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   return (
     <div className="min-h-screen">

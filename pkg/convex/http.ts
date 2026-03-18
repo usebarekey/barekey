@@ -7,7 +7,7 @@ import {
   cliLogout,
   cliSession,
   cliTokenRefresh,
-} from "./lib/http_cli";
+} from "./lib/http/cli";
 import {
   envDefinitions,
   envList,
@@ -16,8 +16,8 @@ import {
   evaluateBatch,
   evaluateOne,
   publicEnvDefinitions,
-} from "./lib/http_env_routes";
-import { clerkWebhook, corsPreflight, typegenManifest } from "./lib/http_misc";
+} from "./lib/http/env/routes";
+import { clerkWebhook, corsPreflight, typegenManifest } from "./lib/http/misc";
 
 const http = httpRouter();
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { mapVariableMetadataRow } from "../../pkg/convex/lib/project_variables_shared";
+import { mapVariableMetadataRow } from "../../pkg/convex/lib/project_variables/rows";
 
 describe("mapVariableMetadataRow", () => {
   test("keeps rollout rows readable when milestones are missing", () => {

@@ -1,70 +1,100 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
 import { internal } from "../_generated/api";
-import { mutation } from "../confect";
+import type { MutationCtx } from "../_generated/server";
+import { BarekeyConfectMutationCtx, effectMutation } from "../confect";
 import {
-  assertExpectedOrgSlug,
-  requireActiveOrgIdClaims,
-  requireIdentity,
+  assertExpectedOrgSlugEffect,
+  requireActiveOrgIdClaimsEffect,
+  requireIdentityEffect,
 } from "../lib/auth";
-import { countVariablesForStage, requireProjectBySlugForOrg } from "./access";
+import { appendAuditEventEffect } from "../lib/confect/audit";
+import {
+  AuthError,
+  ExternalServiceError,
+  NotFoundError,
+  ValidationError,
+} from "../lib/errors/effect";
+import { findStageByProjectIdAndSlugEffect } from "../lib/projects/scope";
+import {
+  countVariablesForStageEffect,
+  requireProjectBySlugForOrgEffect,
+} from "./access";
+import { toProjectStageExternalServiceError } from "./errors";
 import { stageSummaryValidator } from "./types";
+import { validateStageNameEffect } from "./validation";
 
 /**
- * Renames a project stage display name.
+ * Renames a project stage display name as an Effect program.
  *
- * @param ctx The Convex mutation context.
  * @param args The expected org slug, project slug, stage slug, and next stage name.
- * @returns The updated stage summary.
- * @remarks The stage slug remains immutable; this only patches the display name and audit trail.
+ * @returns An Effect that succeeds with the updated stage summary.
+ * @remarks The stage slug remains immutable; this only patches the display name and appends an audit event.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const renameForCurrentOrgProject = mutation({
+function renameForCurrentOrgProjectEffect(
   args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-    stageSlug: v.string(),
-    name: v.string(),
+    expectedOrgSlug: string;
+    projectSlug: string;
+    stageSlug: string;
+    name: string;
   },
-  returns: stageSummaryValidator,
-  handler: async (ctx, args) => {
-    const identity = await requireIdentity(ctx);
-    const activeOrg = requireActiveOrgIdClaims(identity);
+): Effect.Effect<
+  {
+    id: string;
+    projectId: string;
+    orgId: string;
+    slug: string;
+    name: string;
+    isDefault: boolean;
+    variableCount: number;
+    createdAtMs: number;
+    updatedAtMs: number;
+  },
+  AuthError | ExternalServiceError | NotFoundError | ValidationError,
+  any
+> {
+  return Effect.gen(function* () {
+    const confectCtx = yield* BarekeyConfectMutationCtx;
+    const ctx = confectCtx.ctx as unknown as MutationCtx;
+    const identity = yield* requireIdentityEffect(ctx);
+    const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
+
     if (activeOrg.orgSlug !== null) {
-      assertExpectedOrgSlug(activeOrg, args.expectedOrgSlug);
+      yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
     }
 
-    const project = await requireProjectBySlugForOrg(ctx, {
+    const project = yield* requireProjectBySlugForOrgEffect(ctx, {
       orgId: activeOrg.orgId,
       projectSlug: args.projectSlug,
     });
+    const stage = yield* findStageByProjectIdAndSlugEffect(ctx.db, {
+      projectId: project._id,
+      stageSlug: args.stageSlug,
+    }).pipe(
+      Effect.flatMap((value) =>
+        value === null
+          ? Effect.fail(new NotFoundError({ message: "Stage not found." }))
+          : Effect.succeed(value),
+      ),
+    );
 
-    const stage = await ctx.db
-      .query("projectStages")
-      .withIndex("by_project_id_and_slug", (q) =>
-        q.eq("projectId", project._id).eq("slug", args.stageSlug),
-      )
-      .unique();
-    if (stage === null) {
-      throw new Error("Stage not found.");
-    }
-
-    const trimmedName = args.name.trim();
-    if (trimmedName.length === 0) {
-      throw new Error("Stage name is required.");
-    }
-    if (trimmedName.length > 64) {
-      throw new Error("Stage name must be 64 characters or fewer.");
-    }
-
+    const trimmedName = yield* validateStageNameEffect(args.name);
     const now = Date.now();
-    await ctx.db.patch(stage._id, {
-      name: trimmedName,
-      updatedAtMs: now,
+
+    yield* Effect.tryPromise({
+      try: () =>
+        ctx.db.patch(stage._id, {
+          name: trimmedName,
+          updatedAtMs: now,
+        }),
+      catch: (error) =>
+        toProjectStageExternalServiceError("Failed to update the stage name.", error),
     });
 
-    await ctx.runMutation(internal.audit.appendEventInternal, {
+    yield* appendAuditEventEffect({
       orgId: activeOrg.orgId,
       orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
       projectId: project._id,
@@ -91,6 +121,11 @@ export const renameForCurrentOrgProject = mutation({
       retentionTierOverride: null,
     });
 
+    const variableCount = yield* countVariablesForStageEffect(ctx, {
+      projectId: project._id,
+      stageSlug: stage.slug,
+    });
+
     return {
       id: stage._id,
       projectId: project._id,
@@ -98,12 +133,30 @@ export const renameForCurrentOrgProject = mutation({
       slug: stage.slug,
       name: trimmedName,
       isDefault: stage.isDefault,
-      variableCount: await countVariablesForStage(ctx, {
-        projectId: project._id,
-        stageSlug: stage.slug,
-      }),
+      variableCount,
       createdAtMs: stage.createdAtMs,
       updatedAtMs: now,
     };
+  });
+}
+
+/**
+ * Renames a project stage display name.
+ *
+ * @param ctx The Convex mutation context.
+ * @param args The expected org slug, project slug, stage slug, and next stage name.
+ * @returns The updated stage summary.
+ * @remarks The stage slug remains immutable; this only patches the display name and audit trail.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export const renameForCurrentOrgProject = effectMutation({
+  args: {
+    expectedOrgSlug: v.string(),
+    projectSlug: v.string(),
+    stageSlug: v.string(),
+    name: v.string(),
   },
+  returns: stageSummaryValidator,
+  handler: renameForCurrentOrgProjectEffect,
 });

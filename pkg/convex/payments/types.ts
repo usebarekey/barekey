@@ -4,8 +4,8 @@ import type {
   BillingVariant,
   OverageModeValue,
   ScheduledPlanChange,
-} from "../lib/payments_catalog";
-import type { FeatureUsage } from "../lib/payments_state";
+} from "../lib/payments/catalog";
+import type { FeatureUsage } from "../lib/payments/state";
 
 export type BillingStateResponse = {
   orgId: string;

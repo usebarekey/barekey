@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { LegacyHandlerError, toLegacyHandlerError } from "../../pkg/convex/lib/effect_errors";
+import { LegacyHandlerError, toLegacyHandlerError } from "../../pkg/convex/lib/errors/effect";
 
 describe("toLegacyHandlerError", () => {
   test("preserves an existing tagged legacy error", () => {

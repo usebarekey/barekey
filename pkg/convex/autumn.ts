@@ -1,7 +1,7 @@
 import { Autumn } from "@useautumn/convex";
 
 import { components } from "./_generated/api";
-import { runtimeConfig } from "./lib/runtime_config";
+import { runtimeConfig } from "./lib/runtime/config";
 
 function readStringClaim(identity: Record<string, unknown>, claimName: string): string | null {
   const value = identity[claimName];

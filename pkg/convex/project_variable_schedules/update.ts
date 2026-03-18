@@ -1,110 +1,142 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
-import { internal } from "../_generated/api";
-import { mutation } from "../confect";
+import type { Doc, Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
 import {
-  requireCurrentOrgProjectAccess,
-  requireStageInProject,
+  BarekeyConfectMutationCtx,
+  ClockService,
+  effectMutation,
+} from "../confect";
+import { appendAuditEventEffect } from "../lib/confect/audit";
+import { NotFoundError, ValidationError } from "../lib/errors/effect";
+import {
+  requireCurrentOrgProjectAccessEffect,
+  requireStageInProjectEffect,
 } from "./access";
+import { toScheduleExternalServiceError } from "./errors";
 import {
-  attachScheduledFunctionIdIfStillPending,
-  buildPreparedScheduleSnapshot,
+  attachScheduledFunctionIdIfStillPendingEffect,
+  buildPreparedScheduleSnapshotEffect,
+} from "./snapshot";
+import {
   scheduleBatchNames,
   summarizeScheduleEntries,
   toScheduledScheduleSummary,
-} from "./snapshot";
+} from "./summary";
+import { executeScheduledVariableScheduleInternalReference } from "./refs";
 import type { ScheduledCreateEntry, ScheduledUpdateEntry } from "./types";
 import {
   projectVariableScheduleCreateEntryValidator,
   projectVariableScheduleUpdateEntryValidator,
   scheduledScheduleSummaryValidator,
-  validateRunAtMs,
-  validateTimeZone,
+  validateRunAtMsEffect,
+  validateTimeZoneEffect,
 } from "./validators";
 
-/**
- * Updates an existing scheduled variable batch.
- *
- * @param ctx The Convex public mutation context.
- * @param args The workspace, project, schedule, stage, timing, and pending variable changes.
- * @returns The persisted scheduled batch summary after the edit.
- * @remarks This rewrites the prepared snapshot, reschedules execution, and appends an audit event.
- * @lastModified 2026-03-17
- * @author GPT-5.4
- */
-export const updateForCurrentOrgProject = mutation({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-    scheduleId: v.id("projectVariableSchedules"),
-    stageSlug: v.string(),
-    timezone: v.string(),
-    runAtMs: v.number(),
-    creates: v.array(projectVariableScheduleCreateEntryValidator),
-    updates: v.array(projectVariableScheduleUpdateEntryValidator),
-  },
-  returns: scheduledScheduleSummaryValidator,
-  handler: async (ctx, args) => {
-    const { activeOrg, project } = await requireCurrentOrgProjectAccess(
+type UpdateForCurrentOrgProjectArgs = {
+  expectedOrgSlug: string;
+  projectSlug: string;
+  scheduleId: Id<"projectVariableSchedules">;
+  stageSlug: string;
+  timezone: string;
+  runAtMs: number;
+  creates: Array<ScheduledCreateEntry>;
+  updates: Array<ScheduledUpdateEntry>;
+};
+
+function updateForCurrentOrgProjectEffect(
+  args: UpdateForCurrentOrgProjectArgs,
+): Effect.Effect<ReturnType<typeof toScheduledScheduleSummary>, unknown, any> {
+  return Effect.gen(function* () {
+    const confectCtx = yield* BarekeyConfectMutationCtx;
+    const clock = yield* ClockService;
+    const ctx = confectCtx.ctx as unknown as MutationCtx;
+    const { activeOrg, project } = yield* requireCurrentOrgProjectAccessEffect(
       ctx,
       args.expectedOrgSlug,
       args.projectSlug,
     );
 
-    const existingSchedule = await ctx.db.get(args.scheduleId);
+    const existingSchedule: Doc<"projectVariableSchedules"> | null =
+      yield* Effect.tryPromise({
+      try: () => ctx.db.get(args.scheduleId),
+      catch: (error) =>
+        toScheduleExternalServiceError("Failed to load the scheduled variable batch.", error),
+    });
     if (existingSchedule === null || existingSchedule.projectId !== project._id) {
-      throw new Error("Scheduled update not found.");
+      return yield* Effect.fail(new NotFoundError({ message: "Scheduled update not found." }));
     }
     if (existingSchedule.status !== "scheduled") {
-      throw new Error("Only scheduled updates can be edited.");
+      return yield* Effect.fail(
+        new ValidationError({ message: "Only scheduled updates can be edited." }),
+      );
     }
 
-    const stage = await requireStageInProject(ctx, project._id, args.stageSlug);
-    const timezone = validateTimeZone(args.timezone);
-    const runAtMs = validateRunAtMs(args.runAtMs);
+    const stage = yield* requireStageInProjectEffect(ctx, project._id, args.stageSlug);
+    const timezone = yield* validateTimeZoneEffect(args.timezone);
+    const runAtMs = yield* validateRunAtMsEffect(args.runAtMs);
 
-    const snapshot = await buildPreparedScheduleSnapshot({
+    const snapshot = yield* buildPreparedScheduleSnapshotEffect({
       ctx,
       orgId: activeOrg.orgId,
       clerkUserId: activeOrg.clerkUserId,
       projectSlug: args.projectSlug,
       stageSlug: stage.slug,
-      creates: args.creates as Array<ScheduledCreateEntry>,
-      updates: args.updates as Array<ScheduledUpdateEntry>,
+      creates: args.creates,
+      updates: args.updates,
     });
 
     if (existingSchedule.scheduledFunctionId !== null) {
-      await ctx.scheduler.cancel(existingSchedule.scheduledFunctionId);
+      yield* Effect.tryPromise({
+        try: () => ctx.scheduler.cancel(existingSchedule.scheduledFunctionId!),
+        catch: (error) =>
+          toScheduleExternalServiceError(
+            "Failed to cancel the existing scheduled execution.",
+            error,
+          ),
+      });
     }
 
-    const scheduledFunctionId = await ctx.scheduler.runAt(
-      runAtMs,
-      internal.project_variable_schedules.executeScheduledVariableScheduleInternal,
-      {
-        scheduleId: existingSchedule._id,
-      },
-    );
-
-    const updatedAtMs = Date.now();
-    await ctx.db.patch(existingSchedule._id, {
-      stageSlug: stage.slug,
-      timezone,
-      runAtMs,
-      status: "scheduled",
-      scheduledFunctionId: null,
-      preparedCreates: snapshot.preparedCreates,
-      preparedUpdates: snapshot.preparedUpdates,
-      updateTargets: snapshot.updateTargets,
-      createdCount: snapshot.createdCount,
-      updatedCount: snapshot.updatedCount,
-      updatedByClerkUserId: activeOrg.clerkUserId,
-      updatedAtMs,
-      executedAtMs: null,
-      canceledAtMs: null,
-      failedAtMs: null,
-      failureMessage: null,
+    const scheduledFunctionId = yield* Effect.tryPromise({
+      try: () =>
+        ctx.scheduler.runAt(
+          runAtMs,
+          executeScheduledVariableScheduleInternalReference,
+          {
+            scheduleId: existingSchedule._id,
+          },
+        ),
+      catch: (error) =>
+        toScheduleExternalServiceError("Failed to reschedule the variable batch execution.", error),
     });
-    const persistedSchedule = await attachScheduledFunctionIdIfStillPending({
+
+    const updatedAtMs = clock.nowMs();
+    yield* Effect.tryPromise({
+      try: () =>
+        ctx.db.patch(existingSchedule._id, {
+          stageSlug: stage.slug,
+          timezone,
+          runAtMs,
+          status: "scheduled",
+          scheduledFunctionId: null,
+          preparedCreates: snapshot.preparedCreates,
+          preparedUpdates: snapshot.preparedUpdates,
+          updateTargets: snapshot.updateTargets,
+          createdCount: snapshot.createdCount,
+          updatedCount: snapshot.updatedCount,
+          updatedByClerkUserId: activeOrg.clerkUserId,
+          updatedAtMs,
+          executedAtMs: null,
+          canceledAtMs: null,
+          failedAtMs: null,
+          failureMessage: null,
+        }),
+      catch: (error) =>
+        toScheduleExternalServiceError("Failed to update the scheduled variable batch.", error),
+    });
+    const persistedSchedule: Doc<"projectVariableSchedules"> | null =
+      yield* attachScheduledFunctionIdIfStillPendingEffect({
       ctx,
       scheduleId: existingSchedule._id,
       scheduledFunctionId,
@@ -116,7 +148,7 @@ export const updateForCurrentOrgProject = mutation({
       updateTargets: snapshot.updateTargets,
     });
 
-    await ctx.runMutation(internal.audit.appendEventInternal, {
+    yield* appendAuditEventEffect({
       orgId: activeOrg.orgId,
       orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
       projectId: project._id,
@@ -168,5 +200,34 @@ export const updateForCurrentOrgProject = mutation({
       failedAtMs: persistedSchedule?.failedAtMs ?? null,
       failureMessage: persistedSchedule?.failureMessage ?? null,
     });
+  });
+}
+
+/**
+ * Updates an existing scheduled variable batch.
+ *
+ * @param ctx The Convex public mutation context.
+ * @param args The workspace, project, schedule, stage, timing, and pending variable changes.
+ * @returns The persisted scheduled batch summary after the edit.
+ * @remarks This rewrites the prepared snapshot, reschedules execution, and appends an audit event.
+ * @lastModified 2026-03-17
+ * @author GPT-5.4
+ */
+export const updateForCurrentOrgProject = effectMutation<
+  UpdateForCurrentOrgProjectArgs,
+  ReturnType<typeof toScheduledScheduleSummary>,
+  any
+>({
+  args: {
+    expectedOrgSlug: v.string(),
+    projectSlug: v.string(),
+    scheduleId: v.id("projectVariableSchedules"),
+    stageSlug: v.string(),
+    timezone: v.string(),
+    runAtMs: v.number(),
+    creates: v.array(projectVariableScheduleCreateEntryValidator),
+    updates: v.array(projectVariableScheduleUpdateEntryValidator),
   },
+  returns: scheduledScheduleSummaryValidator,
+  handler: updateForCurrentOrgProjectEffect,
 });

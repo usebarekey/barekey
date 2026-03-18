@@ -1,7 +1,8 @@
-import { api, internal } from "../_generated/api";
+import { api } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
-import { normalizeFiniteNumber } from "../lib/payments_variants";
-import type { FeatureUsage } from "../lib/payments_state";
+import { normalizeFiniteNumber } from "../lib/payments/variants";
+import type { FeatureUsage } from "../lib/payments/state";
+import { getFreePlanCreditForOrgIdInternalReference } from "./refs";
 
 /**
  * Checks whether a free-plan credit is already assigned to the given organization.
@@ -19,7 +20,7 @@ export async function hasFreePlanCreditAssignedToOrg(
     orgId: string;
   },
 ): Promise<boolean> {
-  const credit = await ctx.runQuery(internal.payments.getFreePlanCreditForOrgIdInternal, {
+  const credit = await ctx.runQuery(getFreePlanCreditForOrgIdInternalReference, {
     orgId: input.orgId,
   });
   return credit !== null;

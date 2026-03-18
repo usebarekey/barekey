@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { Id } from "../../_generated/dataModel";
 import type { AuditEventInput } from "../../audit/types";
-import type { ExternalServiceError } from "../effect_errors";
+import type { ExternalServiceError } from "../errors/effect";
 import { AuditService } from "./services";
 
 /**

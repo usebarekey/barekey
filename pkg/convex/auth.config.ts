@@ -1,5 +1,5 @@
 import type { AuthConfig } from "convex/server";
-import { runtimeConfig } from "./lib/runtime_config";
+import { runtimeConfig } from "./lib/runtime/config";
 
 export default {
   providers: [

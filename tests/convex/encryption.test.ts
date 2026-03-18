@@ -8,7 +8,7 @@ import {
   unwrapDekWithMasterKey,
   wrapDekWithMasterKey,
 } from "../../pkg/convex/lib/encryption";
-import { encryptedPayloadByteLength } from "../../pkg/convex/lib/project_variables_shared";
+import { encryptedPayloadByteLength } from "../../pkg/convex/lib/project_variables/validation";
 
 function randomKey(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(32));

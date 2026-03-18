@@ -1,4 +1,7 @@
+import { Effect } from "effect";
+
 import type { MutationCtx } from "../_generated/server";
+import { ExternalServiceError } from "../lib/errors/effect";
 
 /**
  * Normalizes a project name into the base slug stem used for allocation.
@@ -34,33 +37,54 @@ function randomNumericSuffix(length: number): string {
   return String(value).padStart(length, "0");
 }
 
+function toProjectSlugError(
+  fallbackMessage: string,
+  error: unknown,
+): ExternalServiceError {
+  return new ExternalServiceError({
+    message: error instanceof Error ? error.message : fallbackMessage,
+    cause: error,
+  });
+}
+
 /**
- * Allocates a unique project slug within an organization.
+ * Allocates a unique project slug within an organization as an Effect program.
  *
  * @param ctx The Convex mutation context.
  * @param args The organization id and desired slug base.
- * @returns The allocated unique slug.
- * @remarks This retries multiple numeric suffix widths before failing.
+ * @returns An Effect that succeeds with the allocated unique slug.
+ * @remarks This retries multiple numeric suffix widths before failing with a typed external-service error.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export async function allocateUniqueProjectSlug(
+export function allocateUniqueProjectSlugEffect(
   ctx: MutationCtx,
   args: { orgId: string; slugBase: string },
-): Promise<string> {
-  for (const suffixLength of [4, 6] as const) {
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
-      const existing = await ctx.db
-        .query("projects")
-        .withIndex("by_org_id_and_slug", (q) => q.eq("orgId", args.orgId).eq("slug", candidate))
-        .unique();
+): Effect.Effect<string, ExternalServiceError> {
+  return Effect.gen(function* () {
+    for (const suffixLength of [4, 6] as const) {
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
+        const existing = yield* Effect.tryPromise({
+          try: () =>
+            ctx.db
+              .query("projects")
+              .withIndex("by_org_id_and_slug", (q) =>
+                q.eq("orgId", args.orgId).eq("slug", candidate),
+              )
+              .unique(),
+          catch: (error) =>
+            toProjectSlugError(`Failed while checking project slug ${candidate}.`, error),
+        });
 
-      if (existing === null) {
-        return candidate;
+        if (existing === null) {
+          return candidate;
+        }
       }
     }
-  }
 
-  throw new Error("Unable to allocate a unique project slug.");
+    return yield* Effect.fail(
+      toProjectSlugError("Unable to allocate a unique project slug.", null),
+    );
+  });
 }
