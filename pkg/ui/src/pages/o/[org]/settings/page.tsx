@@ -93,6 +93,7 @@ export function Page() {
   const orgDeletionReadiness = useQuery(api.orgs.getCurrentOrgDeletionReadiness, {
     expectedOrgSlug: orgSlug,
   });
+  const currentOrganizationName = organization?.name ?? "";
 
   const memberCount = memberships?.count ?? 0;
   const inviteCount = invitations?.count ?? 0;
@@ -128,15 +129,17 @@ export function Page() {
     : isDeleteBlockedByProjects
       ? `Delete is blocked until ${remainingProjectCount} project${remainingProjectCount === 1 ? "" : "s"} ${remainingProjectCount === 1 ? "is" : "are"} removed.`
       : null;
+  const [nameDraftSource, setNameDraftSource] = useState("");
+
+  if (nameDraftSource !== currentOrganizationName) {
+    setNameDraftSource(currentOrganizationName);
+    setNameDraft(currentOrganizationName);
+  }
 
   useEffect(() => {
     const orgLabel = organization?.name?.trim() || orgSlug;
     document.title = `${orgLabel} · Settings`;
   }, [organization?.name, orgSlug]);
-
-  useEffect(() => {
-    setNameDraft(organization?.name ?? "");
-  }, [organization?.name]);
 
   useEffect(() => {
     if (!isDeleteOrganizationDialogOpen) {

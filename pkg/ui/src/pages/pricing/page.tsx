@@ -15,6 +15,7 @@ import { useAuth } from "@clerk/react-router";
 
 import { api } from "@convex/_generated/api";
 import { buttonVariants } from "@/components/ui/button";
+import { useScrollPastThreshold } from "@/hooks/use-scroll-past-threshold";
 import { useAnalytics } from "@/lib/posthog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Nav, Footer } from "@/pages/home/landing";
@@ -157,7 +158,7 @@ export function Page() {
   const billingPath = orgSlug ? `/o/${orgSlug}/billing` : "/o/select";
   const hasSignedInSession = isLoaded && !!isSignedIn;
 
-  const [scrolled, setScrolled] = useState(false);
+  const scrolled = useScrollPastThreshold(16);
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [overageMode, setOverageMode] = useState<OverageMode>("without_overages");
   const [variants, setVariants] = useState<Array<PricingVariant> | null>(null);
@@ -184,14 +185,6 @@ export function Page() {
       cancelled = true;
     };
   }, [getPricingCatalog]);
-
-  useEffect(() => {
-    function onScroll() {
-      setScrolled(window.scrollY > 16);
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const planTiers = useMemo(() => {
     return PLAN_METADATA.map((plan) => {

@@ -13,14 +13,9 @@ export function useUnsavedChangesGuard({
   const currentHistoryStateRef = useRef<unknown>(window.history.state);
   const onBlockedAttemptRef = useRef(onBlockedAttempt);
 
-  useEffect(() => {
-    onBlockedAttemptRef.current = onBlockedAttempt;
-  }, [onBlockedAttempt]);
-
-  useEffect(() => {
-    currentPathRef.current = `${location.pathname}${location.search}${location.hash}`;
-    currentHistoryStateRef.current = window.history.state;
-  }, [location.hash, location.pathname, location.search]);
+  onBlockedAttemptRef.current = onBlockedAttempt;
+  currentPathRef.current = `${location.pathname}${location.search}${location.hash}`;
+  currentHistoryStateRef.current = window.history.state;
 
   useEffect(() => {
     if (!hasUnsavedChanges) {

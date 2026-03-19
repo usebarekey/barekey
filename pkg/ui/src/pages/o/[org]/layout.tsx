@@ -342,11 +342,9 @@ export function Layout() {
   const matchingMembership =
     matchingMembershipBySlug ?? (routeMatchesActiveOrg ? matchingMembershipByActiveOrgId : null);
 
-  useEffect(() => {
-    if (isSettingsRoute) {
-      setIsSettingsOpen(true);
-    }
-  }, [isSettingsRoute]);
+  if (isSettingsRoute && !isSettingsOpen) {
+    setIsSettingsOpen(true);
+  }
 
   useEffect(() => {
     if (!isAuthLoaded || !isSignedIn || !isOrgListLoaded) {

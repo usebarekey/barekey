@@ -8,7 +8,7 @@ import {
   toTypeScriptTypeForDeclaredType,
   validateAndNormalizeDeclaredAbRoll,
   validateAndNormalizeDeclaredValue,
-} from "../../pkg/convex/lib/declared_types";
+} from "../../pkg/convex/lib/declared/types";
 
 describe("fallbackDeclaredType", () => {
   test("preserves supported declared types", () => {

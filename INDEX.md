@@ -4,6 +4,17 @@
 
 ## Active Notes
 
+### 2026-03-16
+
+- **[REVISIT] Effect/Confect + XChaCha20 prod cutover is deployed but must not be auto-merged.**
+  Branch: `codex/effect-confect-xchacha-cutover`. This change rewires
+  `pkg/convex` through a Confect/Effect bridge, changes secret/DEK envelopes to
+  `xcp1.*`, and includes a destructive cutover mutation
+  `cutover:wipeEncryptedDataInternal` that clears `projectKeys`,
+  `projectVariables`, `projectVariableSchedules`, and `orgStorageUsage`.
+  Repo policy says encryption / DEK lifecycle changes require human review
+  before merge, so open/maintain the PR but do not merge it autonomously.
+
 ### 2026-03-14
 
 - **Select component `alignItemWithTrigger` default changed to `false`.**

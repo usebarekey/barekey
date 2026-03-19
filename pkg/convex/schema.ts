@@ -1,13 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-import { declaredTypeValidator } from "./lib/declared_types";
+import { declaredTypeValidator } from "./lib/declared/types";
 import {
   projectVariablePreparedCreateValidator,
   projectVariablePreparedUpdateValidator,
   projectVariableScheduleStatusValidator,
   projectVariableScheduleUpdateTargetValidator,
-} from "./lib/project_variable_schedules";
+} from "./lib/project_variables/schedules";
 import {
   auditActorSourceValidator,
   auditCategoryValidator,

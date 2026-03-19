@@ -1,4 +1,7 @@
+import { Either, Schema } from "effect";
 import { v } from "convex/values";
+
+import { throwValidationError } from "./errors/effect";
 
 export const ROLLOUT_FUNCTIONS = ["linear", "step", "ease_in_out"] as const;
 
@@ -22,39 +25,56 @@ export type RolloutMilestone = {
   percentage: number;
 };
 
+export const rolloutFunctionSchema = Schema.Literal("linear", "step", "ease_in_out");
+const rolloutMilestoneShapeSchema = Schema.Struct({
+  at: Schema.String,
+  percentage: Schema.Number.pipe(Schema.finite(), Schema.between(0, 100)),
+});
+const nonEmptyRolloutMilestonesSchema = Schema.Array(rolloutMilestoneShapeSchema).pipe(
+  Schema.filter((value) =>
+    value.length > 0 || "rollout milestones must contain at least one entry.",
+  ),
+);
+
+function decodeRolloutMilestones(
+  value: Array<RolloutMilestone>,
+): Array<RolloutMilestone> | null {
+  const decoded = Schema.decodeUnknownEither(nonEmptyRolloutMilestonesSchema)(value);
+  return Either.isRight(decoded) ? [...decoded.right] : null;
+}
+
 function parseRolloutInstant(value: string): number {
   const parsed = Date.parse(value);
   if (!Number.isFinite(parsed)) {
-    throw new Error(`Invalid rollout milestone instant: ${value}`);
+    return throwValidationError(`Invalid rollout milestone instant: ${value}`);
   }
   return parsed;
 }
 
 export function isRolloutFunction(value: string): value is RolloutFunction {
-  return (ROLLOUT_FUNCTIONS as ReadonlyArray<string>).includes(value);
+  return Either.isRight(Schema.decodeUnknownEither(rolloutFunctionSchema)(value));
 }
 
 export function validateRolloutMilestones(value: Array<RolloutMilestone>): Array<RolloutMilestone> {
-  if (value.length === 0) {
-    throw new Error("rollout milestones must contain at least one entry.");
+  const decoded = decodeRolloutMilestones(value);
+  if (decoded === null) {
+    if (value.length === 0) {
+      return throwValidationError("rollout milestones must contain at least one entry.");
+    }
+    return throwValidationError("rollout milestone percentages must be between 0 and 100.");
   }
 
   let previousAtMs = -Infinity;
-  return value.map((milestone) => {
-    const percentage = milestone.percentage;
-    if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
-      throw new Error("rollout milestone percentages must be between 0 and 100.");
-    }
-
+  return decoded.map((milestone) => {
     const atMs = parseRolloutInstant(milestone.at);
     if (atMs <= previousAtMs) {
-      throw new Error("rollout milestones must be strictly increasing by time.");
+      return throwValidationError("rollout milestones must be strictly increasing by time.");
     }
     previousAtMs = atMs;
 
     return {
       at: new Date(atMs).toISOString(),
-      percentage,
+      percentage: milestone.percentage,
     };
   });
 }

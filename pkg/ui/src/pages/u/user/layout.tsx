@@ -9,7 +9,7 @@ import {
   IconSettings,
   IconSettingsCog,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { Logo } from "@/components/custom/logo";
@@ -221,17 +221,13 @@ export function Layout() {
   const [isProfileOpen, setIsProfileOpen] = useState(isProfileSectionActive);
   const [isSecurityOpen, setIsSecurityOpen] = useState(isSecuritySectionActive);
 
-  useEffect(() => {
-    if (isProfileSectionActive) {
-      setIsProfileOpen(true);
-    }
-  }, [isProfileSectionActive]);
+  if (isProfileSectionActive && !isProfileOpen) {
+    setIsProfileOpen(true);
+  }
 
-  useEffect(() => {
-    if (isSecuritySectionActive) {
-      setIsSecurityOpen(true);
-    }
-  }, [isSecuritySectionActive]);
+  if (isSecuritySectionActive && !isSecurityOpen) {
+    setIsSecurityOpen(true);
+  }
 
   if (!isLoaded) {
     return (
