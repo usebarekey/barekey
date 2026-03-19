@@ -2,37 +2,12 @@ import {
   type BillingIntervalValue,
   type BillingTierValue,
 } from "../catalog";
+import { readAutumnErrorMessage } from "./schema";
 
 export type WorkspacePlanState = {
   currentProductId: string;
   currentTier: BillingTierValue | null;
 };
-
-/**
- * Normalizes unknown values into finite numbers.
- *
- * @param input The raw value to inspect.
- * @returns The finite number, or `null`.
- * @remarks This is used when reading Autumn payloads with loose JSON typing.
- * @lastModified 2026-03-17
- * @author GPT-5.4
- */
-export function normalizeFiniteNumber(input: unknown): number | null {
-  return typeof input === "number" && Number.isFinite(input) ? input : null;
-}
-
-/**
- * Normalizes unknown values into non-empty strings.
- *
- * @param input The raw value to inspect.
- * @returns The non-empty string, or `null`.
- * @remarks Empty strings are treated as absent when decoding Autumn payloads.
- * @lastModified 2026-03-17
- * @author GPT-5.4
- */
-export function normalizeString(input: unknown): string | null {
-  return typeof input === "string" && input.length > 0 ? input : null;
-}
 
 /**
  * Detects Autumn's force-checkout upgrade/downgrade error variant.
@@ -44,12 +19,7 @@ export function normalizeString(input: unknown): string | null {
  * @author GPT-5.4
  */
 export function hasForceCheckoutUpgradeDowngradeError(error: unknown): boolean {
-  const text =
-    typeof error === "string"
-      ? error
-      : error instanceof Error
-        ? error.message
-        : JSON.stringify(error) ?? "";
+  const text = readAutumnErrorMessage(error) ?? JSON.stringify(error) ?? "";
   const normalized = text.toLowerCase();
   return (
     normalized.includes("force_checkout") &&

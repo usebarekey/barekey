@@ -1,5 +1,32 @@
+import { Schema } from "effect";
+
 import type { EvaluateBatchRequest, EvaluateSingleRequest } from "../types";
-import { normalizeName, readOptionalString } from "./shared";
+import { decodePayloadOrNull } from "./shared";
+
+const trimmedNonEmptyStringSchema = Schema.Trim.pipe(Schema.minLength(1));
+const optionalLooseStringSchema = Schema.optional(Schema.NullOr(Schema.String));
+const singleRequestSchema = Schema.Struct({
+  orgSlug: Schema.optional(Schema.NullOr(trimmedNonEmptyStringSchema)),
+  projectSlug: trimmedNonEmptyStringSchema,
+  stageSlug: trimmedNonEmptyStringSchema,
+  name: trimmedNonEmptyStringSchema,
+  key: optionalLooseStringSchema,
+  seed: optionalLooseStringSchema,
+});
+const batchRequestSchema = Schema.Struct({
+  orgSlug: Schema.optional(Schema.NullOr(trimmedNonEmptyStringSchema)),
+  projectSlug: trimmedNonEmptyStringSchema,
+  stageSlug: trimmedNonEmptyStringSchema,
+  names: Schema.Array(trimmedNonEmptyStringSchema).pipe(
+    Schema.filter((names) => names.length > 0 || "At least one variable name is required."),
+    Schema.filter((names) => {
+      const uniqueNames = new Set(names);
+      return uniqueNames.size === names.length || "Variable names must be unique.";
+    }),
+  ),
+  key: optionalLooseStringSchema,
+  seed: optionalLooseStringSchema,
+});
 
 /**
  * Parses a single-variable evaluation request.
@@ -11,25 +38,18 @@ import { normalizeName, readOptionalString } from "./shared";
  * @author GPT-5.4
  */
 export function parseSingleRequest(payload: unknown): EvaluateSingleRequest | null {
-  if (typeof payload !== "object" || payload === null) {
-    return null;
-  }
-  const input = payload as Record<string, unknown>;
-  const projectSlug = typeof input.projectSlug === "string" ? input.projectSlug.trim() : "";
-  const stageSlug = typeof input.stageSlug === "string" ? input.stageSlug.trim() : "";
-  const name = typeof input.name === "string" ? normalizeName(input.name) : "";
-
-  if (projectSlug.length === 0 || stageSlug.length === 0 || name.length === 0) {
+  const decoded = decodePayloadOrNull(singleRequestSchema, payload);
+  if (decoded === null) {
     return null;
   }
 
   return {
-    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
-    projectSlug,
-    stageSlug,
-    name,
-    key: typeof input.key === "string" ? input.key : undefined,
-    seed: typeof input.seed === "string" ? input.seed : undefined,
+    orgSlug: decoded.orgSlug ?? undefined,
+    projectSlug: decoded.projectSlug,
+    stageSlug: decoded.stageSlug,
+    name: decoded.name,
+    key: decoded.key ?? undefined,
+    seed: decoded.seed ?? undefined,
   };
 }
 
@@ -43,36 +63,17 @@ export function parseSingleRequest(payload: unknown): EvaluateSingleRequest | nu
  * @author GPT-5.4
  */
 export function parseBatchRequest(payload: unknown): EvaluateBatchRequest | null {
-  if (typeof payload !== "object" || payload === null) {
+  const decoded = decodePayloadOrNull(batchRequestSchema, payload);
+  if (decoded === null) {
     return null;
-  }
-  const input = payload as Record<string, unknown>;
-  const projectSlug = typeof input.projectSlug === "string" ? input.projectSlug.trim() : "";
-  const stageSlug = typeof input.stageSlug === "string" ? input.stageSlug.trim() : "";
-  const names = Array.isArray(input.names)
-    ? input.names
-        .filter((value): value is string => typeof value === "string")
-        .map((value) => normalizeName(value))
-    : [];
-
-  if (projectSlug.length === 0 || stageSlug.length === 0 || names.length === 0) {
-    return null;
-  }
-
-  const unique = new Set<string>();
-  for (const name of names) {
-    if (name.length === 0 || unique.has(name)) {
-      return null;
-    }
-    unique.add(name);
   }
 
   return {
-    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
-    projectSlug,
-    stageSlug,
-    names,
-    key: typeof input.key === "string" ? input.key : undefined,
-    seed: typeof input.seed === "string" ? input.seed : undefined,
+    orgSlug: decoded.orgSlug ?? undefined,
+    projectSlug: decoded.projectSlug,
+    stageSlug: decoded.stageSlug,
+    names: [...decoded.names],
+    key: decoded.key ?? undefined,
+    seed: decoded.seed ?? undefined,
   };
 }

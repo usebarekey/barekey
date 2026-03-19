@@ -1,5 +1,13 @@
 export { createAutumnClient } from "./variants/client";
 export {
+  decodeAutumnCheckoutUrl,
+  decodeAutumnCustomerProducts,
+  decodeAutumnFeatureUsage,
+  decodeAutumnPortalUrl,
+  decodeAutumnProductList,
+  readAutumnErrorMessage,
+} from "./variants/schema";
+export {
   readCurrentVariantFromProductId,
   readDefaultVariantByProductId,
   resolvePricingVariants,
@@ -9,8 +17,6 @@ export {
 export {
   hasForceCheckoutUpgradeDowngradeError,
   isBillingManagerRole,
-  normalizeFiniteNumber,
-  normalizeString,
   type WorkspacePlanState,
 } from "./variants/shared";
 export {

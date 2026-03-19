@@ -19,7 +19,7 @@ import {
 /**
  * Revokes the free-plan credit assigned to the current organization.
  *
- * @param ctx The Convex mutation context.
+ * @param runtimeCtx The Convex mutation context.
  * @param args The Clerk user, organization, and optional revoke reason.
  * @returns An Effect that succeeds with the revoke result and canonical credit state.
  * @remarks This increments remaining credits back up to the cap and clears the assigned organization.
@@ -27,19 +27,19 @@ import {
  * @author GPT-5.4
  */
 function revokeFreePlanCreditForCurrentOrgInternalEffect(
-  ctx: MutationCtx,
+  runtimeCtx: MutationCtx,
   args: RevokeCurrentOrgArgs,
 ): Effect.Effect<RevokeCurrentOrgResult, ExternalServiceError> {
   return Effect.gen(function* () {
     const now = Date.now();
     let row = yield* Effect.tryPromise({
-      try: () => getCanonicalFreePlanCreditForClerkUserId(ctx, args.clerkUserId),
+      try: () => getCanonicalFreePlanCreditForClerkUserId(runtimeCtx, args.clerkUserId),
       catch: (error) =>
         toFreePlanCreditRevocationError("Failed to load the free-plan credit row.", error),
     });
 
     if (row === null) {
-      row = yield* createAvailableFreePlanCreditRowEffect(ctx, args.clerkUserId, now);
+      row = yield* createAvailableFreePlanCreditRowEffect(runtimeCtx, args.clerkUserId, now);
       return {
         revoked: false,
         reason: "already_available",
@@ -67,7 +67,7 @@ function revokeFreePlanCreditForCurrentOrgInternalEffect(
     const revokedReason = args.reason ?? "manual_revoke";
     yield* Effect.tryPromise({
       try: () =>
-        ctx.db.patch(row._id, {
+        runtimeCtx.db.patch(row._id, {
           remainingCredits: nextRemainingCredits,
           assignedOrgId: null,
           assignedOrgSlug: null,
@@ -98,7 +98,7 @@ function revokeFreePlanCreditForCurrentOrgInternalEffect(
 /**
  * Revokes the free-plan credit assigned to the current organization.
  *
- * @param ctx The Convex internal mutation context.
+ * @param runtimeCtx The Convex internal mutation context.
  * @param args The Clerk user, organization, and optional revoke reason.
  * @returns The revoke result and canonical credit state.
  * @remarks This increments remaining credits back up to the cap and clears the assigned org.
@@ -119,7 +119,7 @@ export const revokeFreePlanCreditForCurrentOrgInternal = effectInternalMutation<
   handler: (args) =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectMutationCtx;
-      const ctx = confectCtx.ctx as unknown as MutationCtx;
-      return yield* revokeFreePlanCreditForCurrentOrgInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+      return yield* revokeFreePlanCreditForCurrentOrgInternalEffect(runtimeCtx, args);
     }),
 });

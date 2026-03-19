@@ -19,7 +19,7 @@ type ActiveOrgIdentity = {
  * Ensures the target organization has a usable free-plan credit before switching
  * onto the free workspace tier.
  *
- * @param ctx The Convex action context.
+ * @param convexCtx The Convex action context.
  * @param args The current user, active organization, and requested tier.
  * @returns The consume reason when a credit was consumed, or `null` when no credit work was needed.
  * @remarks This may consume one free-plan credit and fails with typed validation errors when the credit cannot be used.
@@ -27,7 +27,7 @@ type ActiveOrgIdentity = {
  * @author GPT-5.4
  */
 export function ensureFreePlanCreditForTargetTierEffect(
-  ctx: ActionCtx,
+  convexCtx: ActionCtx,
   args: {
     clerkUserId: string;
     activeOrg: ActiveOrgIdentity;
@@ -40,7 +40,7 @@ export function ensureFreePlanCreditForTargetTierEffect(
   return Effect.gen(function* () {
     const existingOrgFreeCredit = yield* Effect.tryPromise({
       try: () =>
-        ctx.runQuery(getFreePlanCreditForOrgIdInternalReference, {
+        convexCtx.runQuery(getFreePlanCreditForOrgIdInternalReference, {
           orgId: args.activeOrg.orgId,
         }),
       catch: (error) =>
@@ -53,7 +53,7 @@ export function ensureFreePlanCreditForTargetTierEffect(
 
     const consumeResult = (yield* Effect.tryPromise({
       try: () =>
-        ctx.runMutation(consumeFreePlanCreditForCurrentOrgInternalReference, {
+        convexCtx.runMutation(consumeFreePlanCreditForCurrentOrgInternalReference, {
           clerkUserId: args.clerkUserId,
           orgId: args.activeOrg.orgId,
           orgSlug: args.activeOrg.orgSlug,

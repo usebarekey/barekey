@@ -1,48 +1,13 @@
-import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../confect";
-import { readOptionalString } from "../env";
 import { buildJsonResponse, errorResponse, readRequestId } from "../responses";
+import { decodeCliRefreshTokenBody } from "./input";
+import {
+  refreshCliSession,
+  revokeCliSession,
+  resolveCliOrganizationAccess,
+  type RefreshedCliSession,
+} from "./token_refresh/data";
 import { readJsonBody } from "./shared";
-
-const refreshSessionInternalReference = makeFunctionReference<
-  "mutation",
-  {
-    refreshToken: string;
-  },
-  {
-    accessToken: string;
-    refreshToken: string;
-    accessTokenExpiresAtMs: number;
-    refreshTokenExpiresAtMs: number;
-    clerkUserId: string;
-    orgId: string;
-    orgSlug: string;
-  } | null
->("cli_auth:refreshSessionInternal") as any;
-
-const revokeSessionInternalReference = makeFunctionReference<
-  "mutation",
-  {
-    refreshToken: string;
-  },
-  {
-    revoked: boolean;
-  }
->("cli_auth:revokeSessionInternal") as any;
-
-const resolveOrganizationAccessForCliUserInternalReference = makeFunctionReference<
-  "action",
-  {
-    clerkUserId: string;
-    requestedOrgSlug: string;
-    fallbackOrgId: string;
-    fallbackOrgSlug: string;
-  },
-  {
-    orgId: string;
-    orgSlug: string;
-  } | null
->("clerk:resolveOrganizationAccessForCliUserInternal") as any;
 
 /**
  * Refreshes a CLI session from a refresh token.
@@ -68,7 +33,8 @@ export const cliTokenRefresh = httpAction(async (ctx, request) => {
     });
   }
 
-  if (typeof payload !== "object" || payload === null) {
+  const parsed = decodeCliRefreshTokenBody(payload);
+  if (parsed === null) {
     return errorResponse({
       status: 400,
       code: "INVALID_REQUEST",
@@ -77,30 +43,7 @@ export const cliTokenRefresh = httpAction(async (ctx, request) => {
     });
   }
 
-  const input = payload as Record<string, unknown>;
-  const refreshToken = readOptionalString(input, "refreshToken");
-  if (refreshToken === null) {
-    return errorResponse({
-      status: 400,
-      code: "INVALID_REQUEST",
-      message: "refreshToken is required.",
-      requestId,
-    });
-  }
-
-  const refreshed = (await ctx.runMutation(refreshSessionInternalReference, {
-    refreshToken,
-  })) as
-    | {
-        accessToken: string;
-        refreshToken: string;
-        accessTokenExpiresAtMs: number;
-        refreshTokenExpiresAtMs: number;
-        clerkUserId: string;
-        orgId: string;
-        orgSlug: string;
-      }
-    | null;
+  const refreshed = (await refreshCliSession(ctx, parsed.refreshToken)) as RefreshedCliSession | null;
 
   if (refreshed === null) {
     return errorResponse({
@@ -116,7 +59,7 @@ export const cliTokenRefresh = httpAction(async (ctx, request) => {
     orgSlug: string;
   } | null;
   try {
-    access = (await ctx.runAction(resolveOrganizationAccessForCliUserInternalReference, {
+    access = (await resolveCliOrganizationAccess(ctx, {
       clerkUserId: refreshed.clerkUserId,
       requestedOrgSlug: refreshed.orgSlug,
       fallbackOrgId: refreshed.orgId,
@@ -133,9 +76,7 @@ export const cliTokenRefresh = httpAction(async (ctx, request) => {
   }
 
   if (access === null) {
-    await ctx.runMutation(revokeSessionInternalReference, {
-      refreshToken: refreshed.refreshToken,
-    });
+    await revokeCliSession(ctx, refreshed.refreshToken);
     return errorResponse({
       status: 403,
       code: "ORG_SCOPE_INVALID",

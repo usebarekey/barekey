@@ -9,8 +9,12 @@ import {
 import { requireCurrentOrgAccessEffect } from "../access";
 import {
   projectVariableValidationError,
-  toProjectVariableExternalServiceError,
 } from "../errors";
+import {
+  deleteProjectVariableRowEffect,
+  insertProjectVariableRowEffect,
+  patchProjectVariableRowEffect,
+} from "../persist";
 import type { ApplyPreparedDraftArgs, DraftWriteResult } from "../types";
 
 /**
@@ -28,16 +32,17 @@ export function applyPreparedDraftForCurrentOrgProjectStageInternalEffect(
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectMutationCtx;
     const clock = yield* ClockService;
-    const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const activeOrg = yield* requireCurrentOrgAccessEffect(ctx, args.expectedOrgSlug);
+    const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+    const activeOrg = yield* requireCurrentOrgAccessEffect(runtimeCtx, args.expectedOrgSlug);
+    const db = runtimeCtx.db;
 
-    const { project, stage } = yield* requireProjectStageByOrgIdAndSlugEffect(ctx.db, {
+    const { project, stage } = yield* requireProjectStageByOrgIdAndSlugEffect(db, {
       orgId: activeOrg.orgId,
       projectSlug: args.projectSlug,
       stageSlug: args.stageSlug,
     });
 
-    const existingRows = yield* listProjectVariableRowsForStageEffect(ctx.db, {
+    const existingRows = yield* listProjectVariableRowsForStageEffect(db, {
       projectId: project._id,
       stageSlug: stage.slug,
     });
@@ -71,25 +76,21 @@ export function applyPreparedDraftForCurrentOrgProjectStageInternalEffect(
         );
       }
 
-      yield* Effect.tryPromise({
-        try: () =>
-          ctx.db.patch(update.id, {
-            visibility: update.visibility,
-            kind: update.kind,
-            declaredType: update.declaredType,
-            encryptedValue: update.encryptedValue,
-            encryptedValueA: null,
-            encryptedValueB: null,
-            chance: null,
-            rolloutFunction: null,
-            rolloutMilestones: null,
-            updatedAtMs: now,
-          }),
-        catch: (error) =>
-          toProjectVariableExternalServiceError(
-            "Failed to apply a prepared draft variable update.",
-            error,
-          ),
+      yield* patchProjectVariableRowEffect(runtimeCtx, {
+        id: update.id,
+        values: {
+          visibility: update.visibility,
+          kind: update.kind,
+          declaredType: update.declaredType,
+          encryptedValue: update.encryptedValue,
+          encryptedValueA: null,
+          encryptedValueB: null,
+          chance: null,
+          rolloutFunction: null,
+          rolloutMilestones: null,
+        },
+        updatedAtMs: now,
+        failureMessage: "Failed to apply a prepared draft variable update.",
       });
     }
 
@@ -102,43 +103,34 @@ export function applyPreparedDraftForCurrentOrgProjectStageInternalEffect(
         );
       }
 
-      yield* Effect.tryPromise({
-        try: () =>
-          ctx.db.insert("projectVariables", {
-            projectId: project._id,
-            orgId: project.orgId,
-            stageSlug: stage.slug,
-            name: create.name,
-            visibility: create.visibility,
-            kind: create.kind,
-            declaredType: create.declaredType,
-            encryptedValue: create.encryptedValue,
-            encryptedValueA: null,
-            encryptedValueB: null,
-            chance: null,
-            rolloutFunction: null,
-            rolloutMilestones: null,
-            createdByClerkUserId: activeOrg.clerkUserId,
-            createdAtMs: now,
-            updatedAtMs: now,
-          }),
-        catch: (error) =>
-          toProjectVariableExternalServiceError(
-            "Failed to insert a prepared draft variable.",
-            error,
-          ),
+      yield* insertProjectVariableRowEffect(runtimeCtx, {
+        projectId: project._id,
+        orgId: project.orgId,
+        stageSlug: stage.slug,
+        name: create.name,
+        clerkUserId: activeOrg.clerkUserId,
+        values: {
+          visibility: create.visibility,
+          kind: create.kind,
+          declaredType: create.declaredType,
+          encryptedValue: create.encryptedValue,
+          encryptedValueA: null,
+          encryptedValueB: null,
+          chance: null,
+          rolloutFunction: null,
+          rolloutMilestones: null,
+        },
+        createdAtMs: now,
+        updatedAtMs: now,
+        failureMessage: "Failed to insert a prepared draft variable.",
       });
       stageVariableNames.add(create.name);
     }
 
     for (const variableId of deletedIds) {
-      yield* Effect.tryPromise({
-        try: () => ctx.db.delete(variableId),
-        catch: (error) =>
-          toProjectVariableExternalServiceError(
-            "Failed to delete a prepared draft variable.",
-            error,
-          ),
+      yield* deleteProjectVariableRowEffect(runtimeCtx, {
+        id: variableId,
+        failureMessage: "Failed to delete a prepared draft variable.",
       });
     }
 

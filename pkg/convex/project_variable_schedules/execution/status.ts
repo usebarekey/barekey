@@ -2,8 +2,10 @@ import { Effect } from "effect";
 
 import type { MutationCtx } from "../../_generated/server";
 import { BarekeyConfectMutationCtx, ClockService } from "../../confect";
+import { dbPatchEffect } from "../../lib/convex/db";
 import { toScheduleExternalServiceError } from "../errors";
 import type { MarkScheduleAppliedArgs, MarkScheduleFailedArgs } from "./types";
+import { getScheduledExecutionRowEffect } from "./repo";
 
 /**
  * Marks a scheduled batch as applied after successful execution.
@@ -21,29 +23,26 @@ export function markScheduleAppliedInternalEffect(
     const confectCtx = yield* BarekeyConfectMutationCtx;
     const clock = yield* ClockService;
     const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const schedule = yield* Effect.tryPromise({
-      try: () => ctx.db.get(args.scheduleId),
-      catch: (error) =>
-        toScheduleExternalServiceError("Failed to load the scheduled batch.", error),
-    });
+    const schedule = yield* getScheduledExecutionRowEffect(ctx, args.scheduleId);
     if (schedule === null) {
       return null;
     }
 
     const now = clock.nowMs();
-    yield* Effect.tryPromise({
-      try: () =>
-        ctx.db.patch(schedule._id, {
-          status: "applied",
-          scheduledFunctionId: null,
-          updatedAtMs: now,
-          executedAtMs: now,
-          failedAtMs: null,
-          failureMessage: null,
-        }),
-      catch: (error) =>
+    yield* dbPatchEffect(
+      ctx,
+      schedule._id,
+      {
+        status: "applied",
+        scheduledFunctionId: null,
+        updatedAtMs: now,
+        executedAtMs: now,
+        failedAtMs: null,
+        failureMessage: null,
+      },
+      (error) =>
         toScheduleExternalServiceError("Failed to mark the scheduled batch as applied.", error),
-    });
+    );
     return null;
   });
 }
@@ -64,28 +63,25 @@ export function markScheduleFailedInternalEffect(
     const confectCtx = yield* BarekeyConfectMutationCtx;
     const clock = yield* ClockService;
     const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const schedule = yield* Effect.tryPromise({
-      try: () => ctx.db.get(args.scheduleId),
-      catch: (error) =>
-        toScheduleExternalServiceError("Failed to load the scheduled batch.", error),
-    });
+    const schedule = yield* getScheduledExecutionRowEffect(ctx, args.scheduleId);
     if (schedule === null) {
       return null;
     }
 
     const now = clock.nowMs();
-    yield* Effect.tryPromise({
-      try: () =>
-        ctx.db.patch(schedule._id, {
-          status: "failed",
-          scheduledFunctionId: null,
-          updatedAtMs: now,
-          failedAtMs: now,
-          failureMessage: args.failureMessage,
-        }),
-      catch: (error) =>
+    yield* dbPatchEffect(
+      ctx,
+      schedule._id,
+      {
+        status: "failed",
+        scheduledFunctionId: null,
+        updatedAtMs: now,
+        failedAtMs: now,
+        failureMessage: args.failureMessage,
+      },
+      (error) =>
         toScheduleExternalServiceError("Failed to mark the scheduled batch as failed.", error),
-    });
+    );
     return null;
   });
 }

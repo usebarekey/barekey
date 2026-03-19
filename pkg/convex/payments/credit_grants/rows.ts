@@ -10,7 +10,7 @@ import {
 /**
  * Creates the initial free-plan credit row for a Clerk user.
  *
- * @param ctx The Convex mutation context.
+ * @param convexCtx The Convex mutation context.
  * @param clerkUserId The Clerk user identifier that owns the credit.
  * @param now The shared timestamp for the insert.
  * @returns An Effect that succeeds with the newly created canonical row.
@@ -19,13 +19,13 @@ import {
  * @author GPT-5.4
  */
 function createFreePlanCreditRowEffect(
-  ctx: MutationCtx,
+  convexCtx: MutationCtx,
   clerkUserId: string,
   now: number,
 ): Effect.Effect<FreePlanCreditRow, ExternalServiceError> {
   return Effect.tryPromise({
     try: async () => {
-      const rowId = await ctx.db.insert("userFreePlanCredits", {
+      const rowId = await convexCtx.db.insert("userFreePlanCredits", {
         clerkUserId,
         totalCredits: 1,
         remainingCredits: 1,
@@ -59,7 +59,7 @@ function createFreePlanCreditRowEffect(
 /**
  * Loads or creates the canonical free-plan credit row for a Clerk user.
  *
- * @param ctx The Convex mutation context.
+ * @param convexCtx The Convex mutation context.
  * @param clerkUserId The Clerk user identifier that owns the credit.
  * @param now The shared timestamp for any lazy insert.
  * @returns An Effect that succeeds with the canonical row and whether it was newly created.
@@ -68,7 +68,7 @@ function createFreePlanCreditRowEffect(
  * @author GPT-5.4
  */
 export function ensureFreePlanCreditRowEffect(
-  ctx: MutationCtx,
+  convexCtx: MutationCtx,
   clerkUserId: string,
   now: number,
 ): Effect.Effect<
@@ -80,7 +80,7 @@ export function ensureFreePlanCreditRowEffect(
 > {
   return Effect.gen(function* () {
     const existing = yield* Effect.tryPromise({
-      try: () => getCanonicalFreePlanCreditForClerkUserId(ctx, clerkUserId),
+      try: () => getCanonicalFreePlanCreditForClerkUserId(convexCtx, clerkUserId),
       catch: (error) =>
         toFreePlanCreditError("Unable to load the existing free organization credit.", error),
     });
@@ -92,7 +92,7 @@ export function ensureFreePlanCreditRowEffect(
     }
 
     return {
-      row: yield* createFreePlanCreditRowEffect(ctx, clerkUserId, now),
+      row: yield* createFreePlanCreditRowEffect(convexCtx, clerkUserId, now),
       createdCredit: true,
     };
   });

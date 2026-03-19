@@ -1,3 +1,5 @@
+import { Schema } from "effect";
+
 import { normalizeDeclaredType } from "../../../declared/types";
 import {
   isRolloutFunction,
@@ -9,7 +11,51 @@ import type {
   EnvWriteMode,
   EnvWriteRequest,
 } from "../types";
-import { readOptionalString } from "./shared";
+import { decodePayloadOrNull } from "./shared";
+
+const trimmedNonEmptyStringSchema = Schema.Trim.pipe(Schema.minLength(1));
+const optionalNullableStringSchema = Schema.optional(Schema.NullOr(trimmedNonEmptyStringSchema));
+const looseOptionalStringSchema = Schema.optional(Schema.NullOr(Schema.String));
+const writeModeInputSchema = Schema.optional(Schema.NullOr(Schema.String));
+const visibilityInputSchema = Schema.optional(Schema.NullOr(Schema.String));
+const rolloutMilestoneSchema = Schema.Struct({
+  at: Schema.String,
+  percentage: Schema.Number.pipe(Schema.finite()),
+});
+const secretEntrySchema = Schema.Struct({
+  name: trimmedNonEmptyStringSchema,
+  kind: Schema.Literal("secret"),
+  visibility: visibilityInputSchema,
+  declaredType: looseOptionalStringSchema,
+  value: Schema.String,
+});
+const abRollEntrySchema = Schema.Struct({
+  name: trimmedNonEmptyStringSchema,
+  kind: Schema.Literal("ab_roll"),
+  visibility: visibilityInputSchema,
+  declaredType: looseOptionalStringSchema,
+  valueA: Schema.String,
+  valueB: Schema.String,
+  chance: Schema.Number.pipe(Schema.finite()),
+});
+const rolloutEntrySchema = Schema.Struct({
+  name: trimmedNonEmptyStringSchema,
+  kind: Schema.Literal("rollout"),
+  visibility: visibilityInputSchema,
+  declaredType: looseOptionalStringSchema,
+  valueA: Schema.String,
+  valueB: Schema.String,
+  rolloutFunction: Schema.String,
+  rolloutMilestones: Schema.Array(rolloutMilestoneSchema),
+});
+const writeRequestSchema = Schema.Struct({
+  orgSlug: optionalNullableStringSchema,
+  projectSlug: trimmedNonEmptyStringSchema,
+  stageSlug: trimmedNonEmptyStringSchema,
+  mode: writeModeInputSchema,
+  entries: Schema.Array(Schema.Union(secretEntrySchema, abRollEntrySchema, rolloutEntrySchema)),
+  deletes: Schema.optional(Schema.NullOr(Schema.Array(trimmedNonEmptyStringSchema))),
+});
 
 /**
  * Parses an environment write request.
@@ -21,39 +67,26 @@ import { readOptionalString } from "./shared";
  * @author GPT-5.4
  */
 export function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
-  if (typeof payload !== "object" || payload === null) {
+  const decoded = decodePayloadOrNull(writeRequestSchema, payload);
+  if (decoded === null) {
     return null;
   }
 
-  const input = payload as Record<string, unknown>;
-  const projectSlug = typeof input.projectSlug === "string" ? input.projectSlug.trim() : "";
-  const stageSlug = typeof input.stageSlug === "string" ? input.stageSlug.trim() : "";
-  if (projectSlug.length === 0 || stageSlug.length === 0) {
-    return null;
-  }
-
-  const modeValue = typeof input.mode === "string" ? input.mode.trim() : "upsert";
+  const projectSlug = decoded.projectSlug;
+  const stageSlug = decoded.stageSlug;
+  const modeValue = decoded.mode?.trim().toLowerCase() ?? "upsert";
   const mode: EnvWriteMode = modeValue === "create_only" ? "create_only" : "upsert";
 
-  const rawEntries = Array.isArray(input.entries) ? input.entries : [];
   const entries: EnvWriteRequest["entries"] = [];
-  for (const rawEntry of rawEntries) {
-    if (typeof rawEntry !== "object" || rawEntry === null) {
-      return null;
-    }
-    const entry = rawEntry as Record<string, unknown>;
-    const name = typeof entry.name === "string" ? entry.name.trim() : "";
-    const kind = typeof entry.kind === "string" ? entry.kind : "";
-    const visibilityRaw =
-      typeof entry.visibility === "string" ? entry.visibility.trim().toLowerCase() : "private";
+  for (const entry of decoded.entries) {
+    const name = entry.name;
+    const kind = entry.kind;
+    const visibilityRaw = entry.visibility?.trim().toLowerCase() ?? "private";
     if (visibilityRaw !== "public" && visibilityRaw !== "private" && visibilityRaw.length !== 0) {
       return null;
     }
     const visibility: EnvVisibility = visibilityRaw === "public" ? "public" : "private";
-    const declaredTypeRaw = typeof entry.declaredType === "string" ? entry.declaredType : "string";
-    if (name.length === 0) {
-      return null;
-    }
+    const declaredTypeRaw = entry.declaredType ?? "string";
 
     let declaredType: EnvWriteRequest["entries"][number]["declaredType"];
     try {
@@ -63,9 +96,6 @@ export function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     }
 
     if (kind === "secret") {
-      if (typeof entry.value !== "string") {
-        return null;
-      }
       entries.push({
         name,
         visibility,
@@ -77,14 +107,7 @@ export function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     }
 
     if (kind === "ab_roll") {
-      if (
-        typeof entry.valueA !== "string" ||
-        typeof entry.valueB !== "string" ||
-        typeof entry.chance !== "number" ||
-        !Number.isFinite(entry.chance) ||
-        entry.chance < 0 ||
-        entry.chance > 1
-      ) {
+      if (entry.chance < 0 || entry.chance > 1) {
         return null;
       }
       entries.push({
@@ -100,38 +123,15 @@ export function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     }
 
     if (kind === "rollout") {
-      if (
-        typeof entry.valueA !== "string" ||
-        typeof entry.valueB !== "string" ||
-        typeof entry.rolloutFunction !== "string" ||
-        !isRolloutFunction(entry.rolloutFunction) ||
-        !Array.isArray(entry.rolloutMilestones)
-      ) {
+      if (!isRolloutFunction(entry.rolloutFunction)) {
         return null;
       }
 
       const rolloutMilestones = entry.rolloutMilestones
-        .map((milestone) => {
-          if (typeof milestone !== "object" || milestone === null) {
-            return null;
-          }
-          const value = milestone as Record<string, unknown>;
-          if (
-            typeof value.at !== "string" ||
-            typeof value.percentage !== "number" ||
-            !Number.isFinite(value.percentage)
-          ) {
-            return null;
-          }
-          return {
-            at: value.at,
-            percentage: value.percentage,
-          };
-        })
-        .filter((milestone): milestone is RolloutMilestone => milestone !== null);
-      if (rolloutMilestones.length !== entry.rolloutMilestones.length) {
-        return null;
-      }
+        .map((milestone) => ({
+          at: milestone.at,
+          percentage: milestone.percentage,
+        }));
       const rolloutFunction = entry.rolloutFunction as "linear" | "step" | "ease_in_out";
 
       try {
@@ -154,12 +154,7 @@ export function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
     return null;
   }
 
-  const deletes = Array.isArray(input.deletes)
-    ? input.deletes
-        .filter((value): value is string => typeof value === "string")
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0)
-    : [];
+  const deletes = decoded.deletes === undefined || decoded.deletes === null ? [] : [...decoded.deletes];
 
   const seenNames = new Set<string>();
   for (const entry of entries) {
@@ -176,7 +171,7 @@ export function parseWriteRequest(payload: unknown): EnvWriteRequest | null {
   }
 
   return {
-    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
+    orgSlug: decoded.orgSlug ?? undefined,
     projectSlug,
     stageSlug,
     mode,

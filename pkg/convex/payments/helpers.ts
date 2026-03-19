@@ -1,8 +1,9 @@
-import { api } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
-import { normalizeFiniteNumber } from "../lib/payments/variants";
 import type { FeatureUsage } from "../lib/payments/state";
-import { getFreePlanCreditForOrgIdInternalReference } from "./refs";
+import {
+  getFreePlanCreditForOrg,
+  readFeatureUsageFromAutumn,
+} from "../lib/payments/runtime/ops";
 
 /**
  * Checks whether a free-plan credit is already assigned to the given organization.
@@ -20,9 +21,7 @@ export async function hasFreePlanCreditAssignedToOrg(
     orgId: string;
   },
 ): Promise<boolean> {
-  const credit = await ctx.runQuery(getFreePlanCreditForOrgIdInternalReference, {
-    orgId: input.orgId,
-  });
+  const credit = await getFreePlanCreditForOrg(ctx, input.orgId);
   return credit !== null;
 }
 
@@ -41,30 +40,5 @@ export async function readFeatureUsage(
   ctx: ActionCtx,
   featureId: string,
 ): Promise<FeatureUsage> {
-  const result = await ctx.runAction(api.autumn.check, {
-    featureId,
-  });
-
-  if (result.error !== null || result.data === null) {
-    return {
-      featureId,
-      allowed: false,
-      usage: null,
-      includedUsage: null,
-      usageLimit: null,
-      overageAllowed: null,
-      nextResetAtMs: null,
-    };
-  }
-
-  return {
-    featureId,
-    allowed: result.data.allowed,
-    usage: normalizeFiniteNumber(result.data.usage),
-    includedUsage: normalizeFiniteNumber(result.data.included_usage),
-    usageLimit: normalizeFiniteNumber(result.data.usage_limit),
-    overageAllowed:
-      typeof result.data.overage_allowed === "boolean" ? result.data.overage_allowed : null,
-    nextResetAtMs: normalizeFiniteNumber(result.data.next_reset_at),
-  };
+  return await readFeatureUsageFromAutumn(ctx, featureId);
 }

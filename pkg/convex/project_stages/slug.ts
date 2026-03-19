@@ -43,7 +43,7 @@ function randomNumericSuffix(length: number): string {
 /**
  * Allocates a unique stage slug within a project as an Effect program.
  *
- * @param ctx The Convex mutation context.
+ * @param convexCtx The Convex mutation context.
  * @param args The project id and desired slug base.
  * @returns An Effect that succeeds with the allocated unique stage slug.
  * @remarks This wraps the slug allocation retry loop in the shared external-service error model.
@@ -51,7 +51,7 @@ function randomNumericSuffix(length: number): string {
  * @author GPT-5.4
  */
 export function allocateUniqueStageSlugEffect(
-  ctx: MutationCtx,
+  convexCtx: MutationCtx,
   args: {
     projectId: Id<"projects">;
     slugBase: string;
@@ -60,7 +60,7 @@ export function allocateUniqueStageSlugEffect(
   return Effect.gen(function* () {
     const baseCandidate = yield* Effect.tryPromise({
       try: () =>
-        ctx.db
+        convexCtx.db
           .query("projectStages")
           .withIndex("by_project_id_and_slug", (q) =>
             q.eq("projectId", args.projectId).eq("slug", args.slugBase),
@@ -78,7 +78,7 @@ export function allocateUniqueStageSlugEffect(
         const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
         const existing = yield* Effect.tryPromise({
           try: () =>
-            ctx.db
+            convexCtx.db
               .query("projectStages")
               .withIndex("by_project_id_and_slug", (q) =>
                 q.eq("projectId", args.projectId).eq("slug", candidate),

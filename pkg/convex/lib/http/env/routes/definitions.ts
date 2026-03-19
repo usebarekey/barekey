@@ -1,6 +1,4 @@
-import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../../confect";
-import type { VariableMetadataRow } from "../../../../project_variables/queries";
 import { isAuthResolutionFailure, resolveAuthContext } from "../../auth";
 import {
   classifyReserveError,
@@ -16,44 +14,15 @@ import {
   readRequestId,
 } from "../../responses";
 import {
+  listVariableMetadataRows,
+  logEnvBillingRequest,
+  resolveVariableRows,
+} from "./data";
+import {
   compensateCurrentOrgFeatureUnits,
   readJsonBody,
   reserveCurrentOrgFeatureUnits,
 } from "./shared";
-
-const listVariableMetadataForOrgProjectStageInternalReference = makeFunctionReference<
-  "query",
-  {
-    orgId: string;
-    projectSlug: string;
-    stageSlug: string;
-  },
-  Array<VariableMetadataRow>
->("project_variables:listVariableMetadataForOrgProjectStageInternal") as any;
-
-const resolveVariableRowsForOrgProjectStageInternalReference = makeFunctionReference<
-  "query",
-  {
-    orgId: string;
-    projectSlug: string;
-    stageSlug: string;
-    names: Array<string>;
-  },
-  Array<ResolvedVariableRow>
->("project_variables:resolveVariableRowsForOrgProjectStageInternal") as any;
-
-const logBillingRequestInternalReference = makeFunctionReference<
-  "mutation",
-  {
-    orgId: string;
-    requestKey: string;
-    featureId: string;
-    units: number;
-  },
-  {
-    inserted: boolean;
-  }
->("payments:logBillingRequestInternal") as any;
 
 /**
  * Resolves variable definitions for an authenticated environment request.
@@ -102,23 +71,17 @@ export const envDefinitions = httpAction(async (ctx, request) => {
 
   const rows: Array<ResolvedVariableRow> =
     parsed.names === undefined
-      ? ((await ctx.runQuery(
-          listVariableMetadataForOrgProjectStageInternalReference,
-          {
-            orgId: authContext.orgId,
-            projectSlug: parsed.projectSlug,
-            stageSlug: parsed.stageSlug,
-          },
-        )) as Array<VariableMetadataRow>)
-      : ((await ctx.runQuery(
-          resolveVariableRowsForOrgProjectStageInternalReference,
-          {
-            orgId: authContext.orgId,
-            projectSlug: parsed.projectSlug,
-            stageSlug: parsed.stageSlug,
-            names: parsed.names,
-          },
-        )) as Array<ResolvedVariableRow>);
+      ? await listVariableMetadataRows(ctx, {
+          orgId: authContext.orgId,
+          projectSlug: parsed.projectSlug,
+          stageSlug: parsed.stageSlug,
+        })
+      : await resolveVariableRows(ctx, {
+          orgId: authContext.orgId,
+          projectSlug: parsed.projectSlug,
+          stageSlug: parsed.stageSlug,
+          names: parsed.names,
+        });
 
   if (parsed.names !== undefined && rows.length !== parsed.names.length) {
     const returnedNames = new Set(rows.map((row) => row.name));
@@ -159,12 +122,12 @@ export const envDefinitions = httpAction(async (ctx, request) => {
       rows,
     });
 
-    const billingLogResult = (await ctx.runMutation(logBillingRequestInternalReference, {
+    const billingLogResult = await logEnvBillingRequest(ctx, {
       orgId: authContext.orgId,
       requestKey: readBillingRequestKey(request, requestId, "env_definitions"),
       featureId: "static_requests",
       units,
-    })) as { inserted: boolean };
+    });
     if (!billingLogResult.inserted && reservedUnits > 0) {
       const unitsToCompensate = reservedUnits;
       reservedUnits = 0;

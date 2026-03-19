@@ -57,4 +57,37 @@ describe("resolveAuthContext", () => {
       ),
     ).rejects.toThrow("Clerk unavailable");
   });
+
+  test("skips Clerk identity parsing for CLI bearer tokens", async () => {
+    const result = await resolveAuthContext(
+      {
+        auth: {
+          getUserIdentity: async () => {
+            throw new Error("Could not parse JWT payload.");
+          },
+        },
+        runAction: async () => null,
+        runMutation: async () => ({
+          clerkUserId: "user_cli",
+          orgId: "org_cli",
+          orgSlug: "toybox-8678",
+        }),
+      },
+      new Request("https://api.example.test/v1/cli/session", {
+        headers: {
+          authorization: "Bearer bk_at_example_cli_token",
+        },
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      context: {
+        clerkUserId: "user_cli",
+        orgId: "org_cli",
+        orgSlug: "toybox-8678",
+        source: "cli",
+      },
+    });
+  });
 });

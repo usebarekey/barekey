@@ -17,7 +17,7 @@ type BillingVariantSummary = {
 /**
  * Reconciles the effective product and change outcome after an Autumn attach call.
  *
- * @param ctx The Convex action context.
+ * @param convexCtx The Convex action context.
  * @param args The attached product id and locally resolved pricing variants.
  * @returns An Effect that succeeds with the effective product id and normalized change outcome.
  * @remarks This refreshes the billing customer state after an attach completes without checkout.
@@ -25,7 +25,7 @@ type BillingVariantSummary = {
  * @author GPT-5.4
  */
 export function resolvePostAttachOutcomeEffect(
-  ctx: ActionCtx,
+  convexCtx: ActionCtx,
   args: {
     currentProductId: string | null;
     productId: string;
@@ -44,7 +44,7 @@ export function resolvePostAttachOutcomeEffect(
     let changeOutcome: "applied" | "scheduled" | "submitted" = "submitted";
     const customerAfterAttachResult = yield* Effect.tryPromise({
       try: () =>
-        ctx.runAction(api.autumn.createCustomer, {
+        convexCtx.runAction(api.autumn.createCustomer, {
           errorOnNotFound: false,
         }),
       catch: (error) =>

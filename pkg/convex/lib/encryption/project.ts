@@ -35,10 +35,10 @@ function pickCanonicalProjectKeyRow(rows: Array<ProjectKeyRow>): ProjectKeyRow |
 }
 
 async function listProjectKeyRows(
-  ctx: MutationCtx,
+  convexCtx: MutationCtx,
   projectId: Id<"projects">,
 ): Promise<Array<ProjectKeyRow>> {
-  return await ctx.db
+  return await convexCtx.db
     .query("projectKeys")
     .withIndex("by_project_id", (q) => q.eq("projectId", projectId))
     .collect();
@@ -47,7 +47,7 @@ async function listProjectKeyRows(
 /**
  * Ensures a project has a wrapped DEK row and returns the unwrapped DEK bytes for the current request.
  *
- * @param ctx The Convex mutation context.
+ * @param convexCtx The Convex mutation context.
  * @param args The project and organization identifiers owning the DEK.
  * @returns The unwrapped 32-byte DEK for the project.
  * @remarks This lazily creates the canonical `projectKeys` row when one does not already exist.
@@ -55,13 +55,13 @@ async function listProjectKeyRows(
  * @author GPT-5.4
  */
 export async function ensureProjectDek(
-  ctx: MutationCtx,
+  convexCtx: MutationCtx,
   args: {
     projectId: Id<"projects">;
     orgId: string;
   },
 ): Promise<Uint8Array> {
-  const existingKeyRows = await listProjectKeyRows(ctx, args.projectId);
+  const existingKeyRows = await listProjectKeyRows(convexCtx, args.projectId);
   const existingKeyRow = pickCanonicalProjectKeyRow(existingKeyRows);
   const masterKeyBytes = getMasterKeyBytes();
 
@@ -73,7 +73,7 @@ export async function ensureProjectDek(
   const dekBytes = randomBytes(DEK_BYTES_LENGTH);
   const encryptedDek = wrapDekWithMasterKey(masterKeyBytes, dekBytes);
 
-  await ctx.db.insert("projectKeys", {
+  await convexCtx.db.insert("projectKeys", {
     projectId: args.projectId,
     orgId: args.orgId,
     encryptedDek,
@@ -89,7 +89,7 @@ export async function ensureProjectDek(
 /**
  * Encrypts a variable plaintext value using the project's DEK.
  *
- * @param ctx The Convex mutation context.
+ * @param convexCtx The Convex mutation context.
  * @param args The project/org selector and plaintext value to encrypt.
  * @returns The encrypted `xcp1` ciphertext envelope.
  * @remarks This ensures the project has a DEK before encrypting the provided plaintext.
@@ -97,14 +97,14 @@ export async function ensureProjectDek(
  * @author GPT-5.4
  */
 export async function encryptSecretValueForProject(
-  ctx: MutationCtx,
+  convexCtx: MutationCtx,
   args: {
     projectId: Id<"projects">;
     orgId: string;
     plaintext: string;
   },
 ): Promise<string> {
-  const dekBytes = await ensureProjectDek(ctx, {
+  const dekBytes = await ensureProjectDek(convexCtx, {
     projectId: args.projectId,
     orgId: args.orgId,
   });
@@ -115,7 +115,7 @@ export async function encryptSecretValueForProject(
 /**
  * Decrypts a project variable ciphertext with the current canonical project DEK set.
  *
- * @param ctx The Convex mutation context.
+ * @param convexCtx The Convex mutation context.
  * @param args The project/org selector and ciphertext value to decrypt.
  * @returns The decrypted UTF-8 plaintext.
  * @remarks This tries the canonical DEK row first and then falls back across remaining rows to tolerate old duplicate keys.
@@ -123,7 +123,7 @@ export async function encryptSecretValueForProject(
  * @author GPT-5.4
  */
 export async function decryptSecretValueForProject(
-  ctx: MutationCtx,
+  convexCtx: MutationCtx,
   args: {
     projectId: Id<"projects">;
     orgId: string;
@@ -131,7 +131,7 @@ export async function decryptSecretValueForProject(
   },
 ): Promise<string> {
   const masterKeyBytes = getMasterKeyBytes();
-  const keyRows = await listProjectKeyRows(ctx, args.projectId);
+  const keyRows = await listProjectKeyRows(convexCtx, args.projectId);
   if (keyRows.length === 0) {
     throw new EncryptionError({
       message: "Project DEK is missing.",

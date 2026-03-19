@@ -29,14 +29,14 @@ const writeVariablesForOrgProjectStageWithUsageInternalReference = makeFunctionR
 /**
  * Writes variable changes for an authenticated environment request.
  *
- * @param ctx The HTTP action context.
+ * @param convexCtx The HTTP action context.
  * @param request The incoming HTTP request.
  * @returns The write summary response or a normalized error response.
  * @remarks This delegates to the project-variable write workflow, including billing and audit side effects.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const envWrite = httpAction(async (ctx, request) => {
+export const envWrite = httpAction(async (convexCtx, request) => {
   const requestId = readRequestId(request);
   let payload: unknown;
   try {
@@ -60,7 +60,7 @@ export const envWrite = httpAction(async (ctx, request) => {
     });
   }
 
-  const authResult = await resolveAuthContext(ctx, request, parsed.orgSlug);
+  const authResult = await resolveAuthContext(convexCtx, request, parsed.orgSlug);
   if (isAuthResolutionFailure(authResult)) {
     return authErrorResponse({
       status: authResult.status,
@@ -72,7 +72,7 @@ export const envWrite = httpAction(async (ctx, request) => {
   const authContext = authResult.context;
 
   try {
-    const result = (await ctx.runAction(
+    const result = (await convexCtx.runAction(
       writeVariablesForOrgProjectStageWithUsageInternalReference,
       {
         orgId: authContext.orgId,

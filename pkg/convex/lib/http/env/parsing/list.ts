@@ -1,5 +1,14 @@
+import { Schema } from "effect";
+
 import type { EnvListRequest } from "../types";
-import { readOptionalString } from "./shared";
+import { decodePayloadOrNull } from "./shared";
+
+const trimmedNonEmptyStringSchema = Schema.Trim.pipe(Schema.minLength(1));
+const listRequestSchema = Schema.Struct({
+  orgSlug: Schema.optional(Schema.NullOr(trimmedNonEmptyStringSchema)),
+  projectSlug: trimmedNonEmptyStringSchema,
+  stageSlug: trimmedNonEmptyStringSchema,
+});
 
 /**
  * Parses an environment list request.
@@ -11,20 +20,14 @@ import { readOptionalString } from "./shared";
  * @author GPT-5.4
  */
 export function parseListRequest(payload: unknown): EnvListRequest | null {
-  if (typeof payload !== "object" || payload === null) {
-    return null;
-  }
-
-  const input = payload as Record<string, unknown>;
-  const projectSlug = typeof input.projectSlug === "string" ? input.projectSlug.trim() : "";
-  const stageSlug = typeof input.stageSlug === "string" ? input.stageSlug.trim() : "";
-  if (projectSlug.length === 0 || stageSlug.length === 0) {
+  const decoded = decodePayloadOrNull(listRequestSchema, payload);
+  if (decoded === null) {
     return null;
   }
 
   return {
-    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
-    projectSlug,
-    stageSlug,
+    orgSlug: decoded.orgSlug ?? undefined,
+    projectSlug: decoded.projectSlug,
+    stageSlug: decoded.stageSlug,
   };
 }

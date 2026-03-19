@@ -16,14 +16,13 @@ import {
   projectVariablePreparedCreateValidator,
   projectVariablePreparedUpdateValidator,
 } from "../../lib/project_variables/schedules";
-import { applyStorageDeltaForOrgInternalReference } from "../../payments/refs";
 import type { ReserveFeatureUnitsResult } from "../../payments/types";
-import { toProjectVariableExternalServiceError } from "../errors";
-import {
-  applyPreparedVariableWritesForOrgProjectStageInternalReference,
-  measurePreparedVariableWritesForOrgProjectStageInternalReference,
-} from "../refs";
 import type { WriteWithUsageResult } from "../types";
+import {
+  applyPreparedVariableStorageDeltaEffect,
+  applyPreparedVariableWriteEffect,
+  measurePreparedVariableWriteEffect,
+} from "./repo";
 
 type ApplyPreparedVariableWritesWithUsageArgs = {
   orgId: string;
@@ -78,24 +77,13 @@ function applyPreparedVariableWritesForOrgProjectStageWithUsageInternalEffect(
     const confectCtx = yield* BarekeyConfectActionCtx;
     const ctx = confectCtx.ctx as unknown as ActionCtx;
 
-    const measurement = yield* Effect.tryPromise({
-      try: () =>
-        ctx.runMutation(
-          measurePreparedVariableWritesForOrgProjectStageInternalReference,
-          {
-            orgId: args.orgId,
-            projectSlug: args.projectSlug,
-            stageSlug: args.stageSlug,
-            creates: args.creates,
-            updates: args.updates,
-            deletes: args.deletes,
-          },
-        ) as Promise<{ storageDeltaBytes: number }>,
-      catch: (error) =>
-        toProjectVariableExternalServiceError(
-          "Failed to measure the prepared variable write.",
-          error,
-        ),
+    const measurement = yield* measurePreparedVariableWriteEffect(ctx, {
+      orgId: args.orgId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+      creates: args.creates,
+      updates: args.updates,
+      deletes: args.deletes,
     });
 
     let reservedStorageUnits = 0;
@@ -111,25 +99,14 @@ function applyPreparedVariableWritesForOrgProjectStageWithUsageInternalEffect(
       reservedStorageUnits = yield* reserveStorageUnitsOrFail(reservation);
     }
 
-    const result = yield* Effect.tryPromise({
-      try: () =>
-        ctx.runMutation(
-          applyPreparedVariableWritesForOrgProjectStageInternalReference,
-          {
-            orgId: args.orgId,
-            clerkUserId: args.clerkUserId,
-            projectSlug: args.projectSlug,
-            stageSlug: args.stageSlug,
-            creates: args.creates,
-            updates: args.updates,
-            deletes: args.deletes,
-          },
-        ) as Promise<WriteWithUsageResult>,
-      catch: (error) =>
-        toProjectVariableExternalServiceError(
-          "Failed to apply the prepared variable write.",
-          error,
-        ),
+    const result = yield* applyPreparedVariableWriteEffect(ctx, {
+      orgId: args.orgId,
+      clerkUserId: args.clerkUserId,
+      projectSlug: args.projectSlug,
+      stageSlug: args.stageSlug,
+      creates: args.creates,
+      updates: args.updates,
+      deletes: args.deletes,
     }).pipe(
       Effect.catchAll((error) =>
         Effect.gen(function* () {
@@ -150,17 +127,9 @@ function applyPreparedVariableWritesForOrgProjectStageWithUsageInternalEffect(
     );
 
     if (measurement.storageDeltaBytes !== 0) {
-      yield* Effect.tryPromise({
-        try: () =>
-          ctx.runMutation(applyStorageDeltaForOrgInternalReference, {
-            orgId: args.orgId,
-            deltaBytes: measurement.storageDeltaBytes,
-          }),
-        catch: (error) =>
-          toProjectVariableExternalServiceError(
-            "Failed to apply the final storage delta for the variable write.",
-            error,
-          ),
+      yield* applyPreparedVariableStorageDeltaEffect(ctx, {
+        orgId: args.orgId,
+        deltaBytes: measurement.storageDeltaBytes,
       });
     }
 

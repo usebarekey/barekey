@@ -17,7 +17,7 @@ import {
 /**
  * Revokes a CLI session by refresh token.
  *
- * @param ctx The Convex mutation context.
+ * @param runtimeCtx The Convex mutation context.
  * @param args The raw refresh token.
  * @returns An Effect that succeeds with whether the session is revoked after the operation.
  * @remarks This treats repeated revocation as success.
@@ -25,7 +25,7 @@ import {
  * @author GPT-5.4
  */
 function revokeSessionInternalEffect(
-  ctx: MutationCtx,
+  runtimeCtx: MutationCtx,
   args: RefreshTokenArgs,
 ): Effect.Effect<RevokedSession, ExternalServiceError> {
   return Effect.gen(function* () {
@@ -36,7 +36,7 @@ function revokeSessionInternalEffect(
     });
     const session = yield* Effect.tryPromise({
       try: () =>
-        ctx.db
+        runtimeCtx.db
           .query("cliSessions")
           .withIndex("by_refresh_token_hash", (q) => q.eq("refreshTokenHash", refreshTokenHash))
           .unique(),
@@ -55,7 +55,7 @@ function revokeSessionInternalEffect(
     const now = Date.now();
     yield* Effect.tryPromise({
       try: () =>
-        ctx.db.patch(session._id, {
+        runtimeCtx.db.patch(session._id, {
           revokedAtMs: now,
           updatedAtMs: now,
         }),
@@ -70,7 +70,7 @@ function revokeSessionInternalEffect(
 /**
  * Revokes a CLI session using its refresh token.
  *
- * @param ctx The Convex internal mutation context.
+ * @param runtimeCtx The Convex internal mutation context.
  * @param args The raw refresh token.
  * @returns Whether the session is revoked after the operation.
  * @remarks This patches `revokedAtMs` for matching sessions and treats repeated revocation as success.
@@ -89,7 +89,7 @@ export const revokeSessionInternal = effectInternalMutation<
   handler: (args) =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectMutationCtx;
-      const ctx = confectCtx.ctx as unknown as MutationCtx;
-      return yield* revokeSessionInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+      return yield* revokeSessionInternalEffect(runtimeCtx, args);
     }),
 });

@@ -23,7 +23,7 @@ import {
 /**
  * Rotates a CLI session using a refresh token.
  *
- * @param ctx The Convex mutation context.
+ * @param runtimeCtx The Convex mutation context.
  * @param args The raw refresh token.
  * @returns An Effect that succeeds with the next token pair and session context when valid, or `null`.
  * @remarks This patches `cliSessions` with new token hashes and expiry timestamps.
@@ -31,7 +31,7 @@ import {
  * @author GPT-5.4
  */
 function refreshSessionInternalEffect(
-  ctx: MutationCtx,
+  runtimeCtx: MutationCtx,
   args: RefreshTokenArgs,
 ): Effect.Effect<RefreshedSession, ExternalServiceError> {
   return Effect.gen(function* () {
@@ -43,7 +43,7 @@ function refreshSessionInternalEffect(
     });
     const session = yield* Effect.tryPromise({
       try: () =>
-        ctx.db
+        runtimeCtx.db
           .query("cliSessions")
           .withIndex("by_refresh_token_hash", (q) => q.eq("refreshTokenHash", refreshTokenHash))
           .unique(),
@@ -76,7 +76,7 @@ function refreshSessionInternalEffect(
 
     yield* Effect.tryPromise({
       try: () =>
-        ctx.db.patch(session._id, {
+        runtimeCtx.db.patch(session._id, {
           accessTokenHash,
           refreshTokenHash: nextRefreshTokenHash,
           accessTokenExpiresAtMs,
@@ -103,7 +103,7 @@ function refreshSessionInternalEffect(
 /**
  * Rotates a CLI session using a refresh token.
  *
- * @param ctx The Convex internal mutation context.
+ * @param runtimeCtx The Convex internal mutation context.
  * @param args The raw refresh token.
  * @returns The next token pair and session context when valid, or `null`.
  * @remarks This patches `cliSessions` with a new access token hash, refresh token hash, and expiry timestamps.
@@ -122,7 +122,7 @@ export const refreshSessionInternal = effectInternalMutation<
   handler: (args) =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectMutationCtx;
-      const ctx = confectCtx.ctx as unknown as MutationCtx;
-      return yield* refreshSessionInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+      return yield* refreshSessionInternalEffect(runtimeCtx, args);
     }),
 });

@@ -1,4 +1,9 @@
+import { Either, Schema } from "effect";
+
 import { throwValidationError } from "../errors/effect";
+
+const variableNameSchema = Schema.Trim.pipe(Schema.minLength(1), Schema.maxLength(160));
+const abRollChanceSchema = Schema.Number.pipe(Schema.finite(), Schema.between(0, 1));
 
 /**
  * Normalizes and validates a project variable name before it is persisted or resolved.
@@ -10,16 +15,14 @@ import { throwValidationError } from "../errors/effect";
  * @author GPT-5.4
  */
 export function validateVariableName(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return throwValidationError("Variable name is required.");
-  }
-
-  if (trimmed.length > 160) {
+  const decoded = Schema.decodeUnknownEither(variableNameSchema)(value);
+  if (Either.isLeft(decoded)) {
+    if (value.trim().length === 0) {
+      return throwValidationError("Variable name is required.");
+    }
     return throwValidationError("Variable name must be 160 characters or fewer.");
   }
-
-  return trimmed;
+  return decoded.right;
 }
 
 function utf8ByteLength(value: string): number {
@@ -36,10 +39,11 @@ function utf8ByteLength(value: string): number {
  * @author GPT-5.4
  */
 export function validateChance(value: number): number {
-  if (!Number.isFinite(value) || value < 0 || value > 1) {
+  const decoded = Schema.decodeUnknownEither(abRollChanceSchema)(value);
+  if (Either.isLeft(decoded)) {
     return throwValidationError("ab_roll chance must be a finite number between 0 and 1.");
   }
-  return value;
+  return decoded.right;
 }
 
 /**

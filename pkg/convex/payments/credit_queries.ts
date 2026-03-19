@@ -43,7 +43,7 @@ function toFreePlanCreditQueryError(
 /**
  * Reads the canonical free-plan credit row for a Clerk user.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @param args The Clerk user identifier.
  * @returns An Effect that succeeds with the canonical free-plan credit state, or `null`.
  * @remarks This is a read-only billing helper used by user and workspace plan flows.
@@ -51,12 +51,12 @@ function toFreePlanCreditQueryError(
  * @author GPT-5.4
  */
 function getFreePlanCreditForClerkUserIdInternalEffect(
-  ctx: QueryCtx,
+  runtimeCtx: QueryCtx,
   args: ClerkUserIdArgs,
 ): Effect.Effect<FreePlanCreditQueryResult, ExternalServiceError> {
   return Effect.tryPromise({
     try: async () => {
-      const rows = await ctx.db
+      const rows = await runtimeCtx.db
         .query("userFreePlanCredits")
         .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.clerkUserId))
         .collect();
@@ -74,7 +74,7 @@ function getFreePlanCreditForClerkUserIdInternalEffect(
 /**
  * Reads the free-plan credit assigned to an organization, if any.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @param args The organization identifier.
  * @returns An Effect that succeeds with the assigned free-plan credit state, or `null`.
  * @remarks This is used when deciding whether a free workspace should still count as active.
@@ -82,12 +82,12 @@ function getFreePlanCreditForClerkUserIdInternalEffect(
  * @author GPT-5.4
  */
 function getFreePlanCreditForOrgIdInternalEffect(
-  ctx: QueryCtx,
+  runtimeCtx: QueryCtx,
   args: OrgIdArgs,
 ): Effect.Effect<FreePlanCreditQueryResult, ExternalServiceError> {
   return Effect.tryPromise({
     try: async () => {
-      const row = await ctx.db
+      const row = await runtimeCtx.db
         .query("userFreePlanCredits")
         .withIndex("by_assigned_org_id", (q) => q.eq("assignedOrgId", args.orgId))
         .first();
@@ -107,7 +107,7 @@ function getFreePlanCreditForOrgIdInternalEffect(
 /**
  * Reads the canonical free-plan credit row for a Clerk user.
  *
- * @param ctx The Convex internal query context.
+ * @param runtimeCtx The Convex internal query context.
  * @param args The Clerk user identifier.
  * @returns The canonical free-plan credit state, or `null`.
  * @remarks This is a read-only billing helper used by user and workspace plan flows.
@@ -126,15 +126,15 @@ export const getFreePlanCreditForClerkUserIdInternal = effectInternalQuery<
   handler: (args) =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectQueryCtx;
-      const ctx = confectCtx.ctx as unknown as QueryCtx;
-      return yield* getFreePlanCreditForClerkUserIdInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as QueryCtx;
+      return yield* getFreePlanCreditForClerkUserIdInternalEffect(runtimeCtx, args);
     }),
 });
 
 /**
  * Reads the free-plan credit assigned to an organization, if any.
  *
- * @param ctx The Convex internal query context.
+ * @param runtimeCtx The Convex internal query context.
  * @param args The organization identifier.
  * @returns The assigned free-plan credit state, or `null`.
  * @remarks This is used when deciding whether a free workspace should still count as active.
@@ -153,7 +153,7 @@ export const getFreePlanCreditForOrgIdInternal = effectInternalQuery<
   handler: (args) =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectQueryCtx;
-      const ctx = confectCtx.ctx as unknown as QueryCtx;
-      return yield* getFreePlanCreditForOrgIdInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as QueryCtx;
+      return yield* getFreePlanCreditForOrgIdInternalEffect(runtimeCtx, args);
     }),
 });

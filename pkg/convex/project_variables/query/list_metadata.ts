@@ -9,7 +9,7 @@ import { type VariableMetadataRow, withProjectVariableQueryCtx } from "./shared"
 /**
  * Lists raw variable metadata for HTTP and CLI flows in a fixed stage order.
  *
- * @param ctx The Convex internal query context.
+ * @param runtimeCtx The Convex internal query context.
  * @param args The organization, project, and stage selector.
  * @returns Sorted variable metadata for the requested stage.
  * @remarks This internal boundary is the canonical source for stage variable metadata outside the UI.
@@ -32,8 +32,9 @@ export const listVariableMetadataForOrgProjectStageInternal = effectInternalQuer
   },
   returns: v.array(variableMetadataValidator),
   handler: (args) =>
-    withProjectVariableQueryCtx(async (ctx, innerArgs) => {
-      const projectStage = await findProjectStageByOrgIdAndSlug(ctx.db, {
+    withProjectVariableQueryCtx(async (runtimeCtx, innerArgs) => {
+      const db = runtimeCtx.db;
+      const projectStage = await findProjectStageByOrgIdAndSlug(db, {
         orgId: innerArgs.orgId,
         projectSlug: innerArgs.projectSlug,
         stageSlug: innerArgs.stageSlug,
@@ -42,7 +43,7 @@ export const listVariableMetadataForOrgProjectStageInternal = effectInternalQuer
         return [];
       }
 
-      const rows = await listProjectVariableRowsForStage(ctx.db, {
+      const rows = await listProjectVariableRowsForStage(db, {
         projectId: projectStage.project._id,
         stageSlug: projectStage.stage.slug,
       });

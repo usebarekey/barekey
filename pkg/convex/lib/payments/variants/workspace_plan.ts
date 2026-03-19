@@ -5,21 +5,15 @@ import {
   BILLING_UNAVAILABLE_ERROR_MESSAGE,
   BillingTier,
   PLANLESS_WORKSPACE_ERROR_MESSAGE,
-  type DefaultVariant,
 } from "../catalog";
 import { createAutumnClient } from "./client";
 import {
-  normalizeString,
   type WorkspacePlanState,
 } from "./shared";
+import { decodeAutumnCustomerProducts, type AutumnCustomerProduct } from "./schema";
 import {
   readCurrentVariantFromProductId,
 } from "./pricing";
-
-type CustomerProduct = {
-  id: string;
-  status: string;
-};
 
 /**
  * Reads normalized customer products from raw Autumn customer payloads.
@@ -30,29 +24,8 @@ type CustomerProduct = {
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export function readCustomerProducts(customerData: unknown): Array<CustomerProduct> {
-  if (typeof customerData !== "object" || customerData === null) {
-    return [];
-  }
-  const products = (customerData as { products?: unknown }).products;
-  if (!Array.isArray(products)) {
-    return [];
-  }
-
-  return products
-    .map((product) => {
-      if (typeof product !== "object" || product === null) {
-        return null;
-      }
-      const record = product as Record<string, unknown>;
-      const status = normalizeString(record.status);
-      const id = normalizeString(record.id) ?? normalizeString(record.product_id);
-      if (id === null || status === null) {
-        return null;
-      }
-      return { id, status };
-    })
-    .filter((value): value is CustomerProduct => value !== null);
+export function readCustomerProducts(customerData: unknown): Array<AutumnCustomerProduct> {
+  return [...decodeAutumnCustomerProducts(customerData)];
 }
 
 /**
@@ -104,7 +77,7 @@ async function ensureAutumnCustomerForOrg(input: {
 /**
  * Returns whether a free-plan credit is currently assigned to the org.
  *
- * @param ctx The Convex action context.
+ * @param convexCtx The Convex action context.
  * @param input The organization identity.
  * @returns `true` when a free-plan credit is assigned.
  * @remarks This is used to distinguish a real free workspace from a planless org.
@@ -112,12 +85,12 @@ async function ensureAutumnCustomerForOrg(input: {
  * @author GPT-5.4
  */
 async function hasFreePlanCreditAssignedToOrg(
-  ctx: ActionCtx,
+  convexCtx: ActionCtx,
   input: {
     orgId: string;
   },
 ): Promise<boolean> {
-  const credit = await ctx.runQuery(getFreePlanCreditForOrgIdInternalReference, {
+  const credit = await convexCtx.runQuery(getFreePlanCreditForOrgIdInternalReference, {
     orgId: input.orgId,
   });
   return credit !== null;
@@ -126,7 +99,7 @@ async function hasFreePlanCreditAssignedToOrg(
 /**
  * Reads the current workspace plan state for an organization.
  *
- * @param ctx The Convex action context.
+ * @param convexCtx The Convex action context.
  * @param input The organization identity.
  * @returns The current product id and billing tier.
  * @remarks This throws stable billing errors when Autumn is unavailable or the org has no active plan.
@@ -134,7 +107,7 @@ async function hasFreePlanCreditAssignedToOrg(
  * @author GPT-5.4
  */
 export async function readWorkspacePlanStateForOrg(
-  ctx: ActionCtx,
+  convexCtx: ActionCtx,
   input: {
     orgId: string;
     orgSlug: string | null;
@@ -152,7 +125,7 @@ export async function readWorkspacePlanStateForOrg(
 
   const currentVariant = readCurrentVariantFromProductId(currentProductId);
   if (currentVariant?.tier === BillingTier.Free) {
-    const hasAssignedFreePlanCredit = await hasFreePlanCreditAssignedToOrg(ctx, {
+    const hasAssignedFreePlanCredit = await hasFreePlanCreditAssignedToOrg(convexCtx, {
       orgId: input.orgId,
     });
     if (!hasAssignedFreePlanCredit) {

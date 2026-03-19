@@ -1,14 +1,14 @@
-import { Effect } from "effect";
-import { v } from "convex/values";
+import { Effect, Schema } from "effect";
 
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { BarekeyConfectMutationCtx, effectMutation } from "../confect";
+import { BarekeyConfectMutationCtx, schemaEffectMutation } from "../confect";
 import {
   assertExpectedOrgSlugEffect,
   requireActiveOrgIdClaimsEffect,
   requireIdentityEffect,
 } from "../lib/auth";
+import { dbCollectEffect, dbDeleteEffect } from "../lib/convex/db";
 import { appendAuditEventEffect } from "../lib/confect/audit";
 import {
   AuthError,
@@ -21,6 +21,16 @@ import {
   findStageByProjectIdAndSlugEffect,
 } from "../lib/projects/scope";
 import { toProjectStageExternalServiceError } from "./errors";
+
+const deleteStageArgsSchema = Schema.Struct({
+  expectedOrgSlug: Schema.String,
+  projectSlug: Schema.String,
+  stageSlug: Schema.String,
+});
+
+const deleteStageResultSchema = Schema.Struct({
+  deletedStageSlug: Schema.String,
+});
 
 /**
  * Deletes a project stage for the current authenticated organization as an Effect program.
@@ -46,15 +56,16 @@ function deleteForCurrentOrgProjectEffect(
 > {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectMutationCtx;
-    const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const identity = yield* requireIdentityEffect(ctx);
+    const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+    const identity = yield* requireIdentityEffect(runtimeCtx);
     const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
+    const db = runtimeCtx.db;
 
     if (activeOrg.orgSlug !== null) {
       yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
     }
 
-    const project = yield* findProjectByOrgIdAndSlugEffect(ctx.db, {
+    const project = yield* findProjectByOrgIdAndSlugEffect(db, {
       orgId: activeOrg.orgId,
       projectSlug: args.projectSlug,
     });
@@ -62,7 +73,7 @@ function deleteForCurrentOrgProjectEffect(
       return yield* Effect.fail(new NotFoundError({ message: "Project not found." }));
     }
 
-    const stage = yield* findStageByProjectIdAndSlugEffect(ctx.db, {
+    const stage = yield* findStageByProjectIdAndSlugEffect(db, {
       projectId: project._id,
       stageSlug: args.stageSlug,
     });
@@ -70,17 +81,15 @@ function deleteForCurrentOrgProjectEffect(
       return yield* Effect.fail(new NotFoundError({ message: "Stage not found." }));
     }
 
-    const existingVariables = yield* Effect.tryPromise({
-      try: () =>
-        ctx.db
-          .query("projectVariables")
-          .withIndex("by_project_id_and_stage_slug", (q) =>
-            q.eq("projectId", project._id).eq("stageSlug", stage.slug),
-          )
-          .collect(),
-      catch: (error) =>
-        toProjectStageExternalServiceError("Failed to load stage variables.", error),
-    });
+    const existingVariables = yield* dbCollectEffect(
+      runtimeCtx,
+      "projectVariables",
+      (query) =>
+        query.withIndex("by_project_id_and_stage_slug", (indexQuery) =>
+          indexQuery.eq("projectId", project._id).eq("stageSlug", stage.slug),
+        ),
+      (error) => toProjectStageExternalServiceError("Failed to load stage variables.", error),
+    );
     if (existingVariables.length > 0) {
       return yield* Effect.fail(
         new ValidationError({
@@ -89,11 +98,9 @@ function deleteForCurrentOrgProjectEffect(
       );
     }
 
-    yield* Effect.tryPromise({
-      try: () => ctx.db.delete(stage._id),
-      catch: (error) =>
-        toProjectStageExternalServiceError("Failed to delete the stage row.", error),
-    });
+    yield* dbDeleteEffect(runtimeCtx, stage._id, (error) =>
+      toProjectStageExternalServiceError("Failed to delete the stage row.", error),
+    );
 
     yield* appendAuditEventEffect({
       orgId: activeOrg.orgId,
@@ -135,14 +142,8 @@ function deleteForCurrentOrgProjectEffect(
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const deleteForCurrentOrgProject = effectMutation({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-    stageSlug: v.string(),
-  },
-  returns: v.object({
-    deletedStageSlug: v.string(),
-  }),
+export const deleteForCurrentOrgProject = schemaEffectMutation({
+  args: deleteStageArgsSchema,
+  returns: deleteStageResultSchema,
   handler: deleteForCurrentOrgProjectEffect,
 });

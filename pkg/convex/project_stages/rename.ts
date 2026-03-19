@@ -1,9 +1,9 @@
-import { Effect } from "effect";
-import { v } from "convex/values";
+import { Effect, Schema } from "effect";
 
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { BarekeyConfectMutationCtx, effectMutation } from "../confect";
+import { BarekeyConfectMutationCtx, schemaEffectMutation } from "../confect";
 import {
   assertExpectedOrgSlugEffect,
   requireActiveOrgIdClaimsEffect,
@@ -22,8 +22,15 @@ import {
   requireProjectBySlugForOrgEffect,
 } from "./access";
 import { toProjectStageExternalServiceError } from "./errors";
-import { stageSummaryValidator } from "./types";
+import { stageSummarySchema } from "./types";
 import { validateStageNameEffect } from "./validation";
+
+const renameStageArgsSchema = Schema.Struct({
+  expectedOrgSlug: Schema.String,
+  projectSlug: Schema.String,
+  stageSlug: Schema.String,
+  name: Schema.String,
+});
 
 /**
  * Renames a project stage display name as an Effect program.
@@ -43,8 +50,8 @@ function renameForCurrentOrgProjectEffect(
   },
 ): Effect.Effect<
   {
-    id: string;
-    projectId: string;
+    id: Id<"projectStages">;
+    projectId: Id<"projects">;
     orgId: string;
     slug: string;
     name: string;
@@ -58,19 +65,19 @@ function renameForCurrentOrgProjectEffect(
 > {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectMutationCtx;
-    const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const identity = yield* requireIdentityEffect(ctx);
+    const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+    const identity = yield* requireIdentityEffect(runtimeCtx);
     const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
 
     if (activeOrg.orgSlug !== null) {
       yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
     }
 
-    const project = yield* requireProjectBySlugForOrgEffect(ctx, {
+    const project = yield* requireProjectBySlugForOrgEffect(runtimeCtx, {
       orgId: activeOrg.orgId,
       projectSlug: args.projectSlug,
     });
-    const stage = yield* findStageByProjectIdAndSlugEffect(ctx.db, {
+    const stage = yield* findStageByProjectIdAndSlugEffect(runtimeCtx.db, {
       projectId: project._id,
       stageSlug: args.stageSlug,
     }).pipe(
@@ -86,7 +93,7 @@ function renameForCurrentOrgProjectEffect(
 
     yield* Effect.tryPromise({
       try: () =>
-        ctx.db.patch(stage._id, {
+        runtimeCtx.db.patch(stage._id, {
           name: trimmedName,
           updatedAtMs: now,
         }),
@@ -121,7 +128,7 @@ function renameForCurrentOrgProjectEffect(
       retentionTierOverride: null,
     });
 
-    const variableCount = yield* countVariablesForStageEffect(ctx, {
+    const variableCount = yield* countVariablesForStageEffect(runtimeCtx, {
       projectId: project._id,
       stageSlug: stage.slug,
     });
@@ -143,20 +150,15 @@ function renameForCurrentOrgProjectEffect(
 /**
  * Renames a project stage display name.
  *
- * @param ctx The Convex mutation context.
+ * @param runtimeCtx The Convex mutation context.
  * @param args The expected org slug, project slug, stage slug, and next stage name.
  * @returns The updated stage summary.
  * @remarks The stage slug remains immutable; this only patches the display name and audit trail.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const renameForCurrentOrgProject = effectMutation({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-    stageSlug: v.string(),
-    name: v.string(),
-  },
-  returns: stageSummaryValidator,
+export const renameForCurrentOrgProject = schemaEffectMutation({
+  args: renameStageArgsSchema,
+  returns: stageSummarySchema,
   handler: renameForCurrentOrgProjectEffect,
 });

@@ -1,10 +1,12 @@
 import { Effect } from "effect";
 import { v } from "convex/values";
+import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import {
   BarekeyConfectMutationCtx,
   effectInternalMutation,
 } from "../../confect";
+import { dbCollectEffect, dbPatchEffect } from "../../lib/convex/db";
 import { toFreePlanCreditState } from "../../lib/payments/state";
 import { ensureFreePlanCreditRowEffect } from "./rows";
 import {
@@ -58,18 +60,22 @@ export const ensureFreePlanCreditForClerkUserInternal = effectInternalMutation<
         row.assignedOrgId === null &&
         row.remainingCredits > 0
       ) {
-        const existingOrgAssignments = yield* Effect.tryPromise({
-          try: () =>
-            ctx.db
-              .query("userFreePlanCredits")
-              .withIndex("by_assigned_org_id", (q) => q.eq("assignedOrgId", args.orgId))
-              .collect(),
-          catch: (error) =>
+        const existingOrgAssignments = yield* dbCollectEffect<
+          Doc<"userFreePlanCredits">,
+          ReturnType<typeof toFreePlanCreditError>
+        >(
+          ctx,
+          "userFreePlanCredits",
+          (query) =>
+            query.withIndex("by_assigned_org_id", (indexQuery) =>
+              indexQuery.eq("assignedOrgId", args.orgId),
+            ),
+          (error) =>
             toFreePlanCreditError(
               "Unable to load existing free organization credit assignments.",
               error,
             ),
-        });
+        );
         const assignmentExistsForAnotherCredit = existingOrgAssignments.some(
           (entry) => entry._id !== currentRowId,
         );
@@ -78,20 +84,21 @@ export const ensureFreePlanCreditForClerkUserInternal = effectInternalMutation<
         }
 
         const nextRemainingCredits = Math.max(0, row.remainingCredits - 1);
-        yield* Effect.tryPromise({
-          try: () =>
-            ctx.db.patch(row._id, {
-              remainingCredits: nextRemainingCredits,
-              assignedOrgId: args.orgId,
-              assignedOrgSlug: args.orgSlug,
-              consumedAtMs: now,
-              revokedAtMs: null,
-              revokedReason: null,
-              updatedAtMs: now,
-            }),
-          catch: (error) =>
+        yield* dbPatchEffect(
+          ctx,
+          row._id,
+          {
+            remainingCredits: nextRemainingCredits,
+            assignedOrgId: args.orgId,
+            assignedOrgSlug: args.orgSlug,
+            consumedAtMs: now,
+            revokedAtMs: null,
+            revokedReason: null,
+            updatedAtMs: now,
+          },
+          (error) =>
             toFreePlanCreditError("Unable to assign the free organization credit.", error),
-        });
+        );
         row = {
           ...row,
           remainingCredits: nextRemainingCredits,
@@ -107,15 +114,16 @@ export const ensureFreePlanCreditForClerkUserInternal = effectInternalMutation<
         row.assignedOrgId === args.orgId &&
         row.assignedOrgSlug !== args.orgSlug
       ) {
-        yield* Effect.tryPromise({
-          try: () =>
-            ctx.db.patch(row._id, {
-              assignedOrgSlug: args.orgSlug,
-              updatedAtMs: now,
-            }),
-          catch: (error) =>
+        yield* dbPatchEffect(
+          ctx,
+          row._id,
+          {
+            assignedOrgSlug: args.orgSlug,
+            updatedAtMs: now,
+          },
+          (error) =>
             toFreePlanCreditError("Unable to refresh the free organization credit slug.", error),
-        });
+        );
         row = {
           ...row,
           assignedOrgSlug: args.orgSlug,

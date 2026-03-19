@@ -1,8 +1,10 @@
 import { Effect } from "effect";
 import { v } from "convex/values";
 
+import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { BarekeyConfectQueryCtx, effectQuery } from "../confect";
+import { dbCollectEffect, dbUniqueEffect } from "../lib/convex/db";
 import { ExternalServiceError } from "../lib/errors/effect";
 import { getActiveOrgIdClaimsOrNull } from "../lib/auth";
 import {
@@ -79,21 +81,32 @@ export const listForCurrentOrg = effectQuery<
       return [];
     }
 
-    const rows = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_created_at_ms", (q) => q.eq("orgId", activeOrg.orgId))
-      .order("desc")
-      .collect();
+    const rows = await Effect.runPromise(
+      dbCollectEffect<Doc<"projects">, ExternalServiceError>(
+        ctx,
+        "projects",
+        (query) =>
+          query.withIndex("by_org_id_and_created_at_ms", (indexQuery) =>
+            indexQuery.eq("orgId", activeOrg.orgId),
+          ).order("desc"),
+        toProjectQueryError,
+      ),
+    );
 
     return Promise.all(
       rows.map(async (row) => {
         const secretCount = (
-          await ctx.db
-            .query("projectVariables")
-            .withIndex("by_org_id_and_project_id", (q) =>
-              q.eq("orgId", activeOrg.orgId).eq("projectId", row._id),
-            )
-            .collect()
+          await Effect.runPromise(
+            dbCollectEffect<Doc<"projectVariables">, ExternalServiceError>(
+              ctx,
+              "projectVariables",
+              (query) =>
+                query.withIndex("by_org_id_and_project_id", (indexQuery) =>
+                  indexQuery.eq("orgId", activeOrg.orgId).eq("projectId", row._id),
+                ),
+              toProjectQueryError,
+            ),
+          )
         ).length;
 
         return {
@@ -162,12 +175,17 @@ export const getBySlugForCurrentOrg = effectQuery<
       return null;
     }
 
-    const row = await ctx.db
-      .query("projects")
-      .withIndex("by_org_id_and_slug", (q) =>
-        q.eq("orgId", activeOrg.orgId).eq("slug", innerArgs.projectSlug),
-      )
-      .unique();
+    const row = await Effect.runPromise(
+      dbUniqueEffect<Doc<"projects">, ExternalServiceError>(
+        ctx,
+        "projects",
+        (query) =>
+          query.withIndex("by_org_id_and_slug", (indexQuery) =>
+            indexQuery.eq("orgId", activeOrg.orgId).eq("slug", innerArgs.projectSlug),
+          ),
+        toProjectQueryError,
+      ),
+    );
 
     if (row === null) {
       return null;

@@ -431,7 +431,9 @@ function convertDialogFormKind(form: DialogForm, nextKind: VariableKind): Dialog
   return form;
 }
 
-function cloneRolloutMilestones(value: Array<RolloutMilestone>): Array<RolloutMilestone> {
+function cloneRolloutMilestones(
+  value: ReadonlyArray<RolloutMilestone>,
+): Array<RolloutMilestone> {
   return value.map((milestone) => ({
     at: milestone.at,
     percentage: milestone.percentage,
@@ -1280,32 +1282,33 @@ export function Page() {
         stageSlug: activeStageSlug!,
         variableId: row.id,
       });
+      const revealedValue: RevealedVariableValue =
+        decrypted.kind === "secret"
+          ? { kind: "secret", declaredType: decrypted.declaredType, value: decrypted.value }
+          : decrypted.kind === "ab_roll"
+            ? {
+                kind: "ab_roll",
+                declaredType: decrypted.declaredType,
+                valueA: decrypted.valueA,
+                valueB: decrypted.valueB,
+                chance: decrypted.chance,
+              }
+            : {
+                kind: "rollout",
+                declaredType: decrypted.declaredType,
+                valueA: decrypted.valueA,
+                valueB: decrypted.valueB,
+                rolloutFunction: decrypted.rolloutFunction,
+                rolloutMilestones: cloneRolloutMilestones(decrypted.rolloutMilestones),
+              };
 
       updateCurrentStageDraft((current) => {
-        current.revealedValues[row.id] =
-          decrypted.kind === "secret"
-            ? { kind: "secret", declaredType: decrypted.declaredType, value: decrypted.value }
-            : decrypted.kind === "ab_roll"
-              ? {
-                  kind: "ab_roll",
-                  declaredType: decrypted.declaredType,
-                  valueA: decrypted.valueA,
-                  valueB: decrypted.valueB,
-                  chance: decrypted.chance,
-                }
-              : {
-                  kind: "rollout",
-                  declaredType: decrypted.declaredType,
-                  valueA: decrypted.valueA,
-                  valueB: decrypted.valueB,
-                  rolloutFunction: decrypted.rolloutFunction,
-                  rolloutMilestones: decrypted.rolloutMilestones,
-                };
+        current.revealedValues[row.id] = revealedValue;
         current.revealedIds[row.id] = true;
         return current;
       });
 
-      setDialogForm(toDialogFormFromRevealedValue(row.name, decrypted, row.visibility));
+      setDialogForm(toDialogFormFromRevealedValue(row.name, revealedValue, row.visibility));
       setDialogState({ mode: "edit-existing", row, loading: false });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to decrypt variable.");

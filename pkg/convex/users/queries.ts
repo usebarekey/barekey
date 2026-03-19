@@ -26,14 +26,14 @@ function toUserQueryError(error: unknown): AuthError | ExternalServiceError {
 }
 
 function withUserQueryCtx<Args, Result>(
-  handler: (ctx: QueryCtx, args: Args) => Promise<Result>,
+  handler: (runtimeCtx: QueryCtx, args: Args) => Promise<Result>,
   args: Args,
 ): Effect.Effect<Result, AuthError | ExternalServiceError, any> {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectQueryCtx;
-    const ctx = confectCtx.ctx as unknown as QueryCtx;
+    const runtimeCtx = confectCtx.ctx as unknown as QueryCtx;
     return yield* Effect.tryPromise({
-      try: () => handler(ctx, args),
+      try: () => handler(runtimeCtx, args),
       catch: toUserQueryError,
     });
   });
@@ -42,7 +42,7 @@ function withUserQueryCtx<Args, Result>(
 /**
  * Returns the current authenticated user's public profile fields.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @returns The canonical public user record, or `null` when the user has not been provisioned.
  * @remarks This is read-only and does not create user rows implicitly.
  * @lastModified 2026-03-17
@@ -59,13 +59,13 @@ export const getCurrentUser = effectQuery<{}, {
   args: {},
   returns: v.union(userRecordValidator, v.null()),
   handler: () =>
-    withUserQueryCtx(async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
+    withUserQueryCtx(async (runtimeCtx) => {
+    const identity = await runtimeCtx.auth.getUserIdentity();
     if (identity === null) {
       return null;
     }
 
-    const user = await getCanonicalUserByClerkUserId(ctx, identity.subject);
+    const user = await getCanonicalUserByClerkUserId(runtimeCtx, identity.subject);
     if (user === null) {
       return null;
     }
@@ -84,7 +84,7 @@ export const getCurrentUser = effectQuery<{}, {
 /**
  * Returns the current user's account record with lifecycle timestamps for timeline views.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @returns The canonical user account record, or `null`.
  * @remarks This includes created/updated/last-seen timestamps for account surfaces that need them.
  * @lastModified 2026-03-17
@@ -104,13 +104,13 @@ export const getCurrentUserAccount = effectQuery<{}, {
   args: {},
   returns: v.union(userAccountRecordValidator, v.null()),
   handler: () =>
-    withUserQueryCtx(async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
+    withUserQueryCtx(async (runtimeCtx) => {
+    const identity = await runtimeCtx.auth.getUserIdentity();
     if (identity === null) {
       return null;
     }
 
-    const user = await getCanonicalUserByClerkUserId(ctx, identity.subject);
+    const user = await getCanonicalUserByClerkUserId(runtimeCtx, identity.subject);
     if (user === null) {
       return null;
     }
@@ -132,7 +132,7 @@ export const getCurrentUserAccount = effectQuery<{}, {
 /**
  * Looks up a user's public profile by slug.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @param args The user slug to look up.
  * @returns The public slug/display-name pair, or `null`.
  * @remarks This intentionally exposes only public-facing profile fields.
@@ -160,8 +160,8 @@ export const getBySlug = effectQuery<
     v.null(),
   ),
   handler: (args) =>
-    withUserQueryCtx(async (ctx, innerArgs) => {
-    const user = await getCanonicalUserBySlug(ctx, innerArgs.slug);
+    withUserQueryCtx(async (runtimeCtx, innerArgs) => {
+    const user = await getCanonicalUserBySlug(runtimeCtx, innerArgs.slug);
     if (user === null) {
       return null;
     }
@@ -176,7 +176,7 @@ export const getBySlug = effectQuery<
 /**
  * Returns the current user's free workspace credit status and assignment.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @returns The free-plan credit totals and current workspace assignment.
  * @remarks Missing credit rows default to a single unassigned available credit.
  * @lastModified 2026-03-17
@@ -191,9 +191,9 @@ export const getCurrentUserFreePlanCredit = effectQuery<{}, {
   args: {},
   returns: currentUserFreePlanCreditValidator,
   handler: () =>
-    withUserQueryCtx(async (ctx) => {
-    const identity = await requireIdentity(ctx);
-    const credits = await ctx.db
+    withUserQueryCtx(async (runtimeCtx) => {
+    const identity = await requireIdentity(runtimeCtx);
+    const credits = await runtimeCtx.db
       .query("userFreePlanCredits")
       .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", identity.subject))
       .collect();

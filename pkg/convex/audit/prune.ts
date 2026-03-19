@@ -9,6 +9,8 @@ import {
   effectInternalAction,
   effectInternalMutation,
 } from "../confect";
+import { dbDeleteEffect } from "../lib/convex/db";
+import { runMutationEffect } from "../lib/convex/functions";
 import { ExternalServiceError } from "../lib/errors/effect";
 
 type PruneBatchArgs = {
@@ -54,7 +56,7 @@ function toAuditPruneError(
 /**
  * Deletes one bounded batch of expired audit events.
  *
- * @param ctx The Convex mutation context.
+ * @param runtimeCtx The Convex mutation context.
  * @param args The current time and requested batch size.
  * @returns An Effect that succeeds with the deleted count and whether another batch likely remains.
  * @remarks This clamps the batch size to a safe range and deletes rows one by one.
@@ -62,14 +64,15 @@ function toAuditPruneError(
  * @author GPT-5.4
  */
 function pruneExpiredEventsBatchInternalEffect(
-  ctx: MutationCtx,
+  runtimeCtx: MutationCtx,
   args: PruneBatchArgs,
 ): Effect.Effect<PruneBatchResult, ExternalServiceError> {
   return Effect.gen(function* () {
     const safeBatchSize = Math.min(Math.max(args.batchSize, 1), 500);
+    const db = runtimeCtx.db;
     const rows = yield* Effect.tryPromise({
       try: () =>
-        ctx.db
+        db
           .query("auditEvents")
           .withIndex("by_expires_at_ms", (q) => q.lt("expiresAtMs", args.nowMs))
           .take(safeBatchSize),
@@ -79,12 +82,9 @@ function pruneExpiredEventsBatchInternalEffect(
 
     yield* Effect.forEach(
       rows,
-      (row) =>
-        Effect.tryPromise({
-          try: () => ctx.db.delete(row._id),
-          catch: (error) =>
-            toAuditPruneError("Failed to delete an expired audit event.", error),
-        }),
+      (row) => dbDeleteEffect(runtimeCtx, row._id, (error) =>
+        toAuditPruneError("Failed to delete an expired audit event.", error),
+      ),
       { concurrency: 1, discard: true },
     );
 
@@ -98,31 +98,27 @@ function pruneExpiredEventsBatchInternalEffect(
 /**
  * Prunes expired audit events across multiple internal batches.
  *
- * @param ctx The Convex action context.
+ * @param runtimeCtx The Convex action context.
  * @returns An Effect that succeeds with the total number of deleted audit events.
  * @remarks This loops through at most 20 internal prune batches per invocation.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
 function pruneExpiredEventsInternalEffect(
-  ctx: ActionCtx,
+  runtimeCtx: ActionCtx,
 ): Effect.Effect<PruneResult, ExternalServiceError> {
   return Effect.gen(function* () {
-    const runMutation = ctx.runMutation as (
-      functionReference: unknown,
-      args: Record<string, unknown>,
-    ) => Promise<unknown>;
     let deletedCount = 0;
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const batch = (yield* Effect.tryPromise({
-        try: () =>
-          runMutation(pruneExpiredEventsBatchInternalReference, {
-            nowMs: Date.now(),
-            batchSize: 250,
-          }),
-        catch: (error) =>
-          toAuditPruneError("Failed to run an internal audit prune batch.", error),
-      })) as PruneBatchResult;
+      const batch = yield* runMutationEffect<PruneBatchResult, ExternalServiceError>(
+        runtimeCtx,
+        pruneExpiredEventsBatchInternalReference,
+        {
+          nowMs: Date.now(),
+          batchSize: 250,
+        },
+        (error) => toAuditPruneError("Failed to run an internal audit prune batch.", error),
+      );
       deletedCount += batch.deletedCount;
       if (!batch.hasMore) {
         break;
@@ -138,7 +134,7 @@ function pruneExpiredEventsInternalEffect(
 /**
  * Deletes one batch of expired audit events.
  *
- * @param ctx The Convex internal mutation context.
+ * @param runtimeCtx The Convex internal mutation context.
  * @param args The current time and requested batch size.
  * @returns The number of deleted events plus whether another batch likely remains.
  * @remarks This mutates `auditEvents` and clamps the batch size to a safe range.
@@ -161,15 +157,15 @@ export const pruneExpiredEventsBatchInternal = effectInternalMutation<
   handler: (args) =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectMutationCtx;
-      const ctx = confectCtx.ctx as unknown as MutationCtx;
-      return yield* pruneExpiredEventsBatchInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+      return yield* pruneExpiredEventsBatchInternalEffect(runtimeCtx, args);
     }),
 });
 
 /**
  * Prunes expired audit events across multiple internal batches.
  *
- * @param ctx The Convex internal action context.
+ * @param runtimeCtx The Convex internal action context.
  * @returns The total number of deleted audit events.
  * @remarks This loops through at most 20 internal prune batches per invocation.
  * @lastModified 2026-03-17
@@ -183,7 +179,7 @@ export const pruneExpiredEventsInternal = effectInternalAction<{}, PruneResult, 
   handler: () =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectActionCtx;
-      const ctx = confectCtx.ctx as unknown as ActionCtx;
-      return yield* pruneExpiredEventsInternalEffect(ctx);
+      const runtimeCtx = confectCtx.ctx as unknown as ActionCtx;
+      return yield* pruneExpiredEventsInternalEffect(runtimeCtx);
     }),
 });

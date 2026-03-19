@@ -1,20 +1,8 @@
-import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../../confect";
-import type { PublicVariableResolution } from "../../../../project_variables/queries";
 import { parseDefinitionsRequest, resolveDefinitionsForRows } from "..";
 import { buildJsonResponse, errorResponse, readRequestId } from "../../responses";
+import { resolvePublicVariableRows } from "./data";
 import { readJsonBody } from "./shared";
-
-const resolvePublicVariableRowsForOrgProjectStageInternalReference = makeFunctionReference<
-  "query",
-  {
-    orgSlug: string;
-    projectSlug: string;
-    stageSlug: string;
-    names?: Array<string>;
-  },
-  PublicVariableResolution
->("project_variables:resolvePublicVariableRowsForOrgProjectStageInternal") as any;
 
 /**
  * Resolves public variable definitions without authenticated workspace context.
@@ -50,15 +38,12 @@ export const publicEnvDefinitions = httpAction(async (ctx, request) => {
     });
   }
 
-  const resolved = (await ctx.runQuery(
-    resolvePublicVariableRowsForOrgProjectStageInternalReference,
-    {
-      orgSlug: parsed.orgSlug,
-      projectSlug: parsed.projectSlug,
-      stageSlug: parsed.stageSlug,
-      ...(parsed.names === undefined ? {} : { names: parsed.names }),
-    },
-  )) as PublicVariableResolution;
+  const resolved = await resolvePublicVariableRows(ctx, {
+    orgSlug: parsed.orgSlug,
+    projectSlug: parsed.projectSlug,
+    stageSlug: parsed.stageSlug,
+    ...(parsed.names === undefined ? {} : { names: parsed.names }),
+  });
   if (resolved === null) {
     return errorResponse({
       status: 404,

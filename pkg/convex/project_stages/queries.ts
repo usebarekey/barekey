@@ -1,22 +1,28 @@
-import { Effect } from "effect";
-import { v } from "convex/values";
+import { Either, Effect, Schema } from "effect";
 
+import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import { BarekeyConfectQueryCtx, effectQuery } from "../confect";
+import { BarekeyConfectQueryCtx, schemaEffectQuery } from "../confect";
 import { getActiveOrgIdClaimsOrNull } from "../lib/auth";
 import { ExternalServiceError } from "../lib/errors/effect";
 import {
   countVariablesForStageEffect,
   findProjectBySlugForOrgEffect,
 } from "./access";
-import { stageSummaryValidator } from "./types";
+import { stageSummarySchema } from "./types";
+
+const listStagesArgsSchema = Schema.Struct({
+  expectedOrgSlug: Schema.String,
+  projectSlug: Schema.String,
+});
 
 function toProjectStageQueryError(
   fallbackMessage: string,
   error: unknown,
 ): ExternalServiceError {
+  const decodedError = Schema.decodeUnknownEither(Schema.instanceOf(Error))(error);
   return new ExternalServiceError({
-    message: error instanceof Error ? error.message : fallbackMessage,
+    message: Either.isRight(decodedError) ? decodedError.right.message : fallbackMessage,
     cause: error,
   });
 }
@@ -28,8 +34,8 @@ function listForCurrentOrgProjectEffect(
   },
 ): Effect.Effect<
   Array<{
-    id: string;
-    projectId: string;
+    id: Id<"projectStages">;
+    projectId: Id<"projects">;
     orgId: string;
     slug: string;
     name: string;
@@ -43,9 +49,9 @@ function listForCurrentOrgProjectEffect(
 > {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectQueryCtx;
-    const ctx = confectCtx.ctx as unknown as QueryCtx;
+    const runtimeCtx = confectCtx.ctx as unknown as QueryCtx;
     const identity = yield* Effect.tryPromise({
-      try: () => ctx.auth.getUserIdentity(),
+      try: () => runtimeCtx.auth.getUserIdentity(),
       catch: (error) =>
         toProjectStageQueryError("Failed to resolve user identity for stage listing.", error),
     });
@@ -62,7 +68,7 @@ function listForCurrentOrgProjectEffect(
       return [];
     }
 
-    const project = yield* findProjectBySlugForOrgEffect(ctx, {
+    const project = yield* findProjectBySlugForOrgEffect(runtimeCtx, {
       orgId: activeOrg.orgId,
       projectSlug: args.projectSlug,
     });
@@ -72,7 +78,7 @@ function listForCurrentOrgProjectEffect(
 
     const stages = yield* Effect.tryPromise({
       try: () =>
-        ctx.db
+        runtimeCtx.db
           .query("projectStages")
           .withIndex("by_project_id", (q) => q.eq("projectId", project._id))
           .collect(),
@@ -81,7 +87,7 @@ function listForCurrentOrgProjectEffect(
     });
 
     return yield* Effect.forEach(stages, (stage) =>
-      countVariablesForStageEffect(ctx, {
+      countVariablesForStageEffect(runtimeCtx, {
         projectId: project._id,
         stageSlug: stage.slug,
       }).pipe(
@@ -104,18 +110,15 @@ function listForCurrentOrgProjectEffect(
 /**
  * Lists stages for a project, including per-stage variable counts.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @param args The expected org slug and project slug.
  * @returns The stage summaries for the project.
  * @remarks Missing or drifting org claims intentionally return an empty list during org-switch transitions.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const listForCurrentOrgProject = effectQuery({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-  },
-  returns: v.array(stageSummaryValidator),
+export const listForCurrentOrgProject = schemaEffectQuery({
+  args: listStagesArgsSchema,
+  returns: Schema.Array(stageSummarySchema),
   handler: listForCurrentOrgProjectEffect,
 });

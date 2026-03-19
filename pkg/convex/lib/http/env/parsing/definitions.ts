@@ -1,5 +1,24 @@
+import { Schema } from "effect";
+
 import type { EnvDefinitionsRequest } from "../types";
-import { normalizeName, readOptionalString } from "./shared";
+import { decodePayloadOrNull } from "./shared";
+
+const trimmedNonEmptyStringSchema = Schema.Trim.pipe(Schema.minLength(1));
+const definitionsRequestSchema = Schema.Struct({
+  orgSlug: Schema.optional(Schema.NullOr(trimmedNonEmptyStringSchema)),
+  projectSlug: trimmedNonEmptyStringSchema,
+  stageSlug: trimmedNonEmptyStringSchema,
+  names: Schema.optional(
+    Schema.NullOr(
+      Schema.Array(trimmedNonEmptyStringSchema).pipe(
+        Schema.filter((names) => {
+          const uniqueNames = new Set(names);
+          return uniqueNames.size === names.length || "Variable names must be unique.";
+        }),
+      ),
+    ),
+  ),
+});
 
 /**
  * Parses a variable-definitions request.
@@ -11,43 +30,15 @@ import { normalizeName, readOptionalString } from "./shared";
  * @author GPT-5.4
  */
 export function parseDefinitionsRequest(payload: unknown): EnvDefinitionsRequest | null {
-  if (typeof payload !== "object" || payload === null) {
+  const decoded = decodePayloadOrNull(definitionsRequestSchema, payload);
+  if (decoded === null) {
     return null;
-  }
-
-  const input = payload as Record<string, unknown>;
-  const projectSlug = typeof input.projectSlug === "string" ? input.projectSlug.trim() : "";
-  const stageSlug = typeof input.stageSlug === "string" ? input.stageSlug.trim() : "";
-  if (projectSlug.length === 0 || stageSlug.length === 0) {
-    return null;
-  }
-
-  const rawNames = Array.isArray(input.names) ? input.names : null;
-  const names =
-    rawNames === null
-      ? undefined
-      : rawNames
-          .filter((value): value is string => typeof value === "string")
-          .map((value) => normalizeName(value));
-
-  if (rawNames !== null && (names === undefined || names.length !== rawNames.length)) {
-    return null;
-  }
-
-  if (names !== undefined) {
-    const uniqueNames = new Set<string>();
-    for (const name of names) {
-      if (name.length === 0 || uniqueNames.has(name)) {
-        return null;
-      }
-      uniqueNames.add(name);
-    }
   }
 
   return {
-    orgSlug: readOptionalString(input, "orgSlug") ?? undefined,
-    projectSlug,
-    stageSlug,
-    names,
+    orgSlug: decoded.orgSlug ?? undefined,
+    projectSlug: decoded.projectSlug,
+    stageSlug: decoded.stageSlug,
+    names: decoded.names === undefined || decoded.names === null ? undefined : [...decoded.names],
   };
 }

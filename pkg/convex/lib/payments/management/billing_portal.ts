@@ -1,6 +1,5 @@
 import { Effect } from "effect";
 
-import { api } from "../../../_generated/api";
 import type { ActionCtx } from "../../../_generated/server";
 import { appendEventInternalReference } from "../../../audit/refs";
 import {
@@ -9,7 +8,8 @@ import {
   requireIdentityEffect,
 } from "../../auth";
 import { AuthError, ExternalServiceError, ValidationError } from "../../errors/effect";
-import { isBillingManagerRole, normalizeString } from "../variants";
+import { isBillingManagerRole } from "../variants";
+import { ensureAutumnCustomer, openAutumnBillingPortal } from "../runtime/ops";
 
 export type OpenBillingPortalForCurrentOrgResult = {
   portalUrl: string;
@@ -18,7 +18,7 @@ export type OpenBillingPortalForCurrentOrgResult = {
 /**
  * Opens the billing portal for the current organization.
  *
- * @param ctx The Convex action context.
+ * @param convexCtx The Convex action context.
  * @param args The expected org slug and optional portal return URL.
  * @returns The billing portal URL.
  * @remarks This ensures the Autumn customer exists and appends a billing audit event when the portal opens.
@@ -26,7 +26,7 @@ export type OpenBillingPortalForCurrentOrgResult = {
  * @author GPT-5.4
  */
 export async function openBillingPortalForCurrentOrgHandler(
-  ctx: ActionCtx,
+  convexCtx: ActionCtx,
   args: {
     expectedOrgSlug: string;
     returnUrl: string | null;
@@ -34,7 +34,7 @@ export async function openBillingPortalForCurrentOrgHandler(
 ): Promise<OpenBillingPortalForCurrentOrgResult> {
   return await Effect.runPromise(
     Effect.gen(function* () {
-      const identity = yield* requireIdentityEffect(ctx);
+      const identity = yield* requireIdentityEffect(convexCtx);
       const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
       if (activeOrg.orgSlug !== null) {
         yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
@@ -46,10 +46,7 @@ export async function openBillingPortalForCurrentOrgHandler(
       }
 
       yield* Effect.tryPromise({
-        try: () =>
-          ctx.runAction(api.autumn.createCustomer, {
-            errorOnNotFound: false,
-          }),
+        try: () => ensureAutumnCustomer(convexCtx),
         catch: (error) =>
           new ExternalServiceError({
             message: "Failed to initialize the billing customer.",
@@ -57,36 +54,23 @@ export async function openBillingPortalForCurrentOrgHandler(
           }),
       });
 
-      const portalResult = yield* Effect.tryPromise({
-        try: () =>
-          ctx.runAction(api.autumn.billingPortal, {
-            returnUrl: args.returnUrl ?? undefined,
-          }),
+      const portalUrl = yield* Effect.tryPromise({
+        try: () => openAutumnBillingPortal(convexCtx, args.returnUrl),
         catch: (error) =>
           new ExternalServiceError({
             message: "Failed to request the billing portal.",
             cause: error,
           }),
       });
-      if (portalResult.error !== null || portalResult.data === null) {
+      if (portalUrl === null) {
         return yield* Effect.fail(
           new ExternalServiceError({ message: "Unable to open billing portal right now." }),
         );
       }
 
-      const portalUrl = normalizeString(
-        (portalResult.data as { url?: unknown; portal_url?: unknown }).url ??
-          (portalResult.data as { url?: unknown; portal_url?: unknown }).portal_url,
-      );
-      if (portalUrl === null) {
-        return yield* Effect.fail(
-          new ExternalServiceError({ message: "Billing portal response did not include a URL." }),
-        );
-      }
-
       yield* Effect.tryPromise({
         try: () =>
-          ctx.runMutation(appendEventInternalReference, {
+          convexCtx.runMutation(appendEventInternalReference, {
             orgId: activeOrg.orgId,
             orgSlug: activeOrg.orgSlug ?? args.expectedOrgSlug,
             projectId: null,

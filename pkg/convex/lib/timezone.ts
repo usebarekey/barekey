@@ -1,3 +1,5 @@
+import { Either, Schema } from "effect";
+
 import { throwValidationError } from "./errors/effect";
 
 type TimeZoneDateParts = {
@@ -10,6 +12,12 @@ type TimeZoneDateParts = {
 };
 
 const timeZoneFormatterCache = new Map<string, Intl.DateTimeFormat>();
+const dateValueSchema = Schema.Trim.pipe(
+  Schema.pattern(/^\d{4}-\d{2}-\d{2}$/),
+);
+const timeValueSchema = Schema.Trim.pipe(
+  Schema.pattern(/^\d{2}:\d{2}$/),
+);
 
 function getTimeZoneFormatter(timeZone: string): Intl.DateTimeFormat {
   let formatter = timeZoneFormatterCache.get(timeZone);
@@ -40,7 +48,11 @@ function parseDateValue(value: string): {
   month: number;
   day: number;
 } {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  const decoded = Schema.decodeUnknownEither(dateValueSchema)(value);
+  if (Either.isLeft(decoded)) {
+    return throwValidationError("Date must use YYYY-MM-DD format.");
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(decoded.right);
   if (match === null) {
     return throwValidationError("Date must use YYYY-MM-DD format.");
   }
@@ -64,7 +76,11 @@ function parseTimeValue(value: string): {
   hour: number;
   minute: number;
 } {
-  const match = /^(\d{2}):(\d{2})$/.exec(value.trim());
+  const decoded = Schema.decodeUnknownEither(timeValueSchema)(value);
+  if (Either.isLeft(decoded)) {
+    return throwValidationError("Time must use HH:mm format.");
+  }
+  const match = /^(\d{2}):(\d{2})$/.exec(decoded.right);
   if (match === null) {
     return throwValidationError("Time must use HH:mm format.");
   }

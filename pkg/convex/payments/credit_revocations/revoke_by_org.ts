@@ -15,7 +15,7 @@ import {
 /**
  * Revokes every free-plan credit assigned to one organization.
  *
- * @param ctx The Convex mutation context.
+ * @param runtimeCtx The Convex mutation context.
  * @param args The organization identifier and optional revoke reason.
  * @returns An Effect that succeeds with whether anything was revoked and the first updated credit.
  * @remarks This is used for administrative cleanup flows and may patch multiple matching credit rows.
@@ -23,14 +23,14 @@ import {
  * @author GPT-5.4
  */
 function revokeFreePlanCreditByOrgIdInternalEffect(
-  ctx: MutationCtx,
+  runtimeCtx: MutationCtx,
   args: RevokeByOrgIdArgs,
 ): Effect.Effect<RevokeByOrgIdResult, ExternalServiceError> {
   return Effect.gen(function* () {
     const now = Date.now();
     const rows = yield* Effect.tryPromise({
       try: () =>
-        ctx.db
+        runtimeCtx.db
           .query("userFreePlanCredits")
           .withIndex("by_assigned_org_id", (q) => q.eq("assignedOrgId", args.orgId))
           .collect(),
@@ -55,7 +55,7 @@ function revokeFreePlanCreditByOrgIdInternalEffect(
           const nextRemainingCredits = Math.min(row.totalCredits, row.remainingCredits + 1);
           yield* Effect.tryPromise({
             try: () =>
-              ctx.db.patch(row._id, {
+              runtimeCtx.db.patch(row._id, {
                 remainingCredits: nextRemainingCredits,
                 assignedOrgId: null,
                 assignedOrgSlug: null,
@@ -92,7 +92,7 @@ function revokeFreePlanCreditByOrgIdInternalEffect(
  * Revokes the free-plan credit assigned to an organization without needing the
  * current Clerk user context.
  *
- * @param ctx The Convex internal mutation context.
+ * @param runtimeCtx The Convex internal mutation context.
  * @param args The organization identifier and optional revoke reason.
  * @returns Whether any credit was revoked plus the first updated credit state.
  * @remarks This is used for administrative cleanup flows and may patch multiple matching credits.
@@ -112,7 +112,7 @@ export const revokeFreePlanCreditByOrgIdInternal = effectInternalMutation<
   handler: (args) =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectMutationCtx;
-      const ctx = confectCtx.ctx as unknown as MutationCtx;
-      return yield* revokeFreePlanCreditByOrgIdInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+      return yield* revokeFreePlanCreditByOrgIdInternalEffect(runtimeCtx, args);
     }),
 });

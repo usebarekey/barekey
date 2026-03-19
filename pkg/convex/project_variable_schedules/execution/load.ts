@@ -2,8 +2,8 @@ import { Effect } from "effect";
 
 import type { QueryCtx } from "../../_generated/server";
 import { BarekeyConfectQueryCtx } from "../../confect";
-import { toScheduleExternalServiceError } from "../errors";
 import type { GetScheduleForExecutionArgs, ScheduleExecutionRow } from "./types";
+import { loadScheduleExecutionSourceRowsEffect } from "./repo";
 
 /**
  * Loads the data needed by the scheduler to execute a pending variable batch.
@@ -20,23 +20,11 @@ export function getScheduleForExecutionInternalEffect(
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectQueryCtx;
     const ctx = confectCtx.ctx as unknown as QueryCtx;
-    const schedule = yield* Effect.tryPromise({
-      try: () => ctx.db.get(args.scheduleId),
-      catch: (error) =>
-        toScheduleExternalServiceError("Failed to load the scheduled batch.", error),
-    });
-    if (schedule === null) {
+    const sourceRows = yield* loadScheduleExecutionSourceRowsEffect(ctx, args);
+    if (sourceRows === null) {
       return null;
     }
-
-    const project = yield* Effect.tryPromise({
-      try: () => ctx.db.get(schedule.projectId),
-      catch: (error) =>
-        toScheduleExternalServiceError("Failed to load the scheduled batch project.", error),
-    });
-    if (project === null) {
-      return null;
-    }
+    const { schedule, project } = sourceRows;
 
     return {
       scheduleId: schedule._id,

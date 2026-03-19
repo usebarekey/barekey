@@ -1,7 +1,7 @@
 import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../confect";
-import { readOptionalString } from "../env";
 import { buildJsonResponse, errorResponse, readRequestId } from "../responses";
+import { decodeCliDevicePollBody } from "./input";
 import { readJsonBody } from "./shared";
 
 const pollDeviceCodeInternalReference = makeFunctionReference<
@@ -25,14 +25,14 @@ const pollDeviceCodeInternalReference = makeFunctionReference<
 /**
  * Polls a CLI device authorization flow.
  *
- * @param ctx The HTTP action context.
+ * @param convexCtx The HTTP action context.
  * @param request The incoming HTTP request.
  * @returns The device polling state or issued CLI session tokens.
  * @remarks This normalizes invalid, expired, and already-consumed device states into explicit HTTP responses.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const cliDevicePoll = httpAction(async (ctx, request) => {
+export const cliDevicePoll = httpAction(async (convexCtx, request) => {
   const requestId = readRequestId(request);
   let payload: unknown;
   try {
@@ -46,7 +46,8 @@ export const cliDevicePoll = httpAction(async (ctx, request) => {
     });
   }
 
-  if (typeof payload !== "object" || payload === null) {
+  const decoded = decodeCliDevicePollBody(payload);
+  if (decoded === null) {
     return errorResponse({
       status: 400,
       code: "INVALID_REQUEST",
@@ -55,19 +56,8 @@ export const cliDevicePoll = httpAction(async (ctx, request) => {
     });
   }
 
-  const input = payload as Record<string, unknown>;
-  const deviceCode = readOptionalString(input, "deviceCode");
-  if (deviceCode === null) {
-    return errorResponse({
-      status: 400,
-      code: "INVALID_REQUEST",
-      message: "deviceCode is required.",
-      requestId,
-    });
-  }
-
-  const pollResult = (await ctx.runMutation(pollDeviceCodeInternalReference, {
-    deviceCode,
+  const pollResult = (await convexCtx.runMutation(pollDeviceCodeInternalReference, {
+    deviceCode: decoded.deviceCode,
   })) as {
     status: "pending" | "approved" | "invalid" | "expired" | "already_exchanged";
     intervalSec: number;

@@ -1,15 +1,22 @@
-import { Effect } from "effect";
-import { v } from "convex/values";
+import { Id as ConfectId } from "@rjdellecese/confect/server";
+import { Effect, Schema } from "effect";
 
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import {
   BarekeyConfectMutationCtx,
-  effectMutation,
+  schemaEffectMutation,
 } from "../../confect";
 import { requireCurrentOrgAccessEffect } from "../access";
-import { decryptedVariableValueValidator, decryptVariableForProjectStageEffect } from "./stage";
+import { decryptedVariableValueSchema, decryptVariableForProjectStageEffect } from "./stage";
 import type { DecryptedVariableValue } from "../types";
+
+const decryptCurrentOrgStageArgsSchema = Schema.Struct({
+  expectedOrgSlug: Schema.String,
+  projectSlug: Schema.String,
+  stageSlug: Schema.String,
+  variableId: ConfectId.Id("projectVariables"),
+});
 
 /**
  * Decrypts one stage variable value for immediate UI reveal.
@@ -55,13 +62,8 @@ function decryptValueForCurrentOrgProjectStageEffect(
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const decryptValueForCurrentOrgProjectStage = effectMutation({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-    stageSlug: v.string(),
-    variableId: v.id("projectVariables"),
-  },
-  returns: decryptedVariableValueValidator,
+export const decryptValueForCurrentOrgProjectStage = schemaEffectMutation({
+  args: decryptCurrentOrgStageArgsSchema,
+  returns: decryptedVariableValueSchema,
   handler: decryptValueForCurrentOrgProjectStageEffect,
 });

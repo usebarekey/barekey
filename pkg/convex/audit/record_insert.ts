@@ -1,5 +1,8 @@
+import { Effect } from "effect";
+
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { dbCollectEffect, dbInsertEffect, dbUniqueEffect } from "../lib/convex/db";
 import {
   expiresAtMsForRetention,
   retentionTierFromCurrentTier,
@@ -23,10 +26,18 @@ async function findCanonicalUserByClerkUserId(
   ctx: QueryCtx | MutationCtx,
   clerkUserId: string,
 ): Promise<Doc<"users"> | null> {
-  const rows = await ctx.db
-    .query("users")
-    .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
-    .collect();
+  const rows = await Effect.runPromise(
+    dbCollectEffect<Doc<"users">, Error>(
+      ctx,
+      "users",
+      (query) =>
+        query.withIndex("by_clerk_user_id", (indexQuery) =>
+          indexQuery.eq("clerkUserId", clerkUserId),
+        ),
+      (error) =>
+        error instanceof Error ? error : new Error("Failed to load audit actor user rows."),
+    ),
+  );
   return rows.sort((left, right) => left.createdAtMs - right.createdAtMs)[0] ?? null;
 }
 
@@ -51,10 +62,18 @@ async function readRetentionTierForOrg(
     return args.retentionTierOverride;
   }
 
-  const snapshot = await ctx.db
-    .query("orgBillingSnapshots")
-    .withIndex("by_org_id", (q) => q.eq("orgId", args.orgId))
-    .unique();
+  const snapshot = await Effect.runPromise(
+    dbUniqueEffect<Doc<"orgBillingSnapshots">, Error>(
+      ctx,
+      "orgBillingSnapshots",
+      (query) =>
+        query.withIndex("by_org_id", (indexQuery) => indexQuery.eq("orgId", args.orgId)),
+      (error) =>
+        error instanceof Error
+          ? error
+          : new Error("Failed to load the organization billing snapshot for audit retention."),
+    ),
+  );
 
   return retentionTierFromCurrentTier(snapshot?.currentTier ?? null);
 }
@@ -81,27 +100,35 @@ export async function insertAuditEventWithMutationCtx(
   const retentionTier = await readRetentionTierForOrg(ctx, args);
   const payloadJson = sanitizeAuditPayload(safeParseJson(args.payloadJson));
 
-  return await ctx.db.insert("auditEvents", {
-    orgId: args.orgId,
-    orgSlug: args.orgSlug,
-    projectId: args.projectId,
-    projectSlug: args.projectSlug,
-    stageSlug: args.stageSlug,
-    eventType: args.eventType,
-    category: args.category,
-    occurredAtMs,
-    actorSource: args.actorSource,
-    actorClerkUserId: args.actorClerkUserId,
-    actorDisplayName: args.actorDisplayName ?? actorRecord?.displayName ?? null,
-    actorEmail: args.actorEmail ?? actorRecord?.email ?? null,
-    subjectType: args.subjectType,
-    subjectId: args.subjectId,
-    subjectName: args.subjectName,
-    title: args.title,
-    description: args.description,
-    severity: args.severity,
-    payloadJson,
-    retentionTier,
-    expiresAtMs: expiresAtMsForRetention(retentionTier, occurredAtMs),
-  });
+  return await Effect.runPromise(
+    dbInsertEffect<Id<"auditEvents">, Error>(
+      ctx,
+      "auditEvents",
+      {
+        orgId: args.orgId,
+        orgSlug: args.orgSlug,
+        projectId: args.projectId,
+        projectSlug: args.projectSlug,
+        stageSlug: args.stageSlug,
+        eventType: args.eventType,
+        category: args.category,
+        occurredAtMs,
+        actorSource: args.actorSource,
+        actorClerkUserId: args.actorClerkUserId,
+        actorDisplayName: args.actorDisplayName ?? actorRecord?.displayName ?? null,
+        actorEmail: args.actorEmail ?? actorRecord?.email ?? null,
+        subjectType: args.subjectType,
+        subjectId: args.subjectId,
+        subjectName: args.subjectName,
+        title: args.title,
+        description: args.description,
+        severity: args.severity,
+        payloadJson,
+        retentionTier,
+        expiresAtMs: expiresAtMsForRetention(retentionTier, occurredAtMs),
+      },
+      (error) =>
+        error instanceof Error ? error : new Error("Failed to insert the audit event row."),
+    ),
+  );
 }

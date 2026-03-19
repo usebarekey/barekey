@@ -1,14 +1,21 @@
-import { Effect } from "effect";
-import { v } from "convex/values";
+import { Id as ConfectId } from "@rjdellecese/confect/server";
+import { Effect, Schema } from "effect";
 
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import {
   BarekeyConfectMutationCtx,
-  effectInternalMutation,
+  schemaEffectInternalMutation,
 } from "../../confect";
-import { decryptedVariableValueValidator, decryptVariableForProjectStageEffect } from "./stage";
+import { decryptedVariableValueSchema, decryptVariableForProjectStageEffect } from "./stage";
 import type { DecryptedVariableValue } from "../types";
+
+const decryptOrgStageArgsSchema = Schema.Struct({
+  orgId: Schema.String,
+  projectSlug: Schema.String,
+  stageSlug: Schema.String,
+  variableId: ConfectId.Id("projectVariables"),
+});
 
 /**
  * Decrypts one variable value in an org-scoped project stage.
@@ -46,13 +53,8 @@ function decryptValueForOrgProjectStageInternalEffect(
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const decryptValueForOrgProjectStageInternal = effectInternalMutation({
-  args: {
-    orgId: v.string(),
-    projectSlug: v.string(),
-    stageSlug: v.string(),
-    variableId: v.id("projectVariables"),
-  },
-  returns: decryptedVariableValueValidator,
+export const decryptValueForOrgProjectStageInternal = schemaEffectInternalMutation({
+  args: decryptOrgStageArgsSchema,
+  returns: decryptedVariableValueSchema,
   handler: decryptValueForOrgProjectStageInternalEffect,
 });

@@ -1,7 +1,13 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
 import { effectInternalQuery } from "../../confect";
-import { mapVariableResolverRow, variableResolverRowValidator } from "../../lib/project_variables/rows";
+import { dbCollectEffect, dbUniqueEffect } from "../../lib/convex/db";
+import {
+  mapVariableResolverRow,
+  type VariableStorageRow,
+  variableResolverRowValidator,
+} from "../../lib/project_variables/rows";
 import { validateVariableName } from "../../lib/project_variables/validation";
 import { findProjectStageByOrgSlugAndSlug } from "../../lib/projects/scope";
 import { type PublicVariableResolution, withProjectVariableQueryCtx } from "./shared";
@@ -9,7 +15,7 @@ import { type PublicVariableResolution, withProjectVariableQueryCtx } from "./sh
 /**
  * Resolves public variables by name or lists every public variable for a stage.
  *
- * @param ctx The Convex internal query context.
+ * @param runtimeCtx The Convex internal query context.
  * @param args The organization slug, project, stage, and optional names to resolve.
  * @returns The owning organization ID plus the resolved public variable rows, or `null` when the stage does not exist.
  * @remarks Anonymous public env evaluation depends on this boundary, so it never exposes private rows.
@@ -40,8 +46,9 @@ export const resolvePublicVariableRowsForOrgProjectStageInternal = effectInterna
     v.null(),
   ),
   handler: (args) =>
-    withProjectVariableQueryCtx(async (ctx, innerArgs) => {
-      const projectStage = await findProjectStageByOrgSlugAndSlug(ctx.db, {
+    withProjectVariableQueryCtx(async (runtimeCtx, innerArgs) => {
+      const db = runtimeCtx.db;
+      const projectStage = await findProjectStageByOrgSlugAndSlug(db, {
         orgSlug: innerArgs.orgSlug,
         projectSlug: innerArgs.projectSlug,
         stageSlug: innerArgs.stageSlug,
@@ -53,27 +60,39 @@ export const resolvePublicVariableRowsForOrgProjectStageInternal = effectInterna
       const normalizedNames = innerArgs.names?.map((name) => validateVariableName(name));
       const rows =
         normalizedNames === undefined
-          ? await ctx.db
-              .query("projectVariables")
-              .withIndex("by_project_id_and_stage_slug_and_visibility", (q) =>
-                q
-                  .eq("projectId", projectStage.project._id)
-                  .eq("stageSlug", projectStage.stage.slug)
-                  .eq("visibility", "public"),
-              )
-              .collect()
-          : await Promise.all(
-              normalizedNames.map(async (name) => {
-                return await ctx.db
-                  .query("projectVariables")
-                  .withIndex("by_project_id_and_stage_slug_and_visibility_and_name", (q) =>
-                    q
+          ? await Effect.runPromise(
+              dbCollectEffect<VariableStorageRow, unknown>(
+                runtimeCtx,
+                "projectVariables",
+                (query) =>
+                  query.withIndex("by_project_id_and_stage_slug_and_visibility", (indexQuery) =>
+                    indexQuery
                       .eq("projectId", projectStage.project._id)
                       .eq("stageSlug", projectStage.stage.slug)
-                      .eq("visibility", "public")
-                      .eq("name", name),
-                  )
-                  .unique();
+                      .eq("visibility", "public"),
+                  ),
+                (error) => error,
+              ),
+            )
+          : await Promise.all(
+              normalizedNames.map(async (name) => {
+                return await Effect.runPromise(
+                  dbUniqueEffect<VariableStorageRow, unknown>(
+                    runtimeCtx,
+                    "projectVariables",
+                    (query) =>
+                      query.withIndex(
+                        "by_project_id_and_stage_slug_and_visibility_and_name",
+                        (indexQuery) =>
+                          indexQuery
+                            .eq("projectId", projectStage.project._id)
+                            .eq("stageSlug", projectStage.stage.slug)
+                            .eq("visibility", "public")
+                            .eq("name", name),
+                      ),
+                    (error) => error,
+                  ),
+                );
               }),
             );
 

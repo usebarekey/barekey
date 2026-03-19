@@ -27,9 +27,9 @@ function listForCurrentOrgProjectEffect(
 > {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectQueryCtx;
-    const ctx = confectCtx.ctx as unknown as QueryCtx;
+    const runtimeCtx = confectCtx.ctx as unknown as QueryCtx;
     const access = yield* getCurrentOrgProjectAccessOrNullEffect(
-      ctx,
+      runtimeCtx,
       args.expectedOrgSlug,
       args.projectSlug,
     );
@@ -43,11 +43,11 @@ function listForCurrentOrgProjectEffect(
     ] = yield* Effect.tryPromise({
       try: () =>
         Promise.all([
-          ctx.db
+          runtimeCtx.db
             .query("projectVariableSchedules")
             .withIndex("by_project_id_and_run_at_ms", (q) => q.eq("projectId", access.project._id))
             .collect(),
-          ctx.db
+          runtimeCtx.db
             .query("projectStages")
             .withIndex("by_project_id", (q) => q.eq("projectId", access.project._id))
             .collect(),
@@ -87,7 +87,7 @@ function listForCurrentOrgProjectEffect(
 /**
  * Lists scheduled variable batches for the current workspace project.
  *
- * @param ctx The Convex public query context.
+ * @param runtimeCtx The Convex public query context.
  * @param args The workspace slug and project slug to inspect.
  * @returns Scheduled batch summaries ordered by run time, or an empty list when inaccessible.
  * @remarks This fails closed by returning no rows when the caller is unauthenticated or scoped to a different workspace.

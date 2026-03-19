@@ -1,7 +1,9 @@
+import { Effect } from "effect";
 import { v } from "convex/values";
 
-import type { Id } from "../../_generated/dataModel";
+import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import { dbCollectEffect } from "../convex/db";
 
 export type CanonicalRow = {
   _id: string;
@@ -114,19 +116,34 @@ export async function computeEncryptedBytesForOrg(
   ctx: MutationCtx,
   orgId: string,
 ): Promise<number> {
-  const projects = await ctx.db
-    .query("projects")
-    .withIndex("by_org_id", (q) => q.eq("orgId", orgId))
-    .collect();
+  const projects = await Effect.runPromise(
+    dbCollectEffect<Doc<"projects">, Error>(
+      ctx,
+      "projects",
+      (query) => query.withIndex("by_org_id", (indexQuery) => indexQuery.eq("orgId", orgId)),
+      (error) =>
+        error instanceof Error
+          ? error
+          : new Error("Failed to load projects while computing encrypted bytes."),
+    ),
+  );
 
   let total = 0;
   for (const project of projects) {
-    const rows = await ctx.db
-      .query("projectVariables")
-      .withIndex("by_org_id_and_project_id", (q) =>
-        q.eq("orgId", orgId).eq("projectId", project._id),
-      )
-      .collect();
+    const rows = await Effect.runPromise(
+      dbCollectEffect<Doc<"projectVariables">, Error>(
+        ctx,
+        "projectVariables",
+        (query) =>
+          query.withIndex("by_org_id_and_project_id", (indexQuery) =>
+            indexQuery.eq("orgId", orgId).eq("projectId", project._id),
+          ),
+        (error) =>
+          error instanceof Error
+            ? error
+            : new Error("Failed to load project variables while computing encrypted bytes."),
+      ),
+    );
     for (const row of rows) {
       if (row.encryptedValue !== null) {
         total += new TextEncoder().encode(row.encryptedValue).length;
@@ -152,10 +169,26 @@ export async function getCanonicalOrgStorageUsageRow(
   createdAtMs: number;
   updatedAtMs: number;
 } | null> {
-  const rows = await ctx.db
-    .query("orgStorageUsage")
-    .withIndex("by_org_id", (q) => q.eq("orgId", orgId))
-    .collect();
+  const rows = await Effect.runPromise(
+    dbCollectEffect<
+      {
+        _id: Id<"orgStorageUsage">;
+        orgId: string;
+        encryptedBytes: number;
+        createdAtMs: number;
+        updatedAtMs: number;
+      },
+      Error
+    >(
+      ctx,
+      "orgStorageUsage",
+      (query) => query.withIndex("by_org_id", (indexQuery) => indexQuery.eq("orgId", orgId)),
+      (error) =>
+        error instanceof Error
+          ? error
+          : new Error("Failed to load organization storage usage."),
+    ),
+  );
   return pickCanonicalRow(rows);
 }
 
@@ -175,9 +208,34 @@ export async function getCanonicalFreePlanCreditForClerkUserId(
   createdAtMs: number;
   updatedAtMs: number;
 } | null> {
-  const rows = await ctx.db
-    .query("userFreePlanCredits")
-    .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
-    .collect();
+  const rows = await Effect.runPromise(
+    dbCollectEffect<
+      {
+        _id: Id<"userFreePlanCredits">;
+        clerkUserId: string;
+        totalCredits: number;
+        remainingCredits: number;
+        assignedOrgId: string | null;
+        assignedOrgSlug: string | null;
+        consumedAtMs: number | null;
+        revokedAtMs: number | null;
+        revokedReason: string | null;
+        createdAtMs: number;
+        updatedAtMs: number;
+      },
+      Error
+    >(
+      ctx,
+      "userFreePlanCredits",
+      (query) =>
+        query.withIndex("by_clerk_user_id", (indexQuery) =>
+          indexQuery.eq("clerkUserId", clerkUserId),
+        ),
+      (error) =>
+        error instanceof Error
+          ? error
+          : new Error("Failed to load free-plan credit rows."),
+    ),
+  );
   return pickCanonicalRow(rows);
 }

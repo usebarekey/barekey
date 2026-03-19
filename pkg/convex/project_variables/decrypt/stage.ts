@@ -1,9 +1,13 @@
+import { Id as ConfectId } from "@rjdellecese/confect/server";
 import { Effect } from "effect";
+import { Schema } from "effect";
 import { v } from "convex/values";
 
-import type { Id } from "../../_generated/dataModel";
+import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
+import { dbGetEffect } from "../../lib/convex/db";
 import { declaredTypeValidator } from "../../lib/declared/types";
+import { declaredTypeSchema } from "../../lib/confect/schema/common";
 import { decryptSecretValueForProject } from "../../lib/encryption";
 import { NotFoundError } from "../../lib/errors/effect";
 import { getRowDeclaredType } from "../../lib/project_variables/rows";
@@ -16,6 +20,7 @@ import {
   rolloutMilestoneValidator,
   validateRolloutMilestones,
 } from "../../lib/rollout";
+import { rolloutFunctionSchema, rolloutMilestoneSchema } from "../../lib/confect/schema/common";
 import {
   projectVariableValidationError,
   toProjectVariableExternalServiceError,
@@ -51,10 +56,39 @@ export const decryptedVariableValueValidator = v.union(
   }),
 );
 
+export const decryptedVariableValueSchema = Schema.Union(
+  Schema.Struct({
+    id: ConfectId.Id("projectVariables"),
+    name: Schema.String,
+    kind: Schema.Literal("secret"),
+    declaredType: declaredTypeSchema,
+    value: Schema.String,
+  }),
+  Schema.Struct({
+    id: ConfectId.Id("projectVariables"),
+    name: Schema.String,
+    kind: Schema.Literal("ab_roll"),
+    declaredType: declaredTypeSchema,
+    valueA: Schema.String,
+    valueB: Schema.String,
+    chance: Schema.Number,
+  }),
+  Schema.Struct({
+    id: ConfectId.Id("projectVariables"),
+    name: Schema.String,
+    kind: Schema.Literal("rollout"),
+    declaredType: declaredTypeSchema,
+    valueA: Schema.String,
+    valueB: Schema.String,
+    rolloutFunction: rolloutFunctionSchema,
+    rolloutMilestones: Schema.Array(rolloutMilestoneSchema),
+  }),
+);
+
 /**
  * Decrypts a single variable after the caller has selected the owning org/project/stage scope.
  *
- * @param ctx The Convex mutation context used to read and decrypt the variable.
+ * @param runtimeCtx The Convex mutation context used to read and decrypt the variable.
  * @param args The organization, project, stage, and variable identifier to decrypt.
  * @returns The decrypted variable value payload matching the variable kind.
  * @remarks This fails when the variable does not belong to the resolved stage or when a required ciphertext column is missing.
@@ -62,7 +96,7 @@ export const decryptedVariableValueValidator = v.union(
  * @author GPT-5.4
  */
 export function decryptVariableForProjectStageEffect(
-  ctx: MutationCtx,
+  runtimeCtx: MutationCtx,
   args: {
     orgId: string;
     projectSlug: string;
@@ -71,20 +105,22 @@ export function decryptVariableForProjectStageEffect(
   },
 ): Effect.Effect<DecryptedVariableValue, unknown, any> {
   return Effect.gen(function* () {
-    const { project, stage } = yield* requireProjectStageByOrgIdAndSlugEffect(ctx.db, {
+    const db = runtimeCtx.db;
+    const { project, stage } = yield* requireProjectStageByOrgIdAndSlugEffect(db, {
       orgId: args.orgId,
       projectSlug: args.projectSlug,
       stageSlug: args.stageSlug,
     });
 
-    const variable = yield* Effect.tryPromise({
-      try: () => ctx.db.get(args.variableId),
-      catch: (error) =>
-        toProjectVariableExternalServiceError(
-          "Failed to load the requested variable for decryption.",
-          error,
-        ),
-    });
+    const variable = yield* dbGetEffect<
+      Doc<"projectVariables">,
+      ReturnType<typeof toProjectVariableExternalServiceError>
+    >(runtimeCtx, args.variableId, (error) =>
+      toProjectVariableExternalServiceError(
+        "Failed to load the requested variable for decryption.",
+        error,
+      ),
+    );
     if (
       variable === null ||
       variable.projectId !== project._id ||
@@ -106,7 +142,7 @@ export function decryptVariableForProjectStageEffect(
 
       const value = yield* Effect.tryPromise({
         try: () =>
-          decryptSecretValueForProject(ctx, {
+          decryptSecretValueForProject(runtimeCtx, {
             projectId: project._id,
             orgId: project.orgId,
             encryptedValue,
@@ -137,7 +173,7 @@ export function decryptVariableForProjectStageEffect(
 
     const valueA = yield* Effect.tryPromise({
       try: () =>
-        decryptSecretValueForProject(ctx, {
+        decryptSecretValueForProject(runtimeCtx, {
           projectId: project._id,
           orgId: project.orgId,
           encryptedValue: encryptedValueA,
@@ -150,7 +186,7 @@ export function decryptVariableForProjectStageEffect(
     });
     const valueB = yield* Effect.tryPromise({
       try: () =>
-        decryptSecretValueForProject(ctx, {
+        decryptSecretValueForProject(runtimeCtx, {
           projectId: project._id,
           orgId: project.orgId,
           encryptedValue: encryptedValueB,

@@ -41,14 +41,15 @@ export function prepareVariableWritesForOrgProjectStageInternalEffect(
 ): Effect.Effect<PreparedWriteMutationResult, unknown, any> {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectMutationCtx;
-    const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const { project, stage } = yield* requireProjectStageByOrgIdAndSlugEffect(ctx.db, {
+    const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+    const db = runtimeCtx.db;
+    const { project, stage } = yield* requireProjectStageByOrgIdAndSlugEffect(db, {
       orgId: args.orgId,
       projectSlug: args.projectSlug,
       stageSlug: args.stageSlug,
     });
 
-    const rows = yield* listProjectVariableRowsForStageEffect(ctx.db, {
+    const rows = yield* listProjectVariableRowsForStageEffect(db, {
       projectId: project._id,
       stageSlug: stage.slug,
     });
@@ -111,7 +112,7 @@ export function prepareVariableWritesForOrgProjectStageInternalEffect(
       }
 
       if (entry.kind === "secret") {
-        const prepared = yield* prepareSecretWriteEffect(ctx, project, name, entry, existing);
+        const prepared = yield* prepareSecretWriteEffect(runtimeCtx, project, name, entry, existing);
         if (prepared.create !== null) {
           creates.push(prepared.create);
           createdCount += 1;
@@ -124,7 +125,7 @@ export function prepareVariableWritesForOrgProjectStageInternalEffect(
         continue;
       }
 
-      const prepared = yield* prepareVariantWriteEffect(ctx, project, name, entry, existing);
+      const prepared = yield* prepareVariantWriteEffect(runtimeCtx, project, name, entry, existing);
       if (prepared.create !== null) {
         creates.push(prepared.create);
         createdCount += 1;

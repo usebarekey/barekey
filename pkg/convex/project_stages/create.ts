@@ -1,9 +1,8 @@
-import { Effect } from "effect";
-import { v } from "convex/values";
+import { Effect, Schema } from "effect";
 
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { BarekeyConfectMutationCtx, effectMutation } from "../confect";
+import { BarekeyConfectMutationCtx, schemaEffectMutation } from "../confect";
 import {
   assertExpectedOrgSlugEffect,
   requireActiveOrgIdClaimsEffect,
@@ -14,8 +13,14 @@ import { AuthError, ExternalServiceError, NotFoundError, ValidationError } from 
 import { findProjectByOrgIdAndSlugEffect } from "../lib/projects/scope";
 import { toProjectStageExternalServiceError } from "./errors";
 import { allocateUniqueStageSlugEffect, normalizeStageSlugBase } from "./slug";
-import { stageSummaryValidator } from "./types";
+import { stageSummarySchema } from "./types";
 import { validateStageNameEffect } from "./validation";
+
+const createStageArgsSchema = Schema.Struct({
+  expectedOrgSlug: Schema.String,
+  projectSlug: Schema.String,
+  name: Schema.String,
+});
 
 /**
  * Creates a custom stage within a project as an Effect program.
@@ -49,15 +54,15 @@ function createForCurrentOrgProjectEffect(
 > {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectMutationCtx;
-    const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const identity = yield* requireIdentityEffect(ctx);
+    const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+    const identity = yield* requireIdentityEffect(runtimeCtx);
     const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
 
     if (activeOrg.orgSlug !== null) {
       yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
     }
 
-    const project = yield* findProjectByOrgIdAndSlugEffect(ctx.db, {
+    const project = yield* findProjectByOrgIdAndSlugEffect(runtimeCtx.db, {
       orgId: activeOrg.orgId,
       projectSlug: args.projectSlug,
     });
@@ -66,7 +71,7 @@ function createForCurrentOrgProjectEffect(
     }
 
     const trimmedName = yield* validateStageNameEffect(args.name);
-    const slug = yield* allocateUniqueStageSlugEffect(ctx, {
+    const slug = yield* allocateUniqueStageSlugEffect(runtimeCtx, {
       projectId: project._id,
       slugBase: normalizeStageSlugBase(trimmedName),
     });
@@ -74,7 +79,7 @@ function createForCurrentOrgProjectEffect(
 
     const stageId = yield* Effect.tryPromise({
       try: () =>
-        ctx.db.insert("projectStages", {
+        runtimeCtx.db.insert("projectStages", {
           projectId: project._id,
           orgId: activeOrg.orgId,
           slug,
@@ -136,12 +141,8 @@ function createForCurrentOrgProjectEffect(
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const createForCurrentOrgProject = effectMutation({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-    name: v.string(),
-  },
-  returns: stageSummaryValidator,
+export const createForCurrentOrgProject = schemaEffectMutation({
+  args: createStageArgsSchema,
+  returns: stageSummarySchema,
   handler: createForCurrentOrgProjectEffect,
 });

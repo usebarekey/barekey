@@ -1,6 +1,4 @@
-import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../../confect";
-import type { VariableMetadataRow } from "../../../../project_variables/queries";
 import { isAuthResolutionFailure, resolveAuthContext } from "../../auth";
 import { parseListRequest } from "..";
 import {
@@ -9,17 +7,8 @@ import {
   errorResponse,
   readRequestId,
 } from "../../responses";
+import { listVariableMetadataRows } from "./data";
 import { readJsonBody } from "./shared";
-
-const listVariableMetadataForOrgProjectStageInternalReference = makeFunctionReference<
-  "query",
-  {
-    orgId: string;
-    projectSlug: string;
-    stageSlug: string;
-  },
-  Array<VariableMetadataRow>
->("project_variables:listVariableMetadataForOrgProjectStageInternal") as any;
 
 /**
  * Lists variable metadata for an authenticated environment request.
@@ -66,14 +55,11 @@ export const envList = httpAction(async (ctx, request) => {
   }
   const authContext = authResult.context;
 
-  const variables = (await ctx.runQuery(
-    listVariableMetadataForOrgProjectStageInternalReference,
-    {
-      orgId: authContext.orgId,
-      projectSlug: parsed.projectSlug,
-      stageSlug: parsed.stageSlug,
-    },
-  )) as Array<VariableMetadataRow>;
+  const variables = await listVariableMetadataRows(ctx, {
+    orgId: authContext.orgId,
+    projectSlug: parsed.projectSlug,
+    stageSlug: parsed.stageSlug,
+  });
 
   return buildJsonResponse(200, {
     variables: variables.map((row) => ({

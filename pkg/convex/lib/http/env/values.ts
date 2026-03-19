@@ -158,7 +158,7 @@ export function buildVariableDefinition(
 /**
  * Resolves static variable definitions for a set of already-selected rows.
  *
- * @param ctx The minimal mutation-capable context used for decryption.
+ * @param convexCtx The minimal mutation-capable context used for decryption.
  * @param input The org/project/stage scope plus the selected variable rows.
  * @returns The resolved variable definitions.
  * @remarks This decrypts each row in sequence and converts it into the definition response shape.
@@ -166,7 +166,7 @@ export function buildVariableDefinition(
  * @author GPT-5.4
  */
 export async function resolveDefinitionsForRows(
-  ctx: {
+  convexCtx: {
     runMutation(functionReference: unknown, args: Record<string, unknown>): Promise<unknown>;
   },
   input: {
@@ -178,7 +178,7 @@ export async function resolveDefinitionsForRows(
 ): Promise<Array<VariableDefinition>> {
   const definitions: Array<VariableDefinition> = [];
   for (const row of input.rows) {
-    const decrypted = (await ctx.runMutation(
+    const decrypted = (await convexCtx.runMutation(
       decryptValueForOrgProjectStageInternalReference,
       {
         orgId: input.orgId,

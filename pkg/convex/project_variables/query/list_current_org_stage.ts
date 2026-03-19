@@ -14,7 +14,7 @@ import { type VariableMetadataRow, withProjectVariableQueryCtx } from "./shared"
  * Values remain encrypted at rest and are never returned in plaintext from
  * this listing API; decryption is handled by an explicit per-row action.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @param args The workspace, project, and stage selector.
  * @returns Sorted variable metadata for the requested stage, or an empty list when inaccessible.
  * @remarks This returns no data when the caller is unauthenticated or scoped to a different workspace.
@@ -37,13 +37,14 @@ export const listForCurrentOrgProjectStage = effectQuery<
   },
   returns: v.array(variableMetadataValidator),
   handler: (args) =>
-    withProjectVariableQueryCtx(async (ctx, innerArgs) => {
-      const activeOrg = await getCurrentOrgAccessOrNull(ctx, innerArgs.expectedOrgSlug);
+    withProjectVariableQueryCtx(async (runtimeCtx, innerArgs) => {
+      const db = runtimeCtx.db;
+      const activeOrg = await getCurrentOrgAccessOrNull(runtimeCtx, innerArgs.expectedOrgSlug);
       if (activeOrg === null) {
         return [];
       }
 
-      const projectStage = await findProjectStageByOrgIdAndSlug(ctx.db, {
+      const projectStage = await findProjectStageByOrgIdAndSlug(db, {
         orgId: activeOrg.orgId,
         projectSlug: innerArgs.projectSlug,
         stageSlug: innerArgs.stageSlug,
@@ -52,7 +53,7 @@ export const listForCurrentOrgProjectStage = effectQuery<
         return [];
       }
 
-      const rows = await listProjectVariableRowsForStage(ctx.db, {
+      const rows = await listProjectVariableRowsForStage(db, {
         projectId: projectStage.project._id,
         stageSlug: projectStage.stage.slug,
       });

@@ -1,10 +1,15 @@
+import { Either, Schema } from "effect";
 import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../confect";
 import { getOrgClaimsFromIdentity } from "../auth";
 import { readIdentityOrNull } from "../auth";
-import { readOptionalString } from "../env";
 import { buildJsonResponse, errorResponse, readRequestId } from "../responses";
+import { decodeCliDeviceCompleteBody } from "./input";
 import { readJsonBody } from "./shared";
+
+const nonEmptyErrorSchema = Schema.instanceOf(Error).pipe(
+  Schema.filter((error) => error.message.length > 0),
+);
 
 const completeDeviceCodeForCurrentUserInternalReference = makeFunctionReference<
   "mutation",
@@ -23,14 +28,14 @@ const completeDeviceCodeForCurrentUserInternalReference = makeFunctionReference<
 /**
  * Completes a CLI device authorization flow for the current Clerk-authenticated user.
  *
- * @param ctx The HTTP action context.
+ * @param convexCtx The HTTP action context.
  * @param request The incoming HTTP request.
  * @returns The completed device response or a normalized error response.
  * @remarks This requires a Clerk JWT with an active organization and delegates approval to the internal CLI auth mutation.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const cliDeviceComplete = httpAction(async (ctx, request) => {
+export const cliDeviceComplete = httpAction(async (convexCtx, request) => {
   const requestId = readRequestId(request);
   let payload: unknown;
   try {
@@ -44,7 +49,8 @@ export const cliDeviceComplete = httpAction(async (ctx, request) => {
     });
   }
 
-  if (typeof payload !== "object" || payload === null) {
+  const decoded = decodeCliDeviceCompleteBody(payload);
+  if (decoded === null) {
     return errorResponse({
       status: 400,
       code: "INVALID_REQUEST",
@@ -53,18 +59,7 @@ export const cliDeviceComplete = httpAction(async (ctx, request) => {
     });
   }
 
-  const input = payload as Record<string, unknown>;
-  const userCode = readOptionalString(input, "userCode");
-  if (userCode === null) {
-    return errorResponse({
-      status: 400,
-      code: "INVALID_REQUEST",
-      message: "userCode is required.",
-      requestId,
-    });
-  }
-
-  const identity = await readIdentityOrNull(ctx.auth);
+  const identity = await readIdentityOrNull(convexCtx.auth);
   if (identity === null) {
     return errorResponse({
       status: 401,
@@ -85,10 +80,10 @@ export const cliDeviceComplete = httpAction(async (ctx, request) => {
   }
 
   try {
-    const result = (await ctx.runMutation(
+    const result = (await convexCtx.runMutation(
       completeDeviceCodeForCurrentUserInternalReference,
       {
-        userCode,
+        userCode: decoded.userCode,
         clerkUserId: claims.clerkUserId,
         orgId: claims.orgId,
         orgSlug: claims.orgSlug,
@@ -104,10 +99,13 @@ export const cliDeviceComplete = httpAction(async (ctx, request) => {
       requestId,
     });
   } catch (error: unknown) {
+    const decodedError = Schema.decodeUnknownEither(nonEmptyErrorSchema)(error);
     return errorResponse({
       status: 400,
       code: "DEVICE_COMPLETE_FAILED",
-      message: error instanceof Error ? error.message : "Unable to complete device authorization.",
+      message: Either.isRight(decodedError)
+        ? decodedError.right.message
+        : "Unable to complete device authorization.",
       requestId,
     });
   }

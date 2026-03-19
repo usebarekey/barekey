@@ -1,5 +1,8 @@
 import { makeFunctionReference } from "convex/server";
+import { Effect } from "effect";
+
 import { httpAction } from "../../../../confect";
+import { runActionEffect, runMutationEffect } from "../../../../lib/convex/functions";
 import {
   resolveVariableValue,
   type DecryptedVariable,
@@ -81,10 +84,14 @@ export async function reserveCurrentOrgFeatureUnits(
     reason: string;
   },
 ): Promise<{ reservedUnits: number }> {
-  return (await ctx.runAction(
-    reserveFeatureUnitsForCurrentOrgInternalReference,
-    input,
-  )) as { reservedUnits: number };
+  return await Effect.runPromise(
+    runActionEffect<{ reservedUnits: number }, unknown>(
+      ctx,
+      reserveFeatureUnitsForCurrentOrgInternalReference,
+      input,
+      (error) => error,
+    ),
+  );
 }
 
 /**
@@ -106,7 +113,14 @@ export async function compensateCurrentOrgFeatureUnits(
     reason: string;
   },
 ): Promise<void> {
-  await ctx.runAction(compensateFeatureUnitsForCurrentOrgInternalReference, input);
+  await Effect.runPromise(
+    runActionEffect<unknown, unknown>(
+      ctx,
+      compensateFeatureUnitsForCurrentOrgInternalReference,
+      input,
+      (error) => error,
+    ),
+  );
 }
 
 /**
@@ -130,15 +144,19 @@ export async function resolveVariableForRow(
     key?: string;
   },
 ): Promise<ResolvedVariableValue> {
-  const decrypted = (await ctx.runMutation(
-    decryptValueForOrgProjectStageInternalReference,
-    {
-      orgId: input.orgId,
-      projectSlug: input.projectSlug,
-      stageSlug: input.stageSlug,
-      variableId: input.row.id,
-    },
-  )) as DecryptedVariable;
+  const decrypted = await Effect.runPromise(
+    runMutationEffect<DecryptedVariable, unknown>(
+      ctx,
+      decryptValueForOrgProjectStageInternalReference,
+      {
+        orgId: input.orgId,
+        projectSlug: input.projectSlug,
+        stageSlug: input.stageSlug,
+        variableId: input.row.id,
+      },
+      (error) => error,
+    ),
+  );
 
   return await resolveVariableValue({
     variable: decrypted,

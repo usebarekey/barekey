@@ -1,6 +1,4 @@
-import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../../confect";
-import type { VariableMetadataRow } from "../../../../project_variables/queries";
 import { isAuthResolutionFailure, resolveAuthContext } from "../../auth";
 import {
   classifyReserveError,
@@ -14,35 +12,13 @@ import {
   errorResponse,
   readRequestId,
 } from "../../responses";
+import { listVariableMetadataRows, logEnvBillingRequest } from "./data";
 import {
   compensateCurrentOrgFeatureUnits,
   readJsonBody,
   reserveCurrentOrgFeatureUnits,
   resolveVariableForRow,
 } from "./shared";
-
-const listVariableMetadataForOrgProjectStageInternalReference = makeFunctionReference<
-  "query",
-  {
-    orgId: string;
-    projectSlug: string;
-    stageSlug: string;
-  },
-  Array<VariableMetadataRow>
->("project_variables:listVariableMetadataForOrgProjectStageInternal") as any;
-
-const logBillingRequestInternalReference = makeFunctionReference<
-  "mutation",
-  {
-    orgId: string;
-    requestKey: string;
-    featureId: string;
-    units: number;
-  },
-  {
-    inserted: boolean;
-  }
->("payments:logBillingRequestInternal") as any;
 
 /**
  * Pulls and evaluates all variables for an authenticated environment request.
@@ -92,14 +68,11 @@ export const envPull = httpAction(async (ctx, request) => {
   }
   const authContext = authResult.context;
 
-  const rows = (await ctx.runQuery(
-    listVariableMetadataForOrgProjectStageInternalReference,
-    {
-      orgId: authContext.orgId,
-      projectSlug: parsed.projectSlug,
-      stageSlug: parsed.stageSlug,
-    },
-  )) as Array<VariableMetadataRow>;
+  const rows = await listVariableMetadataRows(ctx, {
+    orgId: authContext.orgId,
+    projectSlug: parsed.projectSlug,
+    stageSlug: parsed.stageSlug,
+  });
 
   let reservedUnits = 0;
   try {
@@ -135,15 +108,12 @@ export const envPull = httpAction(async (ctx, request) => {
       );
     }
 
-    const billingLogResult = (await ctx.runMutation(
-      logBillingRequestInternalReference,
-      {
-        orgId: authContext.orgId,
-        requestKey: readBillingRequestKey(request, requestId, "env_pull"),
-        featureId: "dynamic_requests",
-        units: rows.length,
-      },
-    )) as { inserted: boolean };
+    const billingLogResult = await logEnvBillingRequest(ctx, {
+      orgId: authContext.orgId,
+      requestKey: readBillingRequestKey(request, requestId, "env_pull"),
+      featureId: "dynamic_requests",
+      units: rows.length,
+    });
     if (!billingLogResult.inserted && reservedUnits > 0) {
       const unitsToCompensate = reservedUnits;
       reservedUnits = 0;

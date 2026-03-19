@@ -1,12 +1,25 @@
-import { Effect } from "effect";
+import type { DefaultFunctionArgs } from "convex/server";
+import { Effect, Schema } from "effect";
 
 import type { ConvexValidatorLike } from "./validators";
 import { toLegacyHandlerError } from "../errors/effect";
 
-export type EffectDefinition<Args, Returns, Requirements> = {
+export type EffectDefinition<Args extends DefaultFunctionArgs, Returns, Requirements> = {
   args: Record<string, ConvexValidatorLike>;
   returns: ConvexValidatorLike;
   handler: (args: Args) => Effect.Effect<Returns, unknown, Requirements>;
+};
+
+export type SchemaEffectDefinition<
+  ConvexArgs extends DefaultFunctionArgs,
+  ConfectArgs,
+  ConvexReturns,
+  ConfectReturns,
+  Requirements,
+> = {
+  args: Schema.Schema<ConfectArgs, ConvexArgs>;
+  returns: Schema.Schema<ConfectReturns, ConvexReturns>;
+  handler: (args: ConfectArgs) => Effect.Effect<ConfectReturns, unknown, Requirements>;
 };
 
 /**

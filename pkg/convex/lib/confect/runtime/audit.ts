@@ -17,7 +17,7 @@ const appendEventInternalReference = makeFunctionReference<
 /**
  * Appends an audit event using the capabilities available on the current runtime context.
  *
- * @param ctx The active Convex runtime context.
+ * @param convexCtx The active Convex runtime context.
  * @param payload The audit event payload to insert.
  * @returns An Effect that succeeds with the inserted audit event id.
  * @remarks Mutations write directly through DB helpers; actions delegate to the internal audit mutation.
@@ -25,20 +25,20 @@ const appendEventInternalReference = makeFunctionReference<
  * @author GPT-5.4
  */
 export function appendAuditEventWithRuntimeCtx(
-  ctx: BarekeyRuntimeCtx,
+  convexCtx: BarekeyRuntimeCtx,
   payload: AuditEventInput,
 ) {
-  if (isMutationRuntimeCtx(ctx)) {
+  if (isMutationRuntimeCtx(convexCtx)) {
     return Effect.tryPromise({
-      try: () => insertAuditEventWithMutationCtx(ctx, payload),
+      try: () => insertAuditEventWithMutationCtx(convexCtx, payload),
       catch: (error) => toExternalServiceError("Failed to append audit event.", error),
     });
   }
 
-  if (hasMutationRunner(ctx)) {
+  if (hasMutationRunner(convexCtx)) {
     return Effect.tryPromise({
       try: () =>
-        ctx.runMutation(appendEventInternalReference, payload) as ReturnType<
+        convexCtx.runMutation(appendEventInternalReference, payload) as ReturnType<
           typeof insertAuditEventWithMutationCtx
         >,
       catch: (error) => toExternalServiceError("Failed to append audit event.", error),

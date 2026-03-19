@@ -3,15 +3,14 @@ import { Effect } from "effect";
 import type { ActionCtx } from "../../_generated/server";
 import { BarekeyConfectActionCtx } from "../../confect";
 import { appendAuditEventEffect } from "../../lib/confect/audit";
-import { applyPreparedVariableWritesForOrgProjectStageWithUsageInternalReference } from "../../project_variables/refs";
-import { toScheduleExternalServiceError } from "../errors";
-import {
-  getScheduleForExecutionInternalReference,
-  markScheduleAppliedInternalReference,
-  markScheduleFailedInternalReference,
-} from "../refs";
 import { summarizeScheduleEntries } from "../summary";
 import type { GetScheduleForExecutionArgs, ScheduleExecutionRow } from "./types";
+import {
+  applyScheduledVariableWritesEffect,
+  markScheduledBatchAppliedEffect,
+  markScheduledBatchFailedEffect,
+  readScheduleExecutionPayloadEffect,
+} from "./repo";
 
 /**
  * Executes a pending scheduled variable batch.
@@ -28,17 +27,10 @@ export function executeScheduledVariableScheduleInternalEffect(
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectActionCtx;
     const ctx = confectCtx.ctx as unknown as ActionCtx;
-    const schedule = (yield* Effect.tryPromise({
-      try: () =>
-        ctx.runQuery(getScheduleForExecutionInternalReference, {
-          scheduleId: args.scheduleId,
-        }) as Promise<ScheduleExecutionRow | null>,
-      catch: (error) =>
-        toScheduleExternalServiceError(
-          "Failed to load the scheduled batch execution payload.",
-          error,
-        ),
-    })) as ScheduleExecutionRow | null;
+    const schedule = (yield* readScheduleExecutionPayloadEffect(
+      ctx,
+      args,
+    )) as ScheduleExecutionRow | null;
     if (schedule === null || schedule.status !== "scheduled") {
       return null;
     }
@@ -49,38 +41,13 @@ export function executeScheduledVariableScheduleInternalEffect(
       updateTargets: schedule.updateTargets,
     });
 
-    yield* Effect.tryPromise({
-      try: () =>
-        ctx.runAction(
-          applyPreparedVariableWritesForOrgProjectStageWithUsageInternalReference,
-          {
-            orgId: schedule.orgId,
-            orgSlug: null,
-            clerkUserId: "scheduled-system",
-            projectSlug: schedule.projectSlug,
-            stageSlug: schedule.stageSlug,
-            creates: schedule.preparedCreates,
-            updates: schedule.preparedUpdates,
-            deletes: [],
-          },
-        ),
-      catch: (error) =>
-        toScheduleExternalServiceError("Scheduled update failed.", error),
-    }).pipe(
+    yield* applyScheduledVariableWritesEffect(ctx, schedule).pipe(
       Effect.catchAll((error) =>
         Effect.gen(function* () {
           const failureMessage = error instanceof Error ? error.message : "Scheduled update failed.";
-          yield* Effect.tryPromise({
-            try: () =>
-              ctx.runMutation(markScheduleFailedInternalReference, {
-                scheduleId: schedule.scheduleId,
-                failureMessage,
-              }),
-            catch: (markError) =>
-              toScheduleExternalServiceError(
-                "Failed to mark the scheduled batch as failed.",
-                markError,
-              ),
+          yield* markScheduledBatchFailedEffect(ctx, {
+            scheduleId: schedule.scheduleId,
+            failureMessage,
           });
           yield* appendAuditEventEffect({
             orgId: schedule.orgId,
@@ -116,14 +83,7 @@ export function executeScheduledVariableScheduleInternalEffect(
       ),
     );
 
-    yield* Effect.tryPromise({
-      try: () =>
-        ctx.runMutation(markScheduleAppliedInternalReference, {
-          scheduleId: schedule.scheduleId,
-        }),
-      catch: (error) =>
-        toScheduleExternalServiceError("Failed to mark the scheduled batch as applied.", error),
-    });
+    yield* markScheduledBatchAppliedEffect(ctx, schedule.scheduleId);
     yield* appendAuditEventEffect({
       orgId: schedule.orgId,
       orgSlug: schedule.orgSlug,

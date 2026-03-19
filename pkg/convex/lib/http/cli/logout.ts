@@ -1,7 +1,7 @@
 import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../confect";
-import { readOptionalString } from "../env";
 import { buildJsonResponse, errorResponse, readRequestId } from "../responses";
+import { decodeCliRefreshTokenBody } from "./input";
 import { readJsonBody } from "./shared";
 
 const revokeSessionInternalReference = makeFunctionReference<
@@ -17,14 +17,14 @@ const revokeSessionInternalReference = makeFunctionReference<
 /**
  * Revokes a CLI session from a refresh token.
  *
- * @param ctx The HTTP action context.
+ * @param convexCtx The HTTP action context.
  * @param request The incoming HTTP request.
  * @returns The logout result or a normalized error response.
  * @remarks This is idempotent from the caller perspective; repeated revocation still returns success.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const cliLogout = httpAction(async (ctx, request) => {
+export const cliLogout = httpAction(async (convexCtx, request) => {
   const requestId = readRequestId(request);
   let payload: unknown;
   try {
@@ -38,7 +38,8 @@ export const cliLogout = httpAction(async (ctx, request) => {
     });
   }
 
-  if (typeof payload !== "object" || payload === null) {
+  const parsed = decodeCliRefreshTokenBody(payload);
+  if (parsed === null) {
     return errorResponse({
       status: 400,
       code: "INVALID_REQUEST",
@@ -47,19 +48,8 @@ export const cliLogout = httpAction(async (ctx, request) => {
     });
   }
 
-  const input = payload as Record<string, unknown>;
-  const refreshToken = readOptionalString(input, "refreshToken");
-  if (refreshToken === null) {
-    return errorResponse({
-      status: 400,
-      code: "INVALID_REQUEST",
-      message: "refreshToken is required.",
-      requestId,
-    });
-  }
-
-  const result = (await ctx.runMutation(revokeSessionInternalReference, {
-    refreshToken,
+  const result = (await convexCtx.runMutation(revokeSessionInternalReference, {
+    refreshToken: parsed.refreshToken,
   })) as {
     revoked: boolean;
   };

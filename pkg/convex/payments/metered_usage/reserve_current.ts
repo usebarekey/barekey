@@ -20,7 +20,7 @@ import {
 /**
  * Reserves metered feature units for the current authenticated organization.
  *
- * @param ctx The Convex internal action context.
+ * @param runtimeCtx The Convex internal action context.
  * @param args The expected org slug, feature identifier, units, and billing reason.
  * @returns The reserved unit count and any normalized billing error code.
  * @remarks This validates the active org and delegates the actual reservation to the org-scoped internal action.
@@ -42,9 +42,9 @@ export const reserveFeatureUnitsForCurrentOrgInternal = effectInternalAction<
   handler: (args): Effect.Effect<ReserveFeatureUnitsResult, unknown, any> =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectActionCtx;
-      const ctx = confectCtx.ctx as unknown as ActionCtx;
+      const runtimeCtx = confectCtx.ctx as unknown as ActionCtx;
 
-      const identity = yield* requireIdentityEffect(ctx);
+      const identity = yield* requireIdentityEffect(runtimeCtx);
       const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
       if (activeOrg.orgSlug !== null) {
         yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
@@ -52,7 +52,7 @@ export const reserveFeatureUnitsForCurrentOrgInternal = effectInternalAction<
 
       return yield* Effect.tryPromise({
         try: (): Promise<ReserveFeatureUnitsResult> =>
-          ctx.runAction(reserveFeatureUnitsForOrgInternalReference, {
+          runtimeCtx.runAction(reserveFeatureUnitsForOrgInternalReference, {
             orgId: activeOrg.orgId,
             orgSlug: activeOrg.orgSlug,
             featureId: args.featureId,

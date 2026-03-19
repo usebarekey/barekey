@@ -20,7 +20,7 @@ import {
 /**
  * Reserves metered feature units for one arbitrary organization.
  *
- * @param ctx The Convex action context.
+ * @param runtimeCtx The Convex action context.
  * @param args The organization identity, feature identifier, units, and billing reason.
  * @returns An Effect that succeeds with the normalized reservation outcome.
  * @remarks This reads the workspace plan, refreshes the billing snapshot, and emits the reservation event to Autumn.
@@ -28,13 +28,13 @@ import {
  * @author GPT-5.4
  */
 function reserveFeatureUnitsForOrgInternalEffect(
-  ctx: ActionCtx,
+  runtimeCtx: ActionCtx,
   args: OrgMeteredUsageArgs,
 ): Effect.Effect<ReserveFeatureUnitsResult, ExternalServiceError, never> {
   return Effect.gen(function* () {
     const planStateResult = yield* Effect.either(
       Effect.tryPromise({
-        try: () => readWorkspacePlanStateForOrg(ctx, args),
+        try: () => readWorkspacePlanStateForOrg(runtimeCtx, args),
         catch: (error) =>
           error instanceof BillingError || error instanceof ExternalServiceError
             ? error
@@ -59,7 +59,7 @@ function reserveFeatureUnitsForOrgInternalEffect(
 
     yield* Effect.tryPromise({
       try: () =>
-        ctx.runMutation(upsertOrgBillingSnapshotForOrgInternalReference, {
+        runtimeCtx.runMutation(upsertOrgBillingSnapshotForOrgInternalReference, {
           orgId: args.orgId,
           currentTier: planState.currentTier,
         }),
@@ -110,7 +110,7 @@ function reserveFeatureUnitsForOrgInternalEffect(
 /**
  * Reserves metered feature units for an arbitrary organization.
  *
- * @param ctx The Convex internal action context.
+ * @param runtimeCtx The Convex internal action context.
  * @param args The organization identity, feature identifier, units, and billing reason.
  * @returns The reserved unit count and any normalized billing error code.
  * @remarks This reads the workspace plan, refreshes the billing snapshot, and emits the reservation event to Autumn.
@@ -133,7 +133,7 @@ export const reserveFeatureUnitsForOrgInternal = effectInternalAction<
   handler: (args): Effect.Effect<ReserveFeatureUnitsResult, ExternalServiceError, any> =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectActionCtx;
-      const ctx = confectCtx.ctx as unknown as ActionCtx;
-      return yield* reserveFeatureUnitsForOrgInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as ActionCtx;
+      return yield* reserveFeatureUnitsForOrgInternalEffect(runtimeCtx, args);
     }),
 });

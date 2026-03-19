@@ -1,4 +1,3 @@
-import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../../confect";
 import { isAuthResolutionFailure, resolveAuthContext } from "../../auth";
 import {
@@ -13,36 +12,13 @@ import {
   errorResponse,
   readRequestId,
 } from "../../responses";
+import { logEnvBillingRequest, resolveVariableRows } from "./data";
 import {
   compensateCurrentOrgFeatureUnits,
   readJsonBody,
   reserveCurrentOrgFeatureUnits,
   resolveVariableForRow,
 } from "./shared";
-
-const resolveVariableRowsForOrgProjectStageInternalReference = makeFunctionReference<
-  "query",
-  {
-    orgId: string;
-    projectSlug: string;
-    stageSlug: string;
-    names: Array<string>;
-  },
-  Array<ResolvedVariableRow>
->("project_variables:resolveVariableRowsForOrgProjectStageInternal") as any;
-
-const logBillingRequestInternalReference = makeFunctionReference<
-  "mutation",
-  {
-    orgId: string;
-    requestKey: string;
-    featureId: string;
-    units: number;
-  },
-  {
-    inserted: boolean;
-  }
->("payments:logBillingRequestInternal") as any;
 
 /**
  * Evaluates a single variable for an authenticated organization request.
@@ -89,15 +65,12 @@ export const evaluateOne = httpAction(async (ctx, request) => {
   }
   const authContext = authResult.context;
 
-  const rows = (await ctx.runQuery(
-    resolveVariableRowsForOrgProjectStageInternalReference,
-    {
-      orgId: authContext.orgId,
-      projectSlug: parsed.projectSlug,
-      stageSlug: parsed.stageSlug,
-      names: [parsed.name],
-    },
-  )) as Array<ResolvedVariableRow>;
+  const rows = await resolveVariableRows(ctx, {
+    orgId: authContext.orgId,
+    projectSlug: parsed.projectSlug,
+    stageSlug: parsed.stageSlug,
+    names: [parsed.name],
+  });
   if (rows.length !== 1) {
     return errorResponse({
       status: 404,
@@ -147,15 +120,12 @@ export const evaluateOne = httpAction(async (ctx, request) => {
       key: parsed.key,
     });
 
-    const billingLogResult = (await ctx.runMutation(
-      logBillingRequestInternalReference,
-      {
-        orgId: authContext.orgId,
-        requestKey: readBillingRequestKey(request, requestId, "env_evaluate_single"),
-        featureId: "dynamic_requests",
-        units: 1,
-      },
-    )) as { inserted: boolean };
+    const billingLogResult = await logEnvBillingRequest(ctx, {
+      orgId: authContext.orgId,
+      requestKey: readBillingRequestKey(request, requestId, "env_evaluate_single"),
+      featureId: "dynamic_requests",
+      units: 1,
+    });
     if (!billingLogResult.inserted && reservedUnits > 0) {
       const unitsToCompensate = reservedUnits;
       reservedUnits = 0;

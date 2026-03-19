@@ -40,7 +40,7 @@ async function sha256Base64Url(input: string): Promise<string> {
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-export const typegenManifest = httpAction(async (ctx, request) => {
+export const typegenManifest = httpAction(async (convexCtx, request) => {
   const requestId = readRequestId(request);
   const url = new URL(request.url);
   const requestedOrgSlug = (url.searchParams.get("orgSlug") ?? "").trim() || undefined;
@@ -55,7 +55,7 @@ export const typegenManifest = httpAction(async (ctx, request) => {
     });
   }
 
-  const authResult = await resolveAuthContext(ctx, request, requestedOrgSlug);
+  const authResult = await resolveAuthContext(convexCtx, request, requestedOrgSlug);
   if (isAuthResolutionFailure(authResult)) {
     return authErrorResponse({
       status: authResult.status,
@@ -66,7 +66,7 @@ export const typegenManifest = httpAction(async (ctx, request) => {
   }
   const authContext = authResult.context;
 
-  const manifest = (await ctx.runMutation(
+  const manifest = (await convexCtx.runMutation(
     buildManifestForOrgProjectStageInternalReference,
     {
       orgId: authContext.orgId,
@@ -101,7 +101,7 @@ export const typegenManifest = httpAction(async (ctx, request) => {
   });
 });
 
-export const clerkWebhook = httpAction(async (ctx, request) => {
+export const clerkWebhook = httpAction(async (convexCtx, request) => {
   const requestId = readRequestId(request);
   if (runtimeConfig.clerkWebhookSigningSecret === null) {
     return errorResponse({
@@ -130,7 +130,7 @@ export const clerkWebhook = httpAction(async (ctx, request) => {
     });
   }
 
-  const result = (await ctx.runAction(ingestClerkWebhookEventInternalReference, {
+  const result = (await convexCtx.runAction(ingestClerkWebhookEventInternalReference, {
     payloadJson: JSON.stringify(event),
   })) as { accepted: boolean };
 

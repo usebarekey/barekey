@@ -8,7 +8,7 @@ import { toBillingPlanChangeError } from "./shared";
 /**
  * Appends a billing plan-change audit event for the current organization.
  *
- * @param ctx The Convex action context.
+ * @param convexCtx The Convex action context.
  * @param args The resolved organization, actor, and billing change details to record.
  * @param fallbackMessage The message to use if the audit write fails.
  * @returns An Effect that succeeds once the audit event is appended.
@@ -17,13 +17,13 @@ import { toBillingPlanChangeError } from "./shared";
  * @author GPT-5.4
  */
 export function appendBillingPlanChangeAuditEventEffect(
-  ctx: ActionCtx,
+  convexCtx: ActionCtx,
   args: BillingPlanAuditArgs,
   fallbackMessage: string,
 ): Effect.Effect<void, Error> {
   return Effect.tryPromise({
     try: () =>
-      ctx.runMutation(appendEventInternalReference, {
+      convexCtx.runMutation(appendEventInternalReference, {
         orgId: args.orgId,
         orgSlug: args.orgSlug ?? args.expectedOrgSlug,
         projectId: null,

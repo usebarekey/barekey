@@ -50,7 +50,7 @@ function toProjectSlugError(
 /**
  * Allocates a unique project slug within an organization as an Effect program.
  *
- * @param ctx The Convex mutation context.
+ * @param convexCtx The Convex mutation context.
  * @param args The organization id and desired slug base.
  * @returns An Effect that succeeds with the allocated unique slug.
  * @remarks This retries multiple numeric suffix widths before failing with a typed external-service error.
@@ -58,7 +58,7 @@ function toProjectSlugError(
  * @author GPT-5.4
  */
 export function allocateUniqueProjectSlugEffect(
-  ctx: MutationCtx,
+  convexCtx: MutationCtx,
   args: { orgId: string; slugBase: string },
 ): Effect.Effect<string, ExternalServiceError> {
   return Effect.gen(function* () {
@@ -67,7 +67,7 @@ export function allocateUniqueProjectSlugEffect(
         const candidate = `${args.slugBase}-${randomNumericSuffix(suffixLength)}`;
         const existing = yield* Effect.tryPromise({
           try: () =>
-            ctx.db
+            convexCtx.db
               .query("projects")
               .withIndex("by_org_id_and_slug", (q) =>
                 q.eq("orgId", args.orgId).eq("slug", candidate),

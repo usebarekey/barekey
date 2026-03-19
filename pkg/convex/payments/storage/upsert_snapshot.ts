@@ -1,10 +1,12 @@
 import { Effect } from "effect";
 import { v } from "convex/values";
+import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import {
   BarekeyConfectMutationCtx,
   effectInternalMutation,
 } from "../../confect";
+import { dbInsertEffect, dbPatchEffect, dbUniqueEffect } from "../../lib/convex/db";
 import { ExternalServiceError } from "../../lib/errors/effect";
 import {
   type BillingSnapshotArgs,
@@ -26,40 +28,38 @@ function upsertOrgBillingSnapshotForOrgInternalEffect(
   args: BillingSnapshotArgs,
 ): Effect.Effect<null, ExternalServiceError> {
   return Effect.gen(function* () {
-    const existing = yield* Effect.tryPromise({
-      try: () =>
-        ctx.db
-          .query("orgBillingSnapshots")
-          .withIndex("by_org_id", (q) => q.eq("orgId", args.orgId))
-          .unique(),
-      catch: (error) =>
-        toStorageMirrorError("Failed to load the organization billing snapshot.", error),
-    });
+    const existing = yield* dbUniqueEffect<
+      Doc<"orgBillingSnapshots">,
+      ExternalServiceError
+    >(
+      ctx,
+      "orgBillingSnapshots",
+      (query) =>
+        query.withIndex("by_org_id", (indexQuery) => indexQuery.eq("orgId", args.orgId)),
+      (error) => toStorageMirrorError("Failed to load the organization billing snapshot.", error),
+    );
     const updatedAtMs = Date.now();
 
     if (existing === null) {
-      yield* Effect.tryPromise({
-        try: () =>
-          ctx.db.insert("orgBillingSnapshots", {
-            orgId: args.orgId,
-            currentTier: args.currentTier,
-            updatedAtMs,
-          }),
-        catch: (error) =>
-          toStorageMirrorError("Failed to create the organization billing snapshot.", error),
-      });
+      yield* dbInsertEffect(ctx, "orgBillingSnapshots", {
+        orgId: args.orgId,
+        currentTier: args.currentTier,
+        updatedAtMs,
+      }, (error) =>
+        toStorageMirrorError("Failed to create the organization billing snapshot.", error),
+      );
       return null;
     }
 
-    yield* Effect.tryPromise({
-      try: () =>
-        ctx.db.patch(existing._id, {
-          currentTier: args.currentTier,
-          updatedAtMs,
-        }),
-      catch: (error) =>
-        toStorageMirrorError("Failed to update the organization billing snapshot.", error),
-    });
+    yield* dbPatchEffect(
+      ctx,
+      existing._id,
+      {
+        currentTier: args.currentTier,
+        updatedAtMs,
+      },
+      (error) => toStorageMirrorError("Failed to update the organization billing snapshot.", error),
+    );
     return null;
   });
 }

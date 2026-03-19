@@ -17,7 +17,7 @@ import {
 /**
  * Reads the canonical storage usage mirror row for one organization.
  *
- * @param ctx The Convex query context.
+ * @param runtimeCtx The Convex query context.
  * @param args The organization identifier.
  * @returns An Effect that succeeds with the mirrored byte count and timestamp, or `null`.
  * @remarks This reads only the mirror table and does not recompute encrypted storage usage.
@@ -25,12 +25,12 @@ import {
  * @author GPT-5.4
  */
 function getOrgStorageUsageInternalEffect(
-  ctx: QueryCtx,
+  runtimeCtx: QueryCtx,
   args: OrgIdArgs,
 ): Effect.Effect<OrgStorageUsageResult, ExternalServiceError> {
   return Effect.tryPromise({
     try: async () => {
-      const rows = await ctx.db
+      const rows = await runtimeCtx.db
         .query("orgStorageUsage")
         .withIndex("by_org_id", (q) => q.eq("orgId", args.orgId))
         .collect();
@@ -51,7 +51,7 @@ function getOrgStorageUsageInternalEffect(
 /**
  * Reads the mirrored encrypted storage usage row for an organization.
  *
- * @param ctx The Convex internal query context.
+ * @param runtimeCtx The Convex internal query context.
  * @param args The organization identifier.
  * @returns The mirrored encrypted byte count and last update time, or `null`.
  * @remarks This reads the billing mirror table only and does not recompute usage.
@@ -67,8 +67,8 @@ export const getOrgStorageUsageInternal = effectInternalQuery<OrgIdArgs, OrgStor
     handler: (args) =>
       Effect.gen(function* () {
         const confectCtx = yield* BarekeyConfectQueryCtx;
-        const ctx = confectCtx.ctx as unknown as QueryCtx;
-        return yield* getOrgStorageUsageInternalEffect(ctx, args);
+        const runtimeCtx = confectCtx.ctx as unknown as QueryCtx;
+        return yield* getOrgStorageUsageInternalEffect(runtimeCtx, args);
       }),
   },
 );

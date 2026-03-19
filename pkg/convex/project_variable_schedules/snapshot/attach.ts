@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import type { MutationCtx } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
+import { dbGetEffect, dbPatchEffect } from "../../lib/convex/db";
 import { type ExternalServiceError } from "../../lib/errors/effect";
 import { toScheduleSnapshotExternalError } from "./errors";
 
@@ -24,38 +25,41 @@ export function attachScheduledFunctionIdIfStillPendingEffect(
   input: AttachScheduledFunctionIdInput,
 ): Effect.Effect<Doc<"projectVariableSchedules"> | null, ExternalServiceError> {
   return Effect.gen(function* () {
-    const latest = yield* Effect.tryPromise({
-      try: () => input.ctx.db.get(input.scheduleId),
-      catch: (error) =>
-        toScheduleSnapshotExternalError(
-          "Failed to load the latest scheduled batch state.",
-          error,
-        ),
-    });
+    const latest = yield* dbGetEffect<
+      Doc<"projectVariableSchedules">,
+      ExternalServiceError
+    >(input.ctx, input.scheduleId, (error) =>
+      toScheduleSnapshotExternalError(
+        "Failed to load the latest scheduled batch state.",
+        error,
+      ),
+    );
     if (latest === null || latest.status !== "scheduled") {
       return latest;
     }
 
-    yield* Effect.tryPromise({
-      try: () =>
-        input.ctx.db.patch(input.scheduleId, {
-          scheduledFunctionId: input.scheduledFunctionId,
-        }),
-      catch: (error) =>
+    yield* dbPatchEffect(
+      input.ctx,
+      input.scheduleId,
+      {
+        scheduledFunctionId: input.scheduledFunctionId,
+      },
+      (error) =>
         toScheduleSnapshotExternalError(
           "Failed to attach the scheduler function id to the batch.",
           error,
         ),
-    });
+    );
 
-    return yield* Effect.tryPromise({
-      try: () => input.ctx.db.get(input.scheduleId),
-      catch: (error) =>
+    return yield* dbGetEffect<Doc<"projectVariableSchedules">, ExternalServiceError>(
+      input.ctx,
+      input.scheduleId,
+      (error) =>
         toScheduleSnapshotExternalError(
           "Failed to reload the scheduled batch after attaching the scheduler handle.",
           error,
         ),
-    });
+    );
   });
 }
 

@@ -18,7 +18,7 @@ import {
 /**
  * Compensates previously reserved metered feature units for the current authenticated organization.
  *
- * @param ctx The Convex internal action context.
+ * @param runtimeCtx The Convex internal action context.
  * @param args The expected org slug, feature identifier, units, and compensation reason.
  * @returns The compensated unit count.
  * @remarks This validates the active org and delegates to the org-scoped compensation action.
@@ -40,9 +40,9 @@ export const compensateFeatureUnitsForCurrentOrgInternal = effectInternalAction<
   handler: (args): Effect.Effect<{ compensatedUnits: number }, unknown, any> =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectActionCtx;
-      const ctx = confectCtx.ctx as unknown as ActionCtx;
+      const runtimeCtx = confectCtx.ctx as unknown as ActionCtx;
 
-      const identity = yield* requireIdentityEffect(ctx);
+      const identity = yield* requireIdentityEffect(runtimeCtx);
       const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
       if (activeOrg.orgSlug !== null) {
         yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
@@ -50,7 +50,7 @@ export const compensateFeatureUnitsForCurrentOrgInternal = effectInternalAction<
 
       return yield* Effect.tryPromise({
         try: (): Promise<{ compensatedUnits: number }> =>
-          ctx.runAction(compensateFeatureUnitsForOrgInternalReference, {
+          runtimeCtx.runAction(compensateFeatureUnitsForOrgInternalReference, {
             orgId: activeOrg.orgId,
             orgSlug: activeOrg.orgSlug,
             featureId: args.featureId,

@@ -1,3 +1,5 @@
+import { Id as ConfectId } from "@rjdellecese/confect/server";
+import { Schema } from "effect";
 import { v } from "convex/values";
 
 import type { Id } from "../_generated/dataModel";
@@ -25,6 +27,31 @@ export const projectListItemValidator = v.object({
   createdAtMs: v.number(),
   updatedAtMs: v.number(),
   secretCount: v.number(),
+});
+
+export const projectSummarySchema = Schema.Struct({
+  id: ConfectId.Id("projects"),
+  orgId: Schema.String,
+  orgSlug: Schema.String,
+  name: Schema.String,
+  slug: Schema.String,
+  slugBase: Schema.String,
+  createdByClerkUserId: Schema.String,
+  createdAtMs: Schema.Number,
+  updatedAtMs: Schema.Number,
+});
+
+export const projectListItemSchema = Schema.Struct({
+  id: ConfectId.Id("projects"),
+  orgId: Schema.String,
+  orgSlug: Schema.String,
+  name: Schema.String,
+  slug: Schema.String,
+  slugBase: Schema.String,
+  createdByClerkUserId: Schema.String,
+  createdAtMs: Schema.Number,
+  updatedAtMs: Schema.Number,
+  secretCount: Schema.Number,
 });
 
 export type ProjectSummary = {

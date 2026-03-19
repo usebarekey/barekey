@@ -27,16 +27,16 @@ function assertWorkspacePlanForOrgInternalEffect(
 ): Effect.Effect<WorkspacePlanAssertionResult, WorkspacePlanEffectError, any> {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectActionCtx;
-    const ctx = confectCtx.ctx as unknown as ActionCtx;
+    const runtimeCtx = confectCtx.ctx as unknown as ActionCtx;
     const planState = yield* Effect.tryPromise({
-      try: () => readWorkspacePlanStateForOrg(ctx, args),
+      try: () => readWorkspacePlanStateForOrg(runtimeCtx, args),
       catch: (error) =>
         toWorkspacePlanError("Failed to resolve the workspace billing plan.", error),
     });
 
     yield* Effect.tryPromise({
       try: () =>
-        ctx.runMutation(upsertOrgBillingSnapshotForOrgInternalReference, {
+        runtimeCtx.runMutation(upsertOrgBillingSnapshotForOrgInternalReference, {
           orgId: args.orgId,
           currentTier: planState.currentTier,
         }),
@@ -55,7 +55,7 @@ function assertWorkspacePlanForOrgInternalEffect(
 /**
  * Asserts that the provided organization has an active workspace plan.
  *
- * @param ctx The Convex internal action context.
+ * @param runtimeCtx The Convex internal action context.
  * @param args The organization identifier and optional slug.
  * @returns The organization identifier plus the resolved current billing product and tier.
  * @remarks This refreshes the billing snapshot row after successfully resolving the current plan.

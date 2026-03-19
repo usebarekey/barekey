@@ -1,3 +1,4 @@
+import { Either, Schema } from "effect";
 import { v } from "convex/values";
 
 export const auditCategoryValidator = v.union(
@@ -77,7 +78,7 @@ type JsonLike =
   | boolean
   | number
   | string
-  | Array<JsonLike>
+  | ReadonlyArray<JsonLike>
   | {
       [key: string]: JsonLike;
     };
@@ -85,43 +86,82 @@ type JsonLike =
 const SECRETISH_KEY_PATTERN =
   /(value|secret|cipher|encrypt|decrypt|plaintext|payload|token|rolloutmilestones|rolloutfunction)/i;
 
-function normalizeJsonLike(value: unknown): JsonLike {
-  if (value === null) {
-    return null;
+const auditJsonPrimitiveSchema = Schema.Union(
+  Schema.Null,
+  Schema.Boolean,
+  Schema.Finite,
+  Schema.String,
+);
+const auditJsonUnknownArraySchema = Schema.Array(Schema.Unknown);
+const auditJsonUnknownRecordSchema = Schema.Record({
+  key: Schema.String,
+  value: Schema.Unknown,
+});
+const auditJsonLikeSchema: Schema.Schema<JsonLike> = Schema.suspend(() =>
+  Schema.Union(
+    auditJsonPrimitiveSchema,
+    Schema.Array(auditJsonLikeSchema),
+    Schema.Record({
+      key: Schema.String,
+      value: auditJsonLikeSchema,
+    }),
+  ),
+);
+
+function sanitizeTypedAuditValue(value: JsonLike): JsonLike {
+  const decodedArray = Schema.decodeUnknownEither(Schema.Array(auditJsonLikeSchema))(value);
+  if (Either.isRight(decodedArray)) {
+    return decodedArray.right.map((entry) => sanitizeTypedAuditValue(entry));
   }
 
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  if (typeof value === "number") {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((entry) => normalizeJsonLike(entry));
-  }
-
-  if (typeof value === "object") {
-    const result: Record<string, JsonLike> = {};
-    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+  const decodedRecord = Schema.decodeUnknownEither(
+    Schema.Record({
+      key: Schema.String,
+      value: auditJsonLikeSchema,
+    }),
+  )(value);
+  if (Either.isRight(decodedRecord)) {
+    const sanitized: Record<string, JsonLike> = {};
+    for (const key in decodedRecord.right) {
       if (SECRETISH_KEY_PATTERN.test(key)) {
         continue;
       }
-      result[key] = normalizeJsonLike(entry);
+      sanitized[key] = sanitizeTypedAuditValue(decodedRecord.right[key]);
     }
-    return result;
+    return sanitized;
+  }
+
+  return value;
+}
+
+function sanitizeUnknownAuditValue(value: unknown): JsonLike {
+  const decodedJson = Schema.decodeUnknownEither(auditJsonLikeSchema)(value);
+  if (Either.isRight(decodedJson)) {
+    return sanitizeTypedAuditValue(decodedJson.right);
+  }
+
+  const decodedArray = Schema.decodeUnknownEither(auditJsonUnknownArraySchema)(value);
+  if (Either.isRight(decodedArray)) {
+    return decodedArray.right.map((entry) => sanitizeUnknownAuditValue(entry));
+  }
+
+  const decodedRecord = Schema.decodeUnknownEither(auditJsonUnknownRecordSchema)(value);
+  if (Either.isRight(decodedRecord)) {
+    const sanitized: Record<string, JsonLike> = {};
+    for (const key in decodedRecord.right) {
+      if (SECRETISH_KEY_PATTERN.test(key)) {
+        continue;
+      }
+      sanitized[key] = sanitizeUnknownAuditValue(decodedRecord.right[key]);
+    }
+    return sanitized;
   }
 
   return String(value);
 }
 
 export function sanitizeAuditPayload(payload: unknown): string {
-  return JSON.stringify(normalizeJsonLike(payload));
+  return JSON.stringify(sanitizeUnknownAuditValue(payload));
 }
 
 export function retentionTierFromCurrentTier(

@@ -7,6 +7,7 @@ import {
   BarekeyConfectActionCtx,
   effectInternalAction,
 } from "../../confect";
+import { runActionEffect, runMutationEffect } from "../../lib/convex/functions";
 import {
   writeEntryValidator,
   writeModeValidator,
@@ -45,52 +46,54 @@ function writeVariablesForOrgProjectStageWithUsageInternalEffect(
     const confectCtx = yield* BarekeyConfectActionCtx;
     const ctx = confectCtx.ctx as unknown as ActionCtx;
 
-    const prepared = yield* Effect.tryPromise({
-      try: () =>
-        ctx.runMutation(
-          prepareVariableWritesForOrgProjectStageInternalReference,
-          {
-            orgId: args.orgId,
-            clerkUserId: args.clerkUserId,
-            projectSlug: args.projectSlug,
-            stageSlug: args.stageSlug,
-            mode: args.mode,
-            entries: args.entries,
-            deletes: args.deletes,
-          },
-        ) as Promise<{
-          creates: Array<any>;
-          updates: Array<any>;
-          deletes: Array<Id<"projectVariables">>;
-        }>,
-      catch: (error) =>
+    const prepared = yield* runMutationEffect<
+      {
+        creates: Array<any>;
+        updates: Array<any>;
+        deletes: Array<Id<"projectVariables">>;
+      },
+      ReturnType<typeof toProjectVariableExternalServiceError>
+    >(
+      ctx,
+      prepareVariableWritesForOrgProjectStageInternalReference,
+      {
+        orgId: args.orgId,
+        clerkUserId: args.clerkUserId,
+        projectSlug: args.projectSlug,
+        stageSlug: args.stageSlug,
+        mode: args.mode,
+        entries: args.entries,
+        deletes: args.deletes,
+      },
+      (error) =>
         toProjectVariableExternalServiceError(
           "Failed to prepare the variable write payload.",
           error,
         ),
-    });
+    );
 
-    return yield* Effect.tryPromise({
-      try: () =>
-        ctx.runAction(
-          applyPreparedVariableWritesForOrgProjectStageWithUsageInternalReference,
-          {
-            orgId: args.orgId,
-            orgSlug: args.orgSlug,
-            clerkUserId: args.clerkUserId,
-            projectSlug: args.projectSlug,
-            stageSlug: args.stageSlug,
-            creates: prepared.creates,
-            updates: prepared.updates,
-            deletes: prepared.deletes,
-          },
-        ) as Promise<WriteWithUsageResult>,
-      catch: (error) =>
+    return yield* runActionEffect<
+      WriteWithUsageResult,
+      ReturnType<typeof toProjectVariableExternalServiceError>
+    >(
+      ctx,
+      applyPreparedVariableWritesForOrgProjectStageWithUsageInternalReference,
+      {
+        orgId: args.orgId,
+        orgSlug: args.orgSlug,
+        clerkUserId: args.clerkUserId,
+        projectSlug: args.projectSlug,
+        stageSlug: args.stageSlug,
+        creates: prepared.creates,
+        updates: prepared.updates,
+        deletes: prepared.deletes,
+      },
+      (error) =>
         toProjectVariableExternalServiceError(
           "Failed to apply the prepared variable write payload with usage checks.",
           error,
         ),
-    });
+    );
   });
 }
 

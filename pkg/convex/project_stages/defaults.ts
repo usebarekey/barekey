@@ -1,8 +1,7 @@
-import { Effect } from "effect";
-import { v } from "convex/values";
+import { Effect, Schema } from "effect";
 
 import type { MutationCtx } from "../_generated/server";
-import { BarekeyConfectMutationCtx, effectMutation } from "../confect";
+import { BarekeyConfectMutationCtx, schemaEffectMutation } from "../confect";
 import {
   assertExpectedOrgSlugEffect,
   requireActiveOrgIdClaimsEffect,
@@ -12,6 +11,15 @@ import { AuthError, ExternalServiceError, NotFoundError } from "../lib/errors/ef
 import { requireProjectBySlugForOrgEffect } from "./access";
 import { toProjectStageExternalServiceError } from "./errors";
 import { DEFAULT_STAGE_DEFINITIONS } from "./types";
+
+const defaultStagesArgsSchema = Schema.Struct({
+  expectedOrgSlug: Schema.String,
+  projectSlug: Schema.String,
+});
+
+const defaultStagesResultSchema = Schema.Struct({
+  createdCount: Schema.Number,
+});
 
 /**
  * Ensures the canonical default stages exist for a project as an Effect program.
@@ -36,21 +44,21 @@ function ensureDefaultStagesForCurrentOrgProjectEffect(
 > {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectMutationCtx;
-    const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const identity = yield* requireIdentityEffect(ctx);
+    const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+    const identity = yield* requireIdentityEffect(runtimeCtx);
     const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
     if (activeOrg.orgSlug !== null) {
       yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
     }
 
-    const project = yield* requireProjectBySlugForOrgEffect(ctx, {
+    const project = yield* requireProjectBySlugForOrgEffect(runtimeCtx, {
       orgId: activeOrg.orgId,
       projectSlug: args.projectSlug,
     });
 
     const existingStages = yield* Effect.tryPromise({
       try: () =>
-        ctx.db
+        runtimeCtx.db
           .query("projectStages")
           .withIndex("by_project_id", (q) => q.eq("projectId", project._id))
           .collect(),
@@ -68,7 +76,7 @@ function ensureDefaultStagesForCurrentOrgProjectEffect(
       const now = Date.now();
       yield* Effect.tryPromise({
         try: () =>
-          ctx.db.insert("projectStages", {
+          runtimeCtx.db.insert("projectStages", {
             projectId: project._id,
             orgId: activeOrg.orgId,
             slug: definition.slug,
@@ -95,20 +103,15 @@ function ensureDefaultStagesForCurrentOrgProjectEffect(
 /**
  * Ensures the canonical default stages exist for a project.
  *
- * @param ctx The Convex mutation context.
+ * @param runtimeCtx The Convex mutation context.
  * @param args The expected org slug and project slug.
  * @returns The number of default stages created.
  * @remarks This is idempotent and backfills missing default `projectStages` rows.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const ensureDefaultStagesForCurrentOrgProject = effectMutation({
-  args: {
-    expectedOrgSlug: v.string(),
-    projectSlug: v.string(),
-  },
-  returns: v.object({
-    createdCount: v.number(),
-  }),
+export const ensureDefaultStagesForCurrentOrgProject = schemaEffectMutation({
+  args: defaultStagesArgsSchema,
+  returns: defaultStagesResultSchema,
   handler: ensureDefaultStagesForCurrentOrgProjectEffect,
 });

@@ -1,7 +1,9 @@
+import { Id as ConfectId } from "@rjdellecese/confect/server";
+import { Either, Effect, Schema } from "effect";
 import { v } from "convex/values";
-
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { dbCollectEffect } from "../lib/convex/db";
 
 const RESERVED_USER_SLUG_BASES = new Set([
   "auth",
@@ -27,6 +29,15 @@ export const userRecordFields = {
 
 export const userRecordValidator = v.object(userRecordFields);
 
+export const userRecordSchema = Schema.Struct({
+  clerkUserId: Schema.String,
+  slug: Schema.String,
+  slugBase: Schema.String,
+  email: Schema.NullOr(Schema.String),
+  displayName: Schema.NullOr(Schema.String),
+  imageUrl: Schema.NullOr(Schema.String),
+});
+
 export const userAccountRecordValidator = v.object({
   ...userRecordFields,
   createdAtMs: v.number(),
@@ -39,6 +50,19 @@ export const currentUserFreePlanCreditValidator = v.object({
   remainingCredits: v.number(),
   assignedOrgId: v.union(v.string(), v.null()),
   assignedOrgSlug: v.union(v.string(), v.null()),
+});
+
+export const userAccountRecordSchema = Schema.Struct({
+  _id: ConfectId.Id("users"),
+  clerkUserId: Schema.String,
+  slug: Schema.String,
+  slugBase: Schema.String,
+  email: Schema.NullOr(Schema.String),
+  displayName: Schema.NullOr(Schema.String),
+  imageUrl: Schema.NullOr(Schema.String),
+  createdAtMs: Schema.Number,
+  updatedAtMs: Schema.Number,
+  lastSeenAtMs: Schema.Number,
 });
 
 export type UserRow = {
@@ -155,10 +179,22 @@ export async function getCanonicalUserByClerkUserId(
   ctx: QueryCtx | MutationCtx,
   clerkUserId: string,
 ): Promise<UserRow | null> {
-  const rows: Array<UserRow> = await ctx.db
-    .query("users")
-    .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
-    .collect();
+  const rows = await Effect.runPromise(
+    dbCollectEffect<UserRow, Error>(
+      ctx,
+      "users",
+      (query) =>
+        query.withIndex("by_clerk_user_id", (indexQuery) =>
+          indexQuery.eq("clerkUserId", clerkUserId),
+        ),
+      (error) => {
+        const decodedError = Schema.decodeUnknownEither(Schema.instanceOf(Error))(error);
+        return Either.isRight(decodedError)
+          ? decodedError.right
+          : new Error("Failed to load users by Clerk id.");
+      },
+    ),
+  );
   return pickCanonicalUserRow(rows);
 }
 
@@ -176,9 +212,18 @@ export async function getCanonicalUserBySlug(
   ctx: QueryCtx | MutationCtx,
   slug: string,
 ): Promise<UserRow | null> {
-  const rows: Array<UserRow> = await ctx.db
-    .query("users")
-    .withIndex("by_slug", (q) => q.eq("slug", slug))
-    .collect();
+  const rows = await Effect.runPromise(
+    dbCollectEffect<UserRow, Error>(
+      ctx,
+      "users",
+      (query) => query.withIndex("by_slug", (indexQuery) => indexQuery.eq("slug", slug)),
+      (error) => {
+        const decodedError = Schema.decodeUnknownEither(Schema.instanceOf(Error))(error);
+        return Either.isRight(decodedError)
+          ? decodedError.right
+          : new Error("Failed to load users by slug.");
+      },
+    ),
+  );
   return pickCanonicalUserRow(rows);
 }

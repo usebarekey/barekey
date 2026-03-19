@@ -1,7 +1,13 @@
 import { v } from "convex/values";
+import { Effect } from "effect";
 
 import { effectInternalQuery } from "../../confect";
-import { mapVariableResolverRow, variableResolverRowValidator } from "../../lib/project_variables/rows";
+import { dbUniqueEffect } from "../../lib/convex/db";
+import {
+  mapVariableResolverRow,
+  type VariableStorageRow,
+  variableResolverRowValidator,
+} from "../../lib/project_variables/rows";
 import { validateVariableName } from "../../lib/project_variables/validation";
 import { findProjectStageByOrgIdAndSlug } from "../../lib/projects/scope";
 import { type VariableResolverRow, withProjectVariableQueryCtx } from "./shared";
@@ -9,7 +15,7 @@ import { type VariableResolverRow, withProjectVariableQueryCtx } from "./shared"
 /**
  * Resolves stage variables by name for internal HTTP and SDK evaluation flows.
  *
- * @param ctx The Convex internal query context.
+ * @param runtimeCtx The Convex internal query context.
  * @param args The organization, project, stage, and variable names to resolve.
  * @returns Resolved variable rows in the same name order requested by the caller.
  * @remarks Missing names are omitted from the result while preserving the order of those that exist.
@@ -34,8 +40,9 @@ export const resolveVariableRowsForOrgProjectStageInternal = effectInternalQuery
   },
   returns: v.array(variableResolverRowValidator),
   handler: (args) =>
-    withProjectVariableQueryCtx(async (ctx, innerArgs) => {
-      const projectStage = await findProjectStageByOrgIdAndSlug(ctx.db, {
+    withProjectVariableQueryCtx(async (runtimeCtx, innerArgs) => {
+      const db = runtimeCtx.db;
+      const projectStage = await findProjectStageByOrgIdAndSlug(db, {
         orgId: innerArgs.orgId,
         projectSlug: innerArgs.projectSlug,
         stageSlug: innerArgs.stageSlug,
@@ -51,15 +58,20 @@ export const resolveVariableRowsForOrgProjectStageInternal = effectInternalQuery
           continue;
         }
 
-        const row = await ctx.db
-          .query("projectVariables")
-          .withIndex("by_project_id_and_stage_slug_and_name", (q) =>
-            q
-              .eq("projectId", projectStage.project._id)
-              .eq("stageSlug", projectStage.stage.slug)
-              .eq("name", name),
-          )
-          .unique();
+        const row = await Effect.runPromise(
+          dbUniqueEffect<VariableStorageRow, unknown>(
+            runtimeCtx,
+            "projectVariables",
+            (query) =>
+              query.withIndex("by_project_id_and_stage_slug_and_name", (indexQuery) =>
+                indexQuery
+                  .eq("projectId", projectStage.project._id)
+                  .eq("stageSlug", projectStage.stage.slug)
+                  .eq("name", name),
+              ),
+            (error) => error,
+          ),
+        );
         if (row !== null) {
           rowsByName.set(name, mapVariableResolverRow(row));
         }

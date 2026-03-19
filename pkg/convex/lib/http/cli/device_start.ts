@@ -1,7 +1,7 @@
 import { makeFunctionReference } from "convex/server";
 import { httpAction } from "../../../confect";
-import { readOptionalString } from "../env";
 import { buildJsonResponse, readRequestId } from "../responses";
+import { decodeCliDeviceStartBody } from "./input";
 import { getCliUiOrigin, readJsonBody } from "./shared";
 
 const createDeviceCodeInternalReference = makeFunctionReference<
@@ -20,14 +20,14 @@ const createDeviceCodeInternalReference = makeFunctionReference<
 /**
  * Starts a CLI device authorization flow.
  *
- * @param ctx The HTTP action context.
+ * @param convexCtx The HTTP action context.
  * @param request The incoming HTTP request.
  * @returns The device code payload and verification URL.
  * @remarks Invalid or missing JSON bodies fall back to an empty object so device start stays tolerant.
  * @lastModified 2026-03-17
  * @author GPT-5.4
  */
-export const cliDeviceStart = httpAction(async (ctx, request) => {
+export const cliDeviceStart = httpAction(async (convexCtx, request) => {
   const requestId = readRequestId(request);
   let payload: unknown = {};
   try {
@@ -35,11 +35,9 @@ export const cliDeviceStart = httpAction(async (ctx, request) => {
   } catch {
     payload = {};
   }
-  const input =
-    typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
-  const clientName = readOptionalString(input, "clientName");
+  const { clientName } = decodeCliDeviceStartBody(payload);
 
-  const deviceStart = (await ctx.runMutation(createDeviceCodeInternalReference, {
+  const deviceStart = (await convexCtx.runMutation(createDeviceCodeInternalReference, {
     clientName,
   })) as {
     deviceCode: string;

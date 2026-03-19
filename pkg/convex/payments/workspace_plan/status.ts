@@ -40,8 +40,8 @@ function getWorkspacePlanStatusForCurrentOrgEffect(
 ): Effect.Effect<WorkspacePlanStatusResponse, WorkspacePlanEffectError, any> {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectActionCtx;
-    const ctx = confectCtx.ctx as unknown as ActionCtx;
-    const identity = yield* requireIdentityEffect(ctx);
+    const runtimeCtx = confectCtx.ctx as unknown as ActionCtx;
+    const identity = yield* requireIdentityEffect(runtimeCtx);
     const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
 
     if (activeOrg.orgSlug !== null) {
@@ -50,7 +50,7 @@ function getWorkspacePlanStatusForCurrentOrgEffect(
 
     const customerResult = yield* Effect.tryPromise({
       try: () =>
-        ctx.runAction(api.autumn.createCustomer, {
+        runtimeCtx.runAction(api.autumn.createCustomer, {
           errorOnNotFound: false,
         }),
       catch: (error) =>
@@ -76,7 +76,7 @@ function getWorkspacePlanStatusForCurrentOrgEffect(
       currentVariant?.tier === BillingTier.Free
         ? yield* Effect.tryPromise({
             try: () =>
-              hasFreePlanCreditAssignedToOrg(ctx, {
+              hasFreePlanCreditAssignedToOrg(runtimeCtx, {
                 orgId: activeOrg.orgId,
               }),
             catch: (error) =>
@@ -89,7 +89,7 @@ function getWorkspacePlanStatusForCurrentOrgEffect(
 
     yield* Effect.tryPromise({
       try: () =>
-        ctx.runMutation(upsertOrgBillingSnapshotForOrgInternalReference, {
+        runtimeCtx.runMutation(upsertOrgBillingSnapshotForOrgInternalReference, {
           orgId: activeOrg.orgId,
           currentTier: isWithoutPlan ? null : (currentVariant?.tier ?? null),
         }),
@@ -114,7 +114,7 @@ function getWorkspacePlanStatusForCurrentOrgEffect(
 /**
  * Reads the workspace plan status for the current authenticated organization.
  *
- * @param ctx The Convex action context.
+ * @param runtimeCtx The Convex action context.
  * @param args The expected organization slug.
  * @returns The current workspace billing status used by onboarding and projects screens.
  * @remarks This refreshes the billing snapshot row for the active organization.

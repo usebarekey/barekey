@@ -56,14 +56,14 @@ function toAuditListError(error: unknown): ExternalServiceError {
  * @author GPT-5.4
  */
 export function withAuditQueryCtx<Args, Result>(
-  handler: (ctx: QueryCtx, args: Args) => Promise<Result>,
+  handler: (runtimeCtx: QueryCtx, args: Args) => Promise<Result>,
   args: Args,
 ): Effect.Effect<Result, ExternalServiceError, any> {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectQueryCtx;
-    const ctx = confectCtx.ctx as unknown as QueryCtx;
+    const runtimeCtx = confectCtx.ctx as unknown as QueryCtx;
     return yield* Effect.tryPromise({
-      try: () => handler(ctx, args),
+      try: () => handler(runtimeCtx, args),
       catch: toAuditListError,
     });
   });
@@ -72,7 +72,7 @@ export function withAuditQueryCtx<Args, Result>(
 /**
  * Collects a filtered page of audit events for an organization.
  *
- * @param ctx The audit query context.
+ * @param runtimeCtx The audit query context.
  * @param args The organization, filter, and pagination options.
  * @returns The matching audit rows plus a flag indicating whether more rows remain.
  * @remarks This over-fetches and post-filters to support the current index layout without changing the public query surface.
@@ -80,7 +80,7 @@ export function withAuditQueryCtx<Args, Result>(
  * @author GPT-5.4
  */
 export async function collectAuditEventsPage(
-  ctx: QueryCtx,
+  runtimeCtx: QueryCtx,
   args: AuditListArgs,
 ): Promise<{
   items: Array<AuditEventRow>;
@@ -90,11 +90,12 @@ export async function collectAuditEventsPage(
   const items: Array<AuditEventRow> = [];
   let cursor = args.beforeOccurredAtMs;
   let hasMore = false;
+  const db = runtimeCtx.db;
 
   for (let attempt = 0; attempt < 5 && items.length < args.limit; attempt += 1) {
     let queryBuilder;
     if (args.projectSlug !== null) {
-      queryBuilder = ctx.db
+      queryBuilder = db
         .query("auditEvents")
         .withIndex("by_org_id_and_project_slug_and_occurred_at_ms", (q) => {
           const scoped = q.eq("orgId", args.orgId).eq("projectSlug", args.projectSlug);
@@ -102,14 +103,14 @@ export async function collectAuditEventsPage(
         });
     } else if (args.category !== null) {
       const category = args.category;
-      queryBuilder = ctx.db
+      queryBuilder = db
         .query("auditEvents")
         .withIndex("by_org_id_and_category_and_occurred_at_ms", (q) => {
           const scoped = q.eq("orgId", args.orgId).eq("category", category);
           return cursor === null ? scoped : scoped.lt("occurredAtMs", cursor);
         });
     } else {
-      queryBuilder = ctx.db
+      queryBuilder = db
         .query("auditEvents")
         .withIndex("by_org_id_and_occurred_at_ms", (q) => {
           const scoped = q.eq("orgId", args.orgId);

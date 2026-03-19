@@ -32,8 +32,8 @@ function assertWorkspacePlanForCurrentOrgInternalEffect(
 ): Effect.Effect<WorkspacePlanAssertionResult, WorkspacePlanEffectError, any> {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectActionCtx;
-    const ctx = confectCtx.ctx as unknown as ActionCtx;
-    const identity = yield* requireIdentityEffect(ctx);
+    const runtimeCtx = confectCtx.ctx as unknown as ActionCtx;
+    const identity = yield* requireIdentityEffect(runtimeCtx);
     const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
 
     if (activeOrg.orgSlug !== null) {
@@ -42,7 +42,7 @@ function assertWorkspacePlanForCurrentOrgInternalEffect(
 
     const planState = (yield* Effect.tryPromise({
       try: () =>
-        ctx.runAction(assertWorkspacePlanForOrgInternalReference, {
+        runtimeCtx.runAction(assertWorkspacePlanForOrgInternalReference, {
           orgId: activeOrg.orgId,
           orgSlug: activeOrg.orgSlug,
         }),
@@ -61,7 +61,7 @@ function assertWorkspacePlanForCurrentOrgInternalEffect(
 /**
  * Asserts that the current authenticated organization has an active workspace plan.
  *
- * @param ctx The Convex internal action context.
+ * @param runtimeCtx The Convex internal action context.
  * @param args The expected organization slug.
  * @returns The organization identifier plus the resolved current billing product and tier.
  * @remarks This delegates to the org-scoped assertion after validating the active organization.

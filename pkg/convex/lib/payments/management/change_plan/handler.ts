@@ -1,30 +1,21 @@
 import { Effect } from "effect";
 
-import { api } from "../../../../_generated/api";
 import type { ActionCtx } from "../../../../_generated/server";
-import {
-  assertExpectedOrgSlugEffect,
-  requireActiveOrgIdClaimsEffect,
-  requireIdentityEffect,
-} from "../../../auth";
 import { AuthError, ExternalServiceError, ValidationError } from "../../../errors/effect";
 import { BillingTier } from "../../catalog";
 import {
-  hasForceCheckoutUpgradeDowngradeError,
-  isBillingManagerRole,
-  readCurrentProductId,
-  readCurrentVariantFromProductId,
-  readCustomerProducts,
-  resolvePricingVariants,
-  resolveProductId,
-  resolveVariant,
-} from "../../variants";
-import {
-  revokeFreePlanCreditByOrgIdInternalReference,
-  upsertOrgBillingSnapshotForOrgInternalReference,
-} from "../../../../payments/refs";
+  loadCurrentBillingPlanStateEffect,
+  requireBillingPlanChangeAccessEffect,
+  resolveTargetBillingPlanEffect,
+} from "./access";
+import { attachBillingPlanEffect } from "./attach";
 import { appendBillingPlanChangeAuditEventEffect } from "./audit";
 import { ensureFreePlanCreditForTargetTierEffect } from "./free_credit";
+import {
+  revokeFreePlanCreditForOrgBestEffortEffect,
+  revokeFreePlanCreditForOrgEffect,
+  upsertBillingSnapshotEffect,
+} from "./mutations";
 import { resolvePostAttachOutcomeEffect } from "./post_attach";
 import {
   type ChangePlanForCurrentOrgArgs,
@@ -48,69 +39,13 @@ export async function changePlanForCurrentOrgHandler(
 ): Promise<ChangePlanForCurrentOrgResult> {
   return await Effect.runPromise(
     Effect.gen(function* () {
-      const identity = yield* requireIdentityEffect(ctx);
-      const activeOrg = yield* requireActiveOrgIdClaimsEffect(identity);
-      if (activeOrg.orgSlug !== null) {
-        yield* assertExpectedOrgSlugEffect(activeOrg, args.expectedOrgSlug);
-      }
-      if (!isBillingManagerRole(activeOrg.orgRole)) {
-        return yield* Effect.fail(
-          new ValidationError({ message: "Only organization admins can change billing plans." }),
-        );
-      }
-
-      const variants = yield* Effect.tryPromise({
-        try: () => resolvePricingVariants(ctx),
-        catch: (error) =>
-          toBillingPlanChangeError("Failed to resolve pricing variants.", error),
-      });
-      const targetVariant = yield* Effect.try({
-        try: () =>
-          resolveVariant({
-            variants,
-            tier: args.tier,
-            interval: args.interval,
-            overageMode: args.overageMode,
-          }),
-        catch: (error) =>
-          new ValidationError({
-            message:
-              error instanceof Error
-                ? error.message
-                : "Unable to resolve the requested billing plan.",
-          }),
-      });
-      const fallbackProductId = resolveProductId({
-        tier: args.tier,
-        interval: args.interval,
-        overageMode: args.overageMode,
-      });
-      if (!targetVariant.isConfiguredInAutumn) {
-        return yield* Effect.fail(
-          new ValidationError({
-            message: `This billing plan is not configured in Autumn yet (${fallbackProductId}). Configure pricing products first.`,
-          }),
-        );
-      }
-      const productId = targetVariant.productId;
-
-      const customerResult = yield* Effect.tryPromise({
-        try: () =>
-          ctx.runAction(api.autumn.createCustomer, {
-            errorOnNotFound: false,
-          }),
-        catch: (error) =>
-          toBillingPlanChangeError("Failed to initialize the billing customer.", error),
-      });
-      if (customerResult.error !== null) {
-        return yield* Effect.fail(
-          new ExternalServiceError({ message: "Billing service is temporarily unavailable." }),
-        );
-      }
-      const currentProductId = readCurrentProductId(customerResult.data);
-      const currentVariant =
-        variants.find((variant) => variant.productId === currentProductId) ??
-        readCurrentVariantFromProductId(currentProductId);
+      const { identity, activeOrg, actorDisplayName, actorEmail } =
+        yield* requireBillingPlanChangeAccessEffect(ctx, args);
+      const { variants, productId } = yield* resolveTargetBillingPlanEffect(ctx, args);
+      const { currentProductId, currentTier } = yield* loadCurrentBillingPlanStateEffect(
+        ctx,
+        variants,
+      );
 
       const consumedFreeCreditReason = yield* ensureFreePlanCreditForTargetTierEffect(ctx, {
         clerkUserId: identity.subject,
@@ -124,7 +59,7 @@ export async function changePlanForCurrentOrgHandler(
       if (
         args.tier === BillingTier.Free &&
         currentProductId === productId &&
-        currentVariant?.tier === BillingTier.Free
+        currentTier === BillingTier.Free
       ) {
         return {
           attachedProductId: productId,
@@ -137,74 +72,35 @@ export async function changePlanForCurrentOrgHandler(
 
       const shouldForceCheckout =
         args.tier !== BillingTier.Free &&
-        (currentVariant === null || currentVariant.tier === BillingTier.Free);
+        (currentTier === null || currentTier === BillingTier.Free);
 
-      let attachResult = yield* Effect.tryPromise({
-        try: () =>
-          ctx.runAction(api.autumn.attach, {
-            productId,
-            forceCheckout: shouldForceCheckout,
-            successUrl: args.successUrl ?? undefined,
-          }),
-        catch: (error) =>
-          toBillingPlanChangeError("Failed to start the billing attachment flow.", error),
-      });
-      if (
-        (attachResult.error !== null || attachResult.data === null) &&
-        shouldForceCheckout &&
-        hasForceCheckoutUpgradeDowngradeError(attachResult.error)
-      ) {
-        attachResult = yield* Effect.tryPromise({
-          try: () =>
-            ctx.runAction(api.autumn.attach, {
-              productId,
-              forceCheckout: false,
-              successUrl: args.successUrl ?? undefined,
-            }),
-          catch: (error) =>
-            toBillingPlanChangeError("Failed to retry the billing attachment flow.", error),
-        });
-      }
-      if (attachResult.error !== null || attachResult.data === null) {
-        if (args.tier === BillingTier.Free && consumedFreeCreditReason === "granted") {
-          yield* Effect.tryPromise({
-            try: () =>
-              ctx.runMutation(revokeFreePlanCreditByOrgIdInternalReference, {
+      const { checkoutUrl } = yield* attachBillingPlanEffect(ctx, {
+        productId,
+        shouldForceCheckout,
+        successUrl: args.successUrl,
+      }).pipe(
+        Effect.catchAll((error) =>
+          Effect.gen(function* () {
+            if (args.tier === BillingTier.Free && consumedFreeCreditReason === "granted") {
+              yield* revokeFreePlanCreditForOrgBestEffortEffect(ctx, {
                 orgId: activeOrg.orgId,
                 reason: "attach_failed",
-              }),
-            catch: () => undefined,
-          });
-        }
-        const attachFailureMessage =
-          attachResult.error?.message ?? "Unable to start checkout for this billing change.";
-        return yield* Effect.fail(
-          new ExternalServiceError({
-            message: attachFailureMessage,
+              });
+            }
+            return yield* Effect.fail(error);
           }),
-        );
-      }
+        ),
+      );
 
       if (
         args.tier !== BillingTier.Free &&
-        currentVariant !== null &&
-        currentVariant.tier === BillingTier.Free
+        currentTier === BillingTier.Free
       ) {
-        yield* Effect.tryPromise({
-          try: () =>
-            ctx.runMutation(revokeFreePlanCreditByOrgIdInternalReference, {
-              orgId: activeOrg.orgId,
-              reason: "upgraded_to_paid",
-            }),
-          catch: (error) =>
-            toBillingPlanChangeError("Failed to revoke the previous free-plan credit.", error),
+        yield* revokeFreePlanCreditForOrgEffect(ctx, {
+          orgId: activeOrg.orgId,
+          reason: "upgraded_to_paid",
         });
       }
-
-      const actorDisplayName =
-        identity.name ?? identity.nickname ?? identity.preferredUsername ?? null;
-      const actorEmail = identity.email ?? null;
-      const checkoutUrl = attachResult.data.checkout_url ?? null;
       if (checkoutUrl !== null) {
         yield* appendBillingPlanChangeAuditEventEffect(
           ctx,
@@ -244,14 +140,9 @@ export async function changePlanForCurrentOrgHandler(
         productId,
         variants,
       });
-      yield* Effect.tryPromise({
-        try: () =>
-          ctx.runMutation(upsertOrgBillingSnapshotForOrgInternalReference, {
-            orgId: activeOrg.orgId,
-            currentTier: effectiveTier,
-          }),
-        catch: (error) =>
-          toBillingPlanChangeError("Failed to refresh the billing snapshot.", error),
+      yield* upsertBillingSnapshotEffect(ctx, {
+        orgId: activeOrg.orgId,
+        currentTier: effectiveTier,
       });
       yield* appendBillingPlanChangeAuditEventEffect(
         ctx,

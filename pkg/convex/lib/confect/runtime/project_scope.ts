@@ -15,7 +15,7 @@ import { hasDatabaseReader } from "./context";
 /**
  * Finds a project/stage pair using direct database access from the current runtime context.
  *
- * @param ctx The active Convex runtime context.
+ * @param runtimeCtx The active Convex runtime context.
  * @param payload The organization/project/stage lookup input.
  * @returns An Effect that succeeds with the project/stage pair or `null`.
  * @remarks This currently requires query or mutation DB access and fails for action-only contexts.
@@ -23,10 +23,10 @@ import { hasDatabaseReader } from "./context";
  * @author GPT-5.4
  */
 export function findProjectStageWithRuntimeCtx(
-  ctx: BarekeyRuntimeCtx,
+  runtimeCtx: BarekeyRuntimeCtx,
   payload: ProjectScopeLookup,
 ) {
-  if (!hasDatabaseReader(ctx)) {
+  if (!hasDatabaseReader(runtimeCtx)) {
     return Effect.fail(
       new ExternalServiceError({
         message: "Project scope resolution requires database access.",
@@ -34,15 +34,17 @@ export function findProjectStageWithRuntimeCtx(
     );
   }
 
+  const db = runtimeCtx.db;
+
   if (payload.scope === "orgId") {
-    return findProjectStageByOrgIdAndSlugEffect(ctx.db, {
+    return findProjectStageByOrgIdAndSlugEffect(db, {
       orgId: payload.orgId,
       projectSlug: payload.projectSlug,
       stageSlug: payload.stageSlug,
     });
   }
 
-  return findProjectStageByOrgSlugAndSlugEffect(ctx.db, {
+  return findProjectStageByOrgSlugAndSlugEffect(db, {
     orgSlug: payload.orgSlug,
     projectSlug: payload.projectSlug,
     stageSlug: payload.stageSlug,
@@ -52,7 +54,7 @@ export function findProjectStageWithRuntimeCtx(
 /**
  * Requires a project/stage pair using direct database access from the current runtime context.
  *
- * @param ctx The active Convex runtime context.
+ * @param runtimeCtx The active Convex runtime context.
  * @param payload The organization/project/stage lookup input.
  * @returns An Effect that succeeds with the required project/stage pair.
  * @remarks This currently requires query or mutation DB access and fails for action-only contexts.
@@ -60,10 +62,10 @@ export function findProjectStageWithRuntimeCtx(
  * @author GPT-5.4
  */
 export function requireProjectStageWithRuntimeCtx(
-  ctx: BarekeyRuntimeCtx,
+  runtimeCtx: BarekeyRuntimeCtx,
   payload: ProjectScopeLookup,
 ) {
-  if (!hasDatabaseReader(ctx)) {
+  if (!hasDatabaseReader(runtimeCtx)) {
     return Effect.fail(
       new ExternalServiceError({
         message: "Project scope resolution requires database access.",
@@ -71,8 +73,10 @@ export function requireProjectStageWithRuntimeCtx(
     );
   }
 
+  const db = runtimeCtx.db;
+
   if (payload.scope === "orgId") {
-    return requireProjectStageByOrgIdAndSlugEffect(ctx.db, {
+    return requireProjectStageByOrgIdAndSlugEffect(db, {
       orgId: payload.orgId,
       projectSlug: payload.projectSlug,
       stageSlug: payload.stageSlug,
@@ -80,7 +84,7 @@ export function requireProjectStageWithRuntimeCtx(
   }
 
   return Effect.gen(function* () {
-    const project = yield* findProjectByOrgSlugAndSlugEffect(ctx.db, {
+    const project = yield* findProjectByOrgSlugAndSlugEffect(db, {
       orgSlug: payload.orgSlug,
       projectSlug: payload.projectSlug,
     });
@@ -88,7 +92,7 @@ export function requireProjectStageWithRuntimeCtx(
       return yield* Effect.fail(new NotFoundError({ message: "Project not found." }));
     }
 
-    const stage = yield* findStageByProjectIdAndSlugEffect(ctx.db, {
+    const stage = yield* findStageByProjectIdAndSlugEffect(db, {
       projectId: project._id,
       stageSlug: payload.stageSlug,
     });

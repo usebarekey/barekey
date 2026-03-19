@@ -64,6 +64,10 @@ export async function readIdentityOrNull(
   return await auth.getUserIdentity();
 }
 
+function looksLikeJwt(token: string): boolean {
+  return token.split(".").length === 3;
+}
+
 function extractBearerToken(request: Request): string | null {
   const authorization = request.headers.get("authorization");
   if (!authorization) {
@@ -84,12 +88,16 @@ export function isAuthResolutionFailure(
 }
 
 export async function resolveAuthContext(
-  ctx: AuthResolutionCtx,
+  convexCtx: AuthResolutionCtx,
   request: Request,
   requestedOrgSlug?: string,
 ): Promise<AuthResolutionResult> {
   const normalizedRequestedOrgSlug = requestedOrgSlug?.trim() || undefined;
-  const identity = await readIdentityOrNull(ctx.auth);
+  const bearerToken = extractBearerToken(request);
+  const shouldAttemptClerkIdentity = bearerToken === null || looksLikeJwt(bearerToken);
+  const identity = shouldAttemptClerkIdentity
+    ? await readIdentityOrNull(convexCtx.auth)
+    : null;
   if (identity !== null) {
     const orgClaims = getOrgClaimsFromIdentity(identity);
     if (orgClaims.orgId === null || orgClaims.orgSlug === null) {
@@ -122,7 +130,6 @@ export async function resolveAuthContext(
     };
   }
 
-  const bearerToken = extractBearerToken(request);
   if (bearerToken === null) {
     return {
       ok: false,
@@ -132,7 +139,7 @@ export async function resolveAuthContext(
     };
   }
 
-  const session = (await ctx.runMutation(authenticateAccessTokenInternalReference, {
+  const session = (await convexCtx.runMutation(authenticateAccessTokenInternalReference, {
     accessToken: bearerToken,
   })) as {
     clerkUserId: string;
@@ -156,7 +163,7 @@ export async function resolveAuthContext(
           orgId: session.orgId,
           orgSlug: session.orgSlug,
         }
-      : ((await ctx.runAction(resolveOrganizationAccessForCliUserInternalReference, {
+      : ((await convexCtx.runAction(resolveOrganizationAccessForCliUserInternalReference, {
           clerkUserId: session.clerkUserId,
           requestedOrgSlug: effectiveOrgSlug,
           fallbackOrgId: session.orgId,

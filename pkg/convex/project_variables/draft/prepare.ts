@@ -40,16 +40,17 @@ export function prepareDraftForCurrentOrgProjectStageInternalEffect(
 ): Effect.Effect<PreparedDraft, unknown, any> {
   return Effect.gen(function* () {
     const confectCtx = yield* BarekeyConfectMutationCtx;
-    const ctx = confectCtx.ctx as unknown as MutationCtx;
-    const activeOrg = yield* requireCurrentOrgAccessEffect(ctx, args.expectedOrgSlug);
+    const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+    const activeOrg = yield* requireCurrentOrgAccessEffect(runtimeCtx, args.expectedOrgSlug);
+    const db = runtimeCtx.db;
 
-    const { project, stage } = yield* requireProjectStageByOrgIdAndSlugEffect(ctx.db, {
+    const { project, stage } = yield* requireProjectStageByOrgIdAndSlugEffect(db, {
       orgId: activeOrg.orgId,
       projectSlug: args.projectSlug,
       stageSlug: args.stageSlug,
     });
 
-    const existingRows = yield* listProjectVariableRowsForStageEffect(ctx.db, {
+    const existingRows = yield* listProjectVariableRowsForStageEffect(db, {
       projectId: project._id,
       stageSlug: stage.slug,
     });
@@ -91,7 +92,7 @@ export function prepareDraftForCurrentOrgProjectStageInternalEffect(
 
       const encryptedValue = yield* Effect.tryPromise({
         try: () =>
-          encryptSecretValueForProject(ctx, {
+          encryptSecretValueForProject(runtimeCtx, {
             projectId: project._id,
             orgId: project.orgId,
             plaintext: update.value,
@@ -140,7 +141,7 @@ export function prepareDraftForCurrentOrgProjectStageInternalEffect(
 
       const encryptedValue = yield* Effect.tryPromise({
         try: () =>
-          encryptSecretValueForProject(ctx, {
+          encryptSecretValueForProject(runtimeCtx, {
             projectId: project._id,
             orgId: project.orgId,
             plaintext: create.value,

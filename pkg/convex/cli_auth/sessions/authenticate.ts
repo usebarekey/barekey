@@ -17,7 +17,7 @@ import {
 /**
  * Authenticates a raw CLI access token against an active session.
  *
- * @param ctx The Convex mutation context.
+ * @param runtimeCtx The Convex mutation context.
  * @param args The raw access token.
  * @returns An Effect that succeeds with the session context when valid, or `null`.
  * @remarks This updates `lastUsedAtMs` for valid sessions.
@@ -25,7 +25,7 @@ import {
  * @author GPT-5.4
  */
 function authenticateAccessTokenInternalEffect(
-  ctx: MutationCtx,
+  runtimeCtx: MutationCtx,
   args: AccessTokenArgs,
 ): Effect.Effect<AuthenticatedSession, ExternalServiceError> {
   return Effect.gen(function* () {
@@ -37,7 +37,7 @@ function authenticateAccessTokenInternalEffect(
     });
     const session = yield* Effect.tryPromise({
       try: () =>
-        ctx.db
+        runtimeCtx.db
           .query("cliSessions")
           .withIndex("by_access_token_hash", (q) => q.eq("accessTokenHash", accessTokenHash))
           .unique(),
@@ -51,7 +51,7 @@ function authenticateAccessTokenInternalEffect(
 
     yield* Effect.tryPromise({
       try: () =>
-        ctx.db.patch(session._id, {
+        runtimeCtx.db.patch(session._id, {
           lastUsedAtMs: now,
           updatedAtMs: now,
         }),
@@ -72,7 +72,7 @@ function authenticateAccessTokenInternalEffect(
 /**
  * Authenticates a CLI access token against an active session.
  *
- * @param ctx The Convex internal mutation context.
+ * @param runtimeCtx The Convex internal mutation context.
  * @param args The raw access token.
  * @returns The session context when valid, or `null`.
  * @remarks This updates `lastUsedAtMs` for valid sessions.
@@ -91,7 +91,7 @@ export const authenticateAccessTokenInternal = effectInternalMutation<
   handler: (args) =>
     Effect.gen(function* () {
       const confectCtx = yield* BarekeyConfectMutationCtx;
-      const ctx = confectCtx.ctx as unknown as MutationCtx;
-      return yield* authenticateAccessTokenInternalEffect(ctx, args);
+      const runtimeCtx = confectCtx.ctx as unknown as MutationCtx;
+      return yield* authenticateAccessTokenInternalEffect(runtimeCtx, args);
     }),
 });
