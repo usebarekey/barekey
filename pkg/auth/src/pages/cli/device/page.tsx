@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut, SignInButton, useAuth, useUser } from "@clerk/react-router";
+import { SignedIn, SignedOut, useAuth, useUser } from "@clerk/react-router";
 import { IconDeviceLaptop, IconLock, IconUser } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -7,9 +7,12 @@ import { useTheme } from "theme-watcher";
 
 import barekeyDarkPng from "@/assets/barekey-dark.png";
 import barekeyLightPng from "@/assets/barekey-light.png";
+import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { buildReturnToPath, buildSsoPath } from "@/lib/return-to";
 import { runtimeConfig } from "@/lib/runtime-config";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_BAREKEY_API_URL = "https://api.barekey.dev";
 const USER_CODE_LENGTH = 8;
@@ -140,6 +143,10 @@ export function Page() {
   const signedInAs = user?.primaryEmailAddress?.emailAddress ?? user?.id ?? "";
   const deviceLabel = clientName ?? "This computer";
   const logoSrc = resolvedTheme === "dark" ? barekeyLightPng : barekeyDarkPng;
+  const signInPath = useMemo(
+    () => buildSsoPath(buildReturnToPath(window.location.pathname, window.location.search)),
+    [],
+  );
 
   useEffect(() => {
     setIsReady(false);
@@ -235,11 +242,18 @@ export function Page() {
 
                     <div className="mt-8 flex flex-wrap gap-3">
                       <SignedOut>
-                        <SignInButton mode="modal">
-                          <Button className="h-11 px-5 text-sm font-medium" disabled={!isReady}>
-                            {isReady ? "Sign in to continue" : "Preparing..."}
-                          </Button>
-                        </SignInButton>
+                        <a
+                          className={cn(
+                            buttonVariants({
+                              size: "lg",
+                              className: "h-11 px-5 text-sm font-medium",
+                            }),
+                            !isReady && "pointer-events-none opacity-50",
+                          )}
+                          href={signInPath}
+                        >
+                          {isReady ? "Sign in to continue" : "Preparing..."}
+                        </a>
                       </SignedOut>
 
                       <SignedIn>
