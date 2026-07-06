@@ -1,32 +1,26 @@
-import tailwindcss from '@tailwindcss/vite';
-import adapter from '@sveltejs/adapter-vercel';
-import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
-import { effect } from 'svelte-effect-runtime';
+import { env } from "node:process";
+import tailwindcss from "@tailwindcss/vite";
+import { href } from "svelte-auto-href";
+import { effect } from "svelte-effect-runtime";
+import { ts } from "svelte-global-typescript";
+import { sv } from "svelte-sv-extension";
+import { compose, kit } from "svelte-plugin-composer";
+import { defineConfig } from "vite";
 
-export default defineConfig({
-	server: {
-		watch: {
-			ignored: ['**/vite.config.ts.timestamp-*.mjs']
-		}
-	},
-	plugins: [
-		effect(),
-		tailwindcss(),
-		sveltekit({
-			compilerOptions: {
-				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
-				runes: ({ filename }) => filename.split(/[/\\]/).includes('node_modules') ? undefined : true,
-				experimental: {
-					async: true,
-				}
+export default defineConfig(({ mode }) => {
+	if (mode === "check") {
+		env.BAREKEY_CHECK_BUILD = "1";
+	}
+
+	return {
+		server: {
+			watch: {
+				ignored: ["**/vite.config.ts.timestamp-*.mjs"],
 			},
-
-			experimental: {
-				remoteFunctions: true
-			},
-
-			adapter: adapter()
-		})
-	]
+		},
+		plugins: compose([effect(), sv(), ts(), href(), tailwindcss(), kit()], {
+			pre_order: "preserve",
+			svelte_config: "external",
+		}),
+	};
 });
