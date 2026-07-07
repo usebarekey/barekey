@@ -111,14 +111,20 @@ const current_href = $derived(get_docs_href(route));
 
 <style>
 .barekey-gradient {
+	display: inline-block;
 	background-image: linear-gradient(
 		to bottom,
 		#0a2a66 0%,
-		#ffe0b0 30%,
-		#f97316 50%,
+		#0a2a66 18%,
+		#ffe0b0 34%,
+		#f97316 52%,
 		#ffd84d 70%,
+		#1d4ed8 88%,
 		#1d4ed8 100%
 	);
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: 100% 1em;
 	background-clip: text;
 	color: transparent;
 	-webkit-background-clip: text;
