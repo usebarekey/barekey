@@ -114,13 +114,10 @@ const current_href = $derived(get_docs_href(route));
 	display: inline-block;
 	background-image: linear-gradient(
 		to bottom,
-		#0a2a66 0%,
-		#0a2a66 18%,
-		#ffe0b0 34%,
-		#f97316 52%,
-		#ffd84d 70%,
-		#1d4ed8 88%,
-		#1d4ed8 100%
+		#ffd84d 0%,
+		#f97316 28%,
+		#ffe0b0 56%,
+		#2563eb 100%
 	);
 	background-position: center;
 	background-repeat: no-repeat;
