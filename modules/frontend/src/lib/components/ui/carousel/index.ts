@@ -5,15 +5,14 @@ import Previous from "./carousel-previous.svelte";
 import Next from "./carousel-next.svelte";
 
 export {
-	Root,
 	Content,
-	Item,
-	Previous,
-	Next,
-	//
-	Root as Carousel,
 	Content as CarouselContent,
+	Item,
 	Item as CarouselItem,
-	Previous as CarouselPrevious,
+	Next,
 	Next as CarouselNext,
+	Previous,
+	Previous as CarouselPrevious,
+	Root,
+	Root as Carousel,
 };

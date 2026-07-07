@@ -1,38 +1,38 @@
 <script lang="ts">
 	import type { WithoutChildren } from "bits-ui";
-	import { getEmblaContext } from "./context.js";
+	import { get_embla_context } from "./context.js";
 	import { cn } from "$lib/utils.js";
 	import { Button, type Props } from "$lib/components/ui/button/index.js";
 	import { IconChevronRight } from '@tabler/icons-svelte';
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		variant = "outline",
 		size = "icon-sm",
-		...restProps
+		...rest_props
 	}: WithoutChildren<Props> = $props();
 
-	const emblaCtx = getEmblaContext("<Carousel.Next/>");
+	const embla_context = get_embla_context("<Carousel.Next/>");
 </script>
 
 <Button
 	data-slot="carousel-next"
 	{variant}
 	{size}
-	aria-disabled={!emblaCtx.canScrollNext}
-	disabled={!emblaCtx.canScrollNext}
+	aria-disabled={!embla_context.can_scroll_next}
+	disabled={!embla_context.can_scroll_next}
 	class={cn(
 		"rounded-full absolute touch-manipulation",
-		emblaCtx.orientation === "horizontal"
+		embla_context.orientation === "horizontal"
 			? "-end-12 top-1/2 -translate-y-1/2"
 			: "start-1/2 -bottom-12 -translate-x-1/2 rotate-90",
-		className
+		class_name
 	)}
-	onclick={emblaCtx.scrollNext}
-	onkeydown={emblaCtx.handleKeyDown}
+	onclick={embla_context.scroll_next}
+	onkeydown={embla_context.handle_key_down}
 	bind:ref
-	{...restProps}
+	{...rest_props}
 >
 	<IconChevronRight  />
 	<span class="sr-only">Next slide</span>

@@ -1,0 +1,13 @@
+@reference "../../tailwind-reference.css";
+
+.docs-file-icon {
+	@apply size-4 shrink-0;
+}
+
+.docs-file-icon-inverted {
+	@apply invert;
+}
+
+.docs-file-icon-fallback {
+	@apply text-muted-foreground;
+}

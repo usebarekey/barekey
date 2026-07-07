@@ -1,27 +1,27 @@
 <script lang="ts">
 	import { Calendar as CalendarPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	import { IconChevronDown } from '@tabler/icons-svelte';
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils";
+	import { IconChevronDown } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		value,
 		onchange,
-		...restProps
+		...rest_props
 	}: WithoutChildrenOrChild<CalendarPrimitive.MonthSelectProps> = $props();
 </script>
 
 <span
 	class={cn(
 		"has-focus:border-ring border-input has-focus:ring-ring/50 relative flex rounded-md border shadow-xs has-focus:ring-[3px]",
-		className
+		class_name
 	)}
 >
 	<CalendarPrimitive.MonthSelect
 		bind:ref
 		class="bg-background dark:bg-popover dark:text-popover-foreground absolute inset-0 opacity-0"
-		{...restProps}
+		{...rest_props}
 	>
 		{#snippet child({ props, monthItems, selectedMonthItem })}
 			<select {...props} {value} {onchange}>
@@ -41,7 +41,7 @@
 				aria-hidden="true"
 			>
 				{monthItems.find((item) => item.value === value)?.label || selectedMonthItem.label}
-				<IconChevronDown class={cn("size-4", className)} />
+				<IconChevronDown class={cn("size-4", class_name)} />
 			</span>
 		{/snippet}
 	</CalendarPrimitive.MonthSelect>

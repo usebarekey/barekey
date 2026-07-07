@@ -4,8 +4,8 @@
 	let {
 		ref = $bindable(null),
 		type = "button",
-		...restProps
+		...rest_props
 	}: DialogPrimitive.TriggerProps = $props();
 </script>
 
-<DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {type} {...restProps} />
+<DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {type} {...rest_props} />

@@ -1,17 +1,17 @@
 <script lang="ts">
 	import emblaCarouselSvelte from "embla-carousel-svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { getEmblaContext } from "./context.js";
+	import { get_embla_context } from "./context.js";
 	import { cn, type WithElementRef } from "$lib/utils.js";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 
-	const emblaCtx = getEmblaContext("<Carousel.Content/>");
+	const embla_context = get_embla_context("<Carousel.Content/>");
 </script>
 
 <div
@@ -21,22 +21,22 @@
 		options: {
 			container: "[data-embla-container]",
 			slides: "[data-embla-slide]",
-			...emblaCtx.options,
-			axis: emblaCtx.orientation === "horizontal" ? "x" : "y",
+			...embla_context.options,
+			axis: embla_context.orientation === "horizontal" ? "x" : "y",
 		},
-		plugins: emblaCtx.plugins,
+		plugins: embla_context.plugins,
 	}}
-	onemblaInit={emblaCtx.onInit}
+	onemblaInit={embla_context.on_init}
 >
 	<div
 		bind:this={ref}
 		class={cn(
 			"flex",
-			emblaCtx.orientation === "horizontal" ? "-ms-4" : "-mt-4 flex-col",
-			className
+			embla_context.orientation === "horizontal" ? "-ms-4" : "-mt-4 flex-col",
+			class_name
 		)}
 		data-embla-container=""
-		{...restProps}
+		{...rest_props}
 	>
 		{@render children?.()}
 	</div>

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLSpanElement>> = $props();
 </script>
 
@@ -16,8 +16,8 @@
 	role="link"
 	aria-disabled="true"
 	aria-current="page"
-	class={cn("text-foreground font-normal", className)}
-	{...restProps}
+	class={cn("text-foreground font-normal", class_name)}
+	{...rest_props}
 >
 	{@render children?.()}
 </span>

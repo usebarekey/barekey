@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { Accordion as AccordionPrimitive } from "bits-ui";
-	import { cn, type WithoutChild } from "$lib/utils.js";
-	import { IconChevronDown } from '@tabler/icons-svelte';
-	import { IconChevronUp } from '@tabler/icons-svelte';
+	import { cn, type WithoutChild } from "$lib/utils";
+	import { IconChevronDown } from "@tabler/icons-svelte";
+	import { IconChevronUp } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		level = 3,
 		children,
-		...restProps
+		...rest_props
 	}: WithoutChild<AccordionPrimitive.TriggerProps> & {
 		level?: AccordionPrimitive.HeaderProps["level"];
 	} = $props();
@@ -21,9 +21,9 @@
 		bind:ref
 		class={cn(
 			"**:data-[slot=accordion-trigger-icon]:text-muted-foreground gap-6 p-4 text-left text-sm font-medium hover:underline **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 group/accordion-trigger relative flex flex-1 items-start justify-between border border-transparent transition-all outline-none disabled:pointer-events-none disabled:opacity-50",
-			className
+			class_name
 		)}
-		{...restProps}
+		{...rest_props}
 	>
 		{@render children?.()}
 		<IconChevronDown data-slot="accordion-trigger-icon" class="cn-accordion-trigger-icon pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden" />

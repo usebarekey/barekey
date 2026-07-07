@@ -4,9 +4,9 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLElement>> = $props();
 </script>
 
@@ -14,8 +14,8 @@
 	bind:this={ref}
 	data-slot="sidebar-header"
 	data-sidebar="header"
-	class={cn("gap-2 p-2 [--radius:var(--radius-xl)] flex flex-col", className)}
-	{...restProps}
+	class={cn("gap-2 p-2 [--radius:var(--radius-xl)] flex flex-col", class_name)}
+	{...rest_props}
 >
 	{@render children?.()}
 </div>

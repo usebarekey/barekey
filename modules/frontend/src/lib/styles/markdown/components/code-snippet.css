@@ -1,0 +1,81 @@
+@reference "../../tailwind-reference.css";
+
+.prose .docs-code-snippet {
+	@apply my-6 max-w-full w-fit;
+}
+
+.docs-code-snippet-header {
+	@apply mb-4 flex h-7 w-full flex-row items-start justify-between gap-4;
+}
+
+.docs-code-snippet-filename {
+	@apply flex w-min flex-row items-center gap-2 rounded-3xl bg-linear-to-t
+    from-background/30 to-foreground/5 px-2 py-px card card-outline;
+}
+
+.docs-code-snippet-filename-text {
+	@apply whitespace-nowrap text-sm text-muted-foreground;
+}
+
+.docs-code-snippet-copy {
+	@apply p-1.5;
+}
+
+.docs-code-snippet-body {
+	@apply max-w-full w-fit items-center overflow-x-auto rounded-3xl
+    bg-linear-to-t from-background/30 to-foreground/5 p-4 card card-outline;
+}
+
+.docs-code-snippet-body .shiki {
+	@apply m-0 bg-transparent p-0 font-mono text-sm leading-6 w-max
+    [tab-size:2];
+}
+
+.docs-code-snippet-body .shiki,
+.docs-code-snippet-body .shiki span {
+	@apply text-[var(--shiki-light)];
+}
+
+.dark .docs-code-snippet-body .shiki,
+.dark .docs-code-snippet-body .shiki span {
+	@apply text-[var(--shiki-dark)];
+}
+
+.docs-code-snippet-body code {
+	@apply block bg-transparent p-0 font-mono font-normal;
+	counter-reset: docs-code-line;
+}
+
+.docs-code-snippet-body .line {
+	@apply inline-block min-h-6 relative align-top;
+	counter-increment: docs-code-line;
+	padding-left: 2.75rem;
+}
+
+.docs-code-snippet-body .line[data-diff] {
+	@apply rounded-md pr-2 card-diff;
+	--diff-line-from-opacity: 12.5%;
+	--diff-line-to-opacity: 20%;
+	background-image: linear-gradient(
+		to bottom,
+		color-mix(in oklab, var(--shiki-diff-light) var(--diff-line-from-opacity), transparent),
+		color-mix(in oklab, var(--shiki-diff-light) var(--diff-line-to-opacity), transparent)
+	);
+}
+
+.docs-code-snippet-body .line[data-diff="deleted"] {
+	--diff-line-from-opacity: 9%;
+	--diff-line-to-opacity: 18%;
+	--diff-card-top-opacity: 16%;
+	--diff-card-shadow-opacity: 5%;
+	--diff-card-ring-opacity: 24%;
+	--diff-card-drop-opacity: 30%;
+}
+
+.docs-code-snippet-body .line::before {
+	@apply absolute left-0 select-none text-muted-foreground;
+	content: counter(docs-code-line);
+	font-variant-numeric: tabular-nums;
+	width: 1.75rem;
+	text-align: right;
+}

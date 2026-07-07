@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLLiAttributes } from "svelte/elements";
-	import { IconChevronRight } from '@tabler/icons-svelte';
+	import { IconChevronRight } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLLiAttributes> = $props();
 </script>
 
@@ -16,8 +16,8 @@
 	data-slot="breadcrumb-separator"
 	role="presentation"
 	aria-hidden="true"
-	class={cn("[&>svg]:size-3.5", className)}
-	{...restProps}
+	class={cn("[&>svg]:size-3.5", class_name)}
+	{...rest_props}
 >
 	{#if children}
 		{@render children?.()}

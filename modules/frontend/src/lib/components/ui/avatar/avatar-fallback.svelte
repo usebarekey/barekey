@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { Avatar as AvatarPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: AvatarPrimitive.FallbackProps = $props();
 </script>
 
@@ -14,7 +14,7 @@
 	data-slot="avatar-fallback"
 	class={cn(
 		"bg-muted text-muted-foreground rounded-full flex size-full items-center justify-center text-sm group-data-[size=sm]/avatar:text-xs",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 />

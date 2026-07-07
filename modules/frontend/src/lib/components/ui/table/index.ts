@@ -8,21 +8,20 @@ import Header from "./table-header.svelte";
 import Row from "./table-row.svelte";
 
 export {
-	Root,
 	Body,
-	Caption,
-	Cell,
-	Footer,
-	Head,
-	Header,
-	Row,
-	//
-	Root as Table,
 	Body as TableBody,
+	Caption,
 	Caption as TableCaption,
+	Cell,
 	Cell as TableCell,
+	Footer,
 	Footer as TableFooter,
+	Head,
 	Head as TableHead,
+	Header,
 	Header as TableHeader,
+	Root,
+	Root as Table,
+	Row,
 	Row as TableRow,
 };

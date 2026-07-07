@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
-	import { IconCheck } from '@tabler/icons-svelte';
-	import { cn, type WithoutChild } from "$lib/utils.js";
+	import { IconCheck } from "@tabler/icons-svelte";
+	import { cn, type WithoutChild } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		children: childrenProp,
-		...restProps
+		class: class_name,
+		children: children_prop,
+		...rest_props
 	}: WithoutChild<DropdownMenuPrimitive.RadioItemProps> = $props();
 </script>
 
@@ -16,9 +16,9 @@
 	data-slot="dropdown-menu-radio-item"
 	class={cn(
 		"focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground gap-2.5 rounded-xl py-2 pr-8 pl-3 text-sm data-inset:pl-9.5 [&_svg:not([class*='size-'])]:size-4 relative flex cursor-default items-center outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{#snippet children({ checked })}
 		<span
@@ -29,6 +29,6 @@
 				<IconCheck  />
 			{/if}
 		</span>
-		{@render childrenProp?.({ checked })}
+		{@render children_prop?.({ checked })}
 	{/snippet}
 </DropdownMenuPrimitive.RadioItem>

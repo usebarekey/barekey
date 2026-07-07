@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ContextMenu as ContextMenuPrimitive } from "bits-ui";
 
-	let { ...restProps }: ContextMenuPrimitive.PortalProps = $props();
+	let { ...rest_props }: ContextMenuPrimitive.PortalProps = $props();
 </script>
 
-<ContextMenuPrimitive.Portal {...restProps} />
+<ContextMenuPrimitive.Portal {...rest_props} />

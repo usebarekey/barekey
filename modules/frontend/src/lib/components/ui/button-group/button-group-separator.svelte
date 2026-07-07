@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { cn } from "$lib/utils.js";
+	import { cn } from "$lib/utils";
 	import type { ComponentProps } from "svelte";
-	import { Separator } from "$lib/components/ui/separator/index.js";
+	import { Separator } from "$lib/components/ui/separator";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		orientation = "vertical",
-		...restProps
+		...rest_props
 	}: ComponentProps<typeof Separator> = $props();
 </script>
 
@@ -17,7 +17,7 @@
 	{orientation}
 	class={cn(
 		"bg-input relative self-stretch data-[orientation=horizontal]:mx-px data-[orientation=horizontal]:w-auto data-[orientation=vertical]:my-px data-[orientation=vertical]:h-auto",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 />

@@ -1,6 +1,11 @@
 <script lang="ts" module>
 	import { tv, type VariantProps } from "tailwind-variants";
-	export const inputGroupAddonVariants = tv({
+	/**
+ * Tailwind variants for input group addons.
+ *
+ * @since 0.0.1
+ */
+	export const input_group_addon_variants = tv({
 		base: "text-muted-foreground **:data-[slot=kbd]:bg-muted-foreground/10 h-auto gap-2 py-2 text-sm font-medium group-data-[disabled=true]/input-group:opacity-50 **:data-[slot=kbd]:rounded-4xl **:data-[slot=kbd]:px-1.5 [&>svg:not([class*='size-'])]:size-4 flex cursor-text items-center justify-center select-none",
 		variants: {
 			align: {
@@ -16,19 +21,24 @@
 		},
 	});
 
-	export type InputGroupAddonAlign = VariantProps<typeof inputGroupAddonVariants>["align"];
+	/**
+ * Alignment values supported by input group addons.
+ *
+ * @since 0.0.1
+ */
+	export type InputGroupAddonAlign = VariantProps<typeof input_group_addon_variants>["align"];
 </script>
 
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
 		align = "inline-start",
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		align?: InputGroupAddonAlign;
 	} = $props();
@@ -39,14 +49,14 @@
 	role="group"
 	data-slot="input-group-addon"
 	data-align={align}
-	class={cn(inputGroupAddonVariants({ align }), className)}
+	class={cn(input_group_addon_variants({ align }), class_name)}
 	onclick={(e) => {
 		if ((e.target as HTMLElement).closest("button")) {
 			return;
 		}
 		e.currentTarget.parentElement?.querySelector("input")?.focus();
 	}}
-	{...restProps}
+	{...rest_props}
 >
 	{@render children?.()}
 </div>

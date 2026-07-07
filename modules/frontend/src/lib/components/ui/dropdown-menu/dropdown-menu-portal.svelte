@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
 
-	let { ...restProps }: DropdownMenuPrimitive.PortalProps = $props();
+	let { ...rest_props }: DropdownMenuPrimitive.PortalProps = $props();
 </script>
 
-<DropdownMenuPrimitive.Portal {...restProps} />
+<DropdownMenuPrimitive.Portal {...rest_props} />

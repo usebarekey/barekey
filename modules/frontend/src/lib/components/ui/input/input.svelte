@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 
 	type InputType = Exclude<HTMLInputTypeAttribute, "file">;
 
@@ -14,35 +14,35 @@
 		value = $bindable(),
 		type,
 		files = $bindable(),
-		class: className,
-		"data-slot": dataSlot = "input",
-		...restProps
+		class: class_name,
+		"data-slot": data_slot = "input",
+		...rest_props
 	}: Props = $props();
 </script>
 
 {#if type === "file"}
 	<input
 		bind:this={ref}
-		data-slot={dataSlot}
+		data-slot={data_slot}
 		class={cn(
 			"bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-9 rounded-4xl border px-3 py-1 text-base transition-colors file:h-7 file:text-sm file:font-medium focus-visible:ring-[3px] aria-invalid:ring-[3px] md:text-sm file:text-foreground placeholder:text-muted-foreground w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-			className
+			class_name
 		)}
 		type="file"
 		bind:files
 		bind:value
-		{...restProps}
+		{...rest_props}
 	/>
 {:else}
 	<input
 		bind:this={ref}
-		data-slot={dataSlot}
+		data-slot={data_slot}
 		class={cn(
 			"bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-9 rounded-4xl border px-3 py-1 text-base transition-colors file:h-7 file:text-sm file:font-medium focus-visible:ring-[3px] aria-invalid:ring-[3px] md:text-sm file:text-foreground placeholder:text-muted-foreground w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-			className
+			class_name
 		)}
 		{type}
 		bind:value
-		{...restProps}
+		{...rest_props}
 	/>
 {/if}

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
@@ -15,9 +15,9 @@
 	data-slot="item-content"
 	class={cn(
 		"gap-1 group-data-[size=xs]/item:gap-0.5 flex flex-1 flex-col [&+[data-slot=item-content]]:flex-none",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{@render children?.()}
 </div>

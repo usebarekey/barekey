@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { cn, type WithElementRef } from "$lib/utils.js";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { useSidebar } from "./context.svelte.js";
+	import { use_sidebar } from "./context.svelte.js";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLButtonElement>, HTMLButtonElement> = $props();
 
-	const sidebar = useSidebar();
+	const sidebar = use_sidebar();
 </script>
 
 <button
@@ -28,9 +28,9 @@
 		"hover:group-data-[collapsible=offcanvas]:bg-background group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full",
 		"[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
 		"[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{@render children?.()}
 </button>

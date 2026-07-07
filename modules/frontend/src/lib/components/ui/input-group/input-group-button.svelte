@@ -1,7 +1,7 @@
 <script lang="ts" module>
 	import { tv, type VariantProps } from "tailwind-variants";
 
-	const inputGroupButtonVariants = tv({
+	const input_group_button_variants = tv({
 		base: "gap-2 rounded-4xl text-sm flex items-center shadow-none",
 		variants: {
 			size: {
@@ -16,22 +16,27 @@
 		},
 	});
 
-	export type InputGroupButtonSize = VariantProps<typeof inputGroupButtonVariants>["size"];
+	/**
+ * Size names supported by input group buttons.
+ *
+ * @since 0.0.1
+ */
+	export type InputGroupButtonSize = VariantProps<typeof input_group_button_variants>["size"];
 </script>
 
 <script lang="ts">
-	import { cn } from "$lib/utils.js";
+	import { cn } from "$lib/utils";
 	import type { ComponentProps } from "svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
+	import { Button } from "$lib/components/ui/button";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
 		type = "button",
 		variant = "ghost",
 		size = "xs",
-		...restProps
+		...rest_props
 	}: Omit<ComponentProps<typeof Button>, "href" | "size"> & {
 		size?: InputGroupButtonSize;
 	} = $props();
@@ -42,8 +47,8 @@
 	{type}
 	data-size={size}
 	{variant}
-	class={cn(inputGroupButtonVariants({ size }), className)}
-	{...restProps}
+	class={cn(input_group_button_variants({ size }), class_name)}
+	{...rest_props}
 >
 	{@render children?.()}
 </Button>

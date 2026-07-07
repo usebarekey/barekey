@@ -1,0 +1,35 @@
+@reference "../../tailwind-reference.css";
+
+.docs-copy-button {
+	@apply flex items-center justify-center rounded-full bg-linear-to-t
+    from-foreground/7.5 to-foreground/2.5 p-2 leading-none card card-outline;
+}
+
+.docs-copy-button-icon-stack {
+	@apply relative grid size-4;
+}
+
+.docs-copy-button-icon-layer {
+	@apply col-start-1 row-start-1;
+}
+
+.docs-copy-button-icon {
+	@apply size-4 text-muted-foreground transition-all
+    duration-(--duration-fast) ease-in-out motion-reduce:transition-none;
+}
+
+.docs-copy-button:hover .docs-copy-button-icon {
+	@apply text-foreground;
+}
+
+.docs-copy-button-icon-success {
+	@apply scale-75 opacity-0;
+}
+
+.docs-copy-button[data-copy-state="success"] .docs-copy-button-icon-idle {
+	@apply scale-75 opacity-0;
+}
+
+.docs-copy-button[data-copy-state="success"] .docs-copy-button-icon-success {
+	@apply scale-100 opacity-100;
+}

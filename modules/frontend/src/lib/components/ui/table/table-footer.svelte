@@ -1,20 +1,20 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props();
 </script>
 
 <tfoot
 	bind:this={ref}
 	data-slot="table-footer"
-	class={cn("bg-muted/50 border-t font-medium [&>tr]:last:border-b-0", className)}
-	{...restProps}
+	class={cn("bg-muted/50 border-t font-medium [&>tr]:last:border-b-0", class_name)}
+	{...rest_props}
 >
 	{@render children?.()}
 </tfoot>

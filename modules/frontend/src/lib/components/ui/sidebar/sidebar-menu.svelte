@@ -4,9 +4,9 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLUListElement>, HTMLUListElement> = $props();
 </script>
 
@@ -14,8 +14,8 @@
 	bind:this={ref}
 	data-slot="sidebar-menu"
 	data-sidebar="menu"
-	class={cn("gap-1 flex w-full min-w-0 flex-col", className)}
-	{...restProps}
+	class={cn("gap-1 flex w-full min-w-0 flex-col", class_name)}
+	{...rest_props}
 >
 	{@render children?.()}
 </ul>

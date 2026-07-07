@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { Label as LabelPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: LabelPrimitive.RootProps = $props();
 </script>
 
@@ -14,7 +14,7 @@
 	data-slot="label"
 	class={cn(
 		"gap-2 text-sm leading-none font-medium group-data-[disabled=true]:opacity-50 peer-disabled:opacity-50 flex items-center select-none group-data-[disabled=true]:pointer-events-none peer-disabled:cursor-not-allowed",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 />

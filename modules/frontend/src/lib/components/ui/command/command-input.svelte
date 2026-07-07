@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { Command as CommandPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	import * as InputGroup from "$lib/components/ui/input-group/index.js";
-	import { IconSearch } from '@tabler/icons-svelte';
+	import { cn } from "$lib/utils";
+	import * as InputGroup from "$lib/components/ui/input-group";
+	import { IconSearch } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		value = $bindable(""),
-		...restProps
+		...rest_props
 	}: CommandPrimitive.InputProps = $props();
 </script>
 
@@ -19,9 +19,9 @@
 			data-slot="command-input"
 			class={cn(
 				"w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
-				className
+				class_name
 			)}
-			{...restProps}
+			{...rest_props}
 		>
 			{#snippet child({ props })}
 				<InputGroup.Input {...props} bind:value bind:ref />

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
@@ -15,9 +15,9 @@
 	data-slot="empty"
 	class={cn(
 		"gap-4 rounded-lg border-dashed p-12 flex w-full min-w-0 flex-1 flex-col items-center justify-center text-center text-balance",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{@render children?.()}
 </div>

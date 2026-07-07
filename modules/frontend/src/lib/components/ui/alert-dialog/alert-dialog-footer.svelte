@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
@@ -15,9 +15,9 @@
 	data-slot="alert-dialog-footer"
 	class={cn(
 		"cn-alert-dialog-footer flex flex-col-reverse gap-2 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{@render children?.()}
 </div>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { LinkPreview as HoverCardPrimitive } from "bits-ui";
 
-	let { ...restProps }: HoverCardPrimitive.PortalProps = $props();
+	let { ...rest_props }: HoverCardPrimitive.PortalProps = $props();
 </script>
 
-<HoverCardPrimitive.Portal {...restProps} />
+<HoverCardPrimitive.Portal {...rest_props} />

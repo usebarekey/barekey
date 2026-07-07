@@ -4,9 +4,9 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
@@ -14,8 +14,8 @@
 	bind:this={ref}
 	data-slot="sidebar-group-content"
 	data-sidebar="group-content"
-	class={cn("text-sm w-full", className)}
-	{...restProps}
+	class={cn("text-sm w-full", class_name)}
+	{...rest_props}
 >
 	{@render children?.()}
 </div>

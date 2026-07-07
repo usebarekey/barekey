@@ -4,17 +4,17 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLElement>> = $props();
 </script>
 
 <main
 	bind:this={ref}
 	data-slot="sidebar-inset"
-	class={cn("bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm relative flex w-full flex-1 flex-col", className)}
-	{...restProps}
+	class={cn("bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm relative flex w-full flex-1 flex-col", class_name)}
+	{...rest_props}
 >
 	{@render children?.()}
 </main>

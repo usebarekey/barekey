@@ -1,29 +1,28 @@
 <script lang="ts">
 	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { getPayloadConfigFromPayload, useChart, type TooltipPayload } from "./chart-utils.js";
+	import { get_payload_config_from_payload, use_chart, type TooltipPayload } from "./chart-utils.js";
 	import { getChartContext, Tooltip as TooltipPrimitive } from "layerchart";
 	import type { Snippet } from "svelte";
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	function defaultFormatter(value: any, _payload: TooltipPayload[]) {
+	function default_formatter(value: unknown, _payload: TooltipPayload[]) {
 		return `${value}`;
 	}
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		hideLabel = false,
+		class: class_name,
+		hideLabel: hide_label = false,
 		indicator = "dot",
-		hideIndicator = false,
-		labelKey,
+		hideIndicator: hide_indicator = false,
+		labelKey: label_key,
 		label,
-		labelFormatter = defaultFormatter,
-		labelClassName,
+		labelFormatter: label_formatter = default_formatter,
+		labelClassName: label_class_name,
 		formatter,
-		nameKey,
+		nameKey: name_key,
 		color,
-		...restProps
+		...rest_props
 	}: WithoutChildren<WithElementRef<HTMLAttributes<HTMLDivElement>>> & {
 		hideLabel?: boolean;
 		label?: string;
@@ -32,8 +31,7 @@
 		labelKey?: string;
 		hideIndicator?: boolean;
 		labelClassName?: string;
-		labelFormatter?: // eslint-disable-next-line @typescript-eslint/no-explicit-any
-			((value: any, payload: TooltipPayload[]) => string | number | Snippet) | null;
+		labelFormatter?: ((value: unknown, payload: TooltipPayload[]) => string | number | Snippet) | null;
 		formatter?: Snippet<
 			[
 				{
@@ -47,56 +45,57 @@
 		>;
 	} = $props();
 
-	const chart = useChart();
-	const chartCtx = getChartContext();
+	const chart = use_chart();
+	const chart_context = getChartContext();
 
-	// Filter to series with defined values (important for item-based charts like Pie/Arc
-	// where only the hovered item has a value)
-	const visibleSeries = $derived(
-		chartCtx.tooltip.series.filter((s: TooltipPayload) => s.value !== undefined)
+	/**
+	 * Filters to series with defined values, which matters for item-based charts
+	 * where only the hovered item has a value.
+	 */
+	const visible_series = $derived(
+		chart_context.tooltip.series.filter((s: TooltipPayload) => s.value !== undefined)
 	);
 
-	const formattedLabel = $derived.by(() => {
-		if (hideLabel || !visibleSeries?.length) return null;
+	const formatted_label = $derived.by(() => {
+		if (hide_label || !visible_series?.length) return null;
 
-		const [item] = visibleSeries;
-		const tooltipData = chartCtx.tooltip.data;
+		const [item] = visible_series;
+		const tooltip_data = chart_context.tooltip.data;
 
-		// Get the x-axis label value from the raw tooltip data (e.g. a Date or month string)
-		const dataLabel = tooltipData != null ? chartCtx.x(tooltipData) : undefined;
+		const data_label = tooltip_data != null ? chart_context.x(tooltip_data) : undefined;
 
-		const key = labelKey ?? item?.label ?? item?.key ?? "value";
-		const itemConfig = getPayloadConfigFromPayload(
+		const key = label_key ?? item?.label ?? item?.key ?? "value";
+		const item_config = get_payload_config_from_payload(
 			chart.config,
 			item,
 			key,
-			tooltipData as Record<string, unknown> | null
+			tooltip_data as Record<string, unknown> | null
 		);
 
 		let value: unknown;
-		if (!labelKey && typeof label === "string") {
+		if (!label_key && typeof label === "string") {
 			value = chart.config[label as keyof typeof chart.config]?.label ?? label;
-		} else if (labelKey) {
-			value = itemConfig?.label ?? dataLabel;
+		} else if (label_key) {
+			value = item_config?.label ?? data_label;
 		} else {
-			value = dataLabel;
+			value = data_label;
 		}
 
 		if (value === undefined) return null;
-		if (!labelFormatter) return value;
-		return labelFormatter(value, visibleSeries);
+		if (!label_formatter) return value;
+		return label_formatter(value, visible_series);
 	});
 
-	const nestLabel = $derived(visibleSeries.length === 1 && indicator !== "dot");
+	const nest_label = $derived(visible_series.length === 1 && indicator !== "dot");
 </script>
 
 {#snippet TooltipLabel()}
-	{#if formattedLabel}
-		<div class={cn("font-medium", labelClassName)}>
-			{#if typeof formattedLabel === "function"}
-				{@render formattedLabel()}
+	{#if formatted_label}
+		<div class={cn("font-medium", label_class_name)}>
+			{#if typeof formatted_label === "function"}
+				{@render formatted_label()}
 			{:else}
-				{formattedLabel}
+				{formatted_label}
 			{/if}
 		</div>
 	{/if}
@@ -107,23 +106,23 @@
 		bind:this={ref}
 		class={cn(
 			"border-border/50 bg-background grid min-w-[9rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl",
-			className
+			class_name
 		)}
-		{...restProps}
+		{...rest_props}
 	>
-		{#if !nestLabel}
+		{#if !nest_label}
 			{@render TooltipLabel()}
 		{/if}
 		<div class="grid gap-1.5">
-			{#each visibleSeries as item, i (item.key + i)}
-				{@const key = `${nameKey || item.key || item.label || "value"}`}
-				{@const itemConfig = getPayloadConfigFromPayload(
+			{#each visible_series as item, i (item.key + i)}
+				{@const key = `${name_key || item.key || item.label || "value"}`}
+				{@const item_config = get_payload_config_from_payload(
 					chart.config,
 					item,
 					key,
-					chartCtx.tooltip.data
+					chart_context.tooltip.data
 				)}
-				{@const indicatorColor = color || item.config?.color || item.color}
+				{@const indicator_color = color || item.config?.color || item.color}
 				<div
 					class={cn(
 						"[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:size-2.5",
@@ -136,14 +135,14 @@
 							name: item.label,
 							item,
 							index: i,
-							payload: visibleSeries,
+							payload: visible_series,
 						})}
 					{:else}
-						{#if itemConfig?.icon}
-							<itemConfig.icon />
-						{:else if !hideIndicator}
+						{#if item_config?.icon}
+							<item_config.icon />
+						{:else if !hide_indicator}
 							<div
-								style="--color-bg: {indicatorColor}; --color-border: {indicatorColor};"
+								style="--color-bg: {indicator_color}; --color-border: {indicator_color};"
 								class={cn(
 									"shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
 									{
@@ -151,7 +150,7 @@
 										"h-full w-1": indicator === "line",
 										"w-0 border-[1.5px] border-dashed bg-transparent":
 											indicator === "dashed",
-										"my-0.5": nestLabel && indicator === "dashed",
+										"my-0.5": nest_label && indicator === "dashed",
 									}
 								)}
 							></div>
@@ -159,15 +158,15 @@
 						<div
 							class={cn(
 								"flex flex-1 shrink-0 justify-between leading-none",
-								nestLabel ? "items-end" : "items-center"
+								nest_label ? "items-end" : "items-center"
 							)}
 						>
 							<div class="grid gap-1.5">
-								{#if nestLabel}
+								{#if nest_label}
 									{@render TooltipLabel()}
 								{/if}
 								<span class="text-muted-foreground">
-									{itemConfig?.label || item.label}
+									{item_config?.label || item.label}
 								</span>
 							</div>
 							{#if item.value !== undefined}

@@ -1,7 +1,12 @@
 <script lang="ts" module>
 	import { type VariantProps, tv } from "tailwind-variants";
 
-	export const toggleVariants = tv({
+	/**
+ * Tailwind variants for toggle components.
+ *
+ * @since 0.0.1
+ */
+	export const toggle_variants = tv({
 		base: "hover:text-foreground aria-pressed:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive gap-1 rounded-4xl text-sm font-medium transition-colors [&_svg:not([class*='size-'])]:size-4 group/toggle hover:bg-muted inline-flex items-center justify-center whitespace-nowrap outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 		variants: {
 			variant: {
@@ -20,22 +25,37 @@
 		},
 	});
 
-	export type ToggleVariant = VariantProps<typeof toggleVariants>["variant"];
-	export type ToggleSize = VariantProps<typeof toggleVariants>["size"];
-	export type ToggleVariants = VariantProps<typeof toggleVariants>;
+	/**
+ * Variant names supported by toggle components.
+ *
+ * @since 0.0.1
+ */
+	export type ToggleVariant = VariantProps<typeof toggle_variants>["variant"];
+	/**
+ * Size names supported by toggle components.
+ *
+ * @since 0.0.1
+ */
+	export type ToggleSize = VariantProps<typeof toggle_variants>["size"];
+	/**
+ * Variant props accepted by toggle components.
+ *
+ * @since 0.0.1
+ */
+	export type ToggleVariants = VariantProps<typeof toggle_variants>;
 </script>
 
 <script lang="ts">
 	import { Toggle as TogglePrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
 		pressed = $bindable(false),
-		class: className,
+		class: class_name,
 		size = "default",
 		variant = "default",
-		...restProps
+		...rest_props
 	}: TogglePrimitive.RootProps & {
 		variant?: ToggleVariant;
 		size?: ToggleSize;
@@ -46,6 +66,6 @@
 	bind:ref
 	bind:pressed
 	data-slot="toggle"
-	class={cn(toggleVariants({ variant, size }), className)}
-	{...restProps}
+	class={cn(toggle_variants({ variant, size }), class_name)}
+	{...rest_props}
 />

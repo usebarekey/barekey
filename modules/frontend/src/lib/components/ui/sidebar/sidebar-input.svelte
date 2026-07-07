@@ -6,8 +6,8 @@
 	let {
 		ref = $bindable(null),
 		value = $bindable(""),
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: ComponentProps<typeof Input> = $props();
 </script>
 
@@ -16,6 +16,6 @@
 	bind:value
 	data-slot="sidebar-input"
 	data-sidebar="input"
-	class={cn("bg-background h-8 w-full shadow-none", className)}
-	{...restProps}
+	class={cn("bg-background h-8 w-full shadow-none", class_name)}
+	{...rest_props}
 />

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
@@ -15,9 +15,9 @@
 	data-slot="avatar-group"
 	class={cn(
 		"cn-avatar-group *:data-[slot=avatar]:ring-background group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{@render children?.()}
 </div>

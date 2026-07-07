@@ -1,8 +1,41 @@
 {
-    "ser": {
-        "introduction": "ser/introduction.mdx"
-    },
-    "barekey": {
-        "introduction": "barekey/introduction.mdx"
-    }
+	"ser": {
+		"title": "svelte-effect-runtime",
+		"entries": [
+			{
+				"introduction": {
+					"displayName": "Introduction",
+					"path": "ser/introduction.mdx"
+				}
+			},
+			{
+				"installation": {
+					"displayName": "Installation",
+					"path": "ser/installation.mdx"
+				}
+			}
+		]
+	},
+	"barekey": {
+		"title": "Barekey",
+		"entries": [
+			{
+				"introduction": {
+					"displayName": "Introduction",
+					"path": "barekey/introduction.mdx"
+				}
+			}
+		]
+	},
+	"test": {
+		"title": "A testing ground",
+		"entries": [
+			{
+				"really-nested-page": {
+					"displayName": "Really nested page",
+					"path": "test/really-nested-page.mdx"
+				}
+			}
+		]
+	}
 }

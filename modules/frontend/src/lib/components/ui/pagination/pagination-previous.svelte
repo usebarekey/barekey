@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { Pagination as PaginationPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	import { buttonVariants } from "$lib/components/ui/button/index.js";
-	import { IconChevronLeft } from '@tabler/icons-svelte';
+	import { cn } from "$lib/utils";
+	import { button_variants } from "$lib/components/ui/button";
+	import { IconChevronLeft } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: PaginationPrimitive.PrevButtonProps = $props();
 </script>
 
@@ -15,11 +15,11 @@
 	bind:ref
 	aria-label="Go to previous page"
 	class={cn(
-		buttonVariants({ variant: "ghost", size: "default" }),
+		button_variants({ variant: "ghost", size: "default" }),
 		"pl-2!",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	<IconChevronLeft data-icon="inline-start" />
 	<span class="cn-pagination-previous-text hidden sm:block">Previous</span>

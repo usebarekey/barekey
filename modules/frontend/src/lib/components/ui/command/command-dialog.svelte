@@ -2,8 +2,8 @@
 	import type { Command as CommandPrimitive, Dialog as DialogPrimitive } from "bits-ui";
 	import type { Snippet } from "svelte";
 	import Command from "./command.svelte";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import * as Dialog from "$lib/components/ui/dialog";
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils";
 
 	let {
 		open = $bindable(false),
@@ -11,11 +11,11 @@
 		value = $bindable(""),
 		title = "Command Palette",
 		description = "Search for a command to run...",
-		showCloseButton = false,
-		portalProps,
+		showCloseButton: show_close_button = false,
+		portalProps: portal_props,
 		children,
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: WithoutChildrenOrChild<DialogPrimitive.RootProps> &
 		WithoutChildrenOrChild<CommandPrimitive.RootProps> & {
 			portalProps?: DialogPrimitive.PortalProps;
@@ -27,16 +27,16 @@
 		} = $props();
 </script>
 
-<Dialog.Root bind:open {...restProps}>
+<Dialog.Root bind:open {...rest_props}>
 	<Dialog.Header class="sr-only">
 		<Dialog.Title>{title}</Dialog.Title>
 		<Dialog.Description>{description}</Dialog.Description>
 	</Dialog.Header>
 	<Dialog.Content
-		class={cn("rounded-4xl! p-0 top-1/3 translate-y-0 overflow-hidden p-0", className)}
-		{showCloseButton}
-		{portalProps}
+		class={cn("rounded-4xl! p-0 top-1/3 translate-y-0 overflow-hidden p-0", class_name)}
+		showCloseButton={show_close_button}
+		portalProps={portal_props}
 	>
-		<Command {...restProps} bind:value bind:ref {children} />
+		<Command {...rest_props} bind:value bind:ref {children} />
 	</Dialog.Content>
 </Dialog.Root>

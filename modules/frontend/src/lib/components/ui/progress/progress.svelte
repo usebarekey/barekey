@@ -1,23 +1,23 @@
 <script lang="ts">
 	import { Progress as ProgressPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		max = 100,
 		value,
-		...restProps
+		...rest_props
 	}: WithoutChildrenOrChild<ProgressPrimitive.RootProps> = $props();
 </script>
 
 <ProgressPrimitive.Root
 	bind:ref
 	data-slot="progress"
-	class={cn("bg-muted h-3 rounded-4xl relative flex w-full items-center overflow-x-hidden", className)}
+	class={cn("bg-muted h-3 rounded-4xl relative flex w-full items-center overflow-x-hidden", class_name)}
 	{value}
 	{max}
-	{...restProps}
+	{...rest_props}
 >
 	<div
 		data-slot="progress-indicator"

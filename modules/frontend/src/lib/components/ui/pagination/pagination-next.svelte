@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { Pagination as PaginationPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	import { buttonVariants } from "$lib/components/ui/button/index.js";
-	import { IconChevronRight } from '@tabler/icons-svelte';
+	import { cn } from "$lib/utils";
+	import { button_variants } from "$lib/components/ui/button";
+	import { IconChevronRight } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: PaginationPrimitive.NextButtonProps = $props();
 </script>
 
@@ -15,11 +15,11 @@
 	bind:ref
 	aria-label="Go to next page"
 	class={cn(
-		buttonVariants({ variant: "ghost", size: "default" }),
+		button_variants({ variant: "ghost", size: "default" }),
 		"pr-2!",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	<span class="cn-pagination-next-text hidden sm:block">Next</span>
 	<IconChevronRight data-icon="inline-end" />

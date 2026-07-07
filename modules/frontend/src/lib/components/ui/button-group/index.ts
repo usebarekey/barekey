@@ -1,15 +1,14 @@
-import Root, { buttonGroupVariants, type ButtonGroupOrientation } from "./button-group.svelte";
+import Root, { button_group_variants, type ButtonGroupOrientation } from "./button-group.svelte";
 import Text from "./button-group-text.svelte";
 import Separator from "./button-group-separator.svelte";
 
 export {
-	Root,
-	Text,
-	Separator,
-	buttonGroupVariants,
+	button_group_variants,
 	type ButtonGroupOrientation,
-	//
+	Root,
 	Root as ButtonGroup,
-	Text as ButtonGroupText,
+	Separator,
 	Separator as ButtonGroupSeparator,
+	Text,
+	Text as ButtonGroupText,
 };

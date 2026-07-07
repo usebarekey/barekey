@@ -1,32 +1,32 @@
 <script lang="ts">
 	import { Calendar as CalendarPrimitive } from "bits-ui";
-	import { IconChevronLeft } from '@tabler/icons-svelte';
-	import { buttonVariants, type ButtonVariant } from "$lib/components/ui/button/index.js";
-	import { cn } from "$lib/utils.js";
+	import { IconChevronLeft } from "@tabler/icons-svelte";
+	import { button_variants, type ButtonVariant } from "$lib/components/ui/button";
+	import { cn } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
 		variant = "ghost",
-		...restProps
+		...rest_props
 	}: CalendarPrimitive.PrevButtonProps & {
 		variant?: ButtonVariant;
 	} = $props();
 </script>
 
 {#snippet Fallback()}
-	<IconChevronLeft class={cn("size-4", className)} />
+	<IconChevronLeft class={cn("size-4", class_name)} />
 {/snippet}
 
 <CalendarPrimitive.PrevButton
 	bind:ref
 	class={cn(
-		buttonVariants({ variant }),
+		button_variants({ variant }),
 		"size-(--cell-size) bg-transparent p-0 select-none disabled:opacity-50 rtl:rotate-180",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{#if children}
 		{@render children?.()}

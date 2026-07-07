@@ -3,34 +3,34 @@
 	import SelectPortal from "./select-portal.svelte";
 	import SelectScrollUpButton from "./select-scroll-up-button.svelte";
 	import SelectScrollDownButton from "./select-scroll-down-button.svelte";
-	import { cn, type WithoutChild } from "$lib/utils.js";
+	import { cn, type WithoutChild } from "$lib/utils";
 	import type { ComponentProps } from "svelte";
-	import type { WithoutChildrenOrChild } from "$lib/utils.js";
+	import type { WithoutChildrenOrChild } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		sideOffset = 4,
-		portalProps,
+		class: class_name,
+		sideOffset: side_offset = 4,
+		portalProps: portal_props,
 		children,
-		preventScroll = true,
-		...restProps
+		preventScroll: prevent_scroll = true,
+		...rest_props
 	}: WithoutChild<SelectPrimitive.ContentProps> & {
 		portalProps?: WithoutChildrenOrChild<ComponentProps<typeof SelectPortal>>;
 	} = $props();
 </script>
 
-<SelectPortal {...portalProps}>
+<SelectPortal {...portal_props}>
 	<SelectPrimitive.Content
 		bind:ref
-		{sideOffset}
-		{preventScroll}
+		sideOffset={side_offset}
+		preventScroll={prevent_scroll}
 		data-slot="select-content"
 		class={cn(
 			"bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/5 min-w-36 rounded-2xl shadow-2xl ring-1 duration-100 data-[side=inline-start]:slide-in-from-right-2 data-[side=inline-end]:slide-in-from-left-2 relative isolate z-50 overflow-x-hidden overflow-y-auto",
-			className
+			class_name
 		)}
-		{...restProps}
+		{...rest_props}
 	>
 		<SelectScrollUpButton />
 		<SelectPrimitive.Viewport

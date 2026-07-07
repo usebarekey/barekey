@@ -1,19 +1,19 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLElement>> = $props();
 </script>
 
 <nav
-	{...restProps}
+	{...rest_props}
 	bind:this={ref}
-	class={cn("absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1", className)}
+	class={cn("absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1", class_name)}
 >
 	{@render children?.()}
 </nav>

@@ -1,44 +1,57 @@
 <script lang="ts" module>
 	import { getContext, setContext } from "svelte";
 	import type { VariantProps } from "tailwind-variants";
-	import { toggleVariants } from "$lib/components/ui/toggle/index.js";
+	import { toggle_variants } from "$lib/components/ui/toggle";
 
-	type ToggleVariants = VariantProps<typeof toggleVariants>;
+	type ToggleVariants = VariantProps<typeof toggle_variants>;
 
 	interface ToggleGroupContext extends ToggleVariants {
 		spacing?: number;
 		orientation?: "horizontal" | "vertical";
 	}
 
-	export function setToggleGroupCtx(props: ToggleGroupContext) {
+	/**
+	 * Stores toggle group variant context for child items.
+	 *
+	 * @param props Toggle group variant context.
+	 * @returns Nothing.
+	 * @since 0.0.1
+	 */
+	export function set_toggle_group_ctx(props: ToggleGroupContext) {
 		setContext("toggleGroup", props);
 	}
 
-	export function getToggleGroupCtx() {
+	/**
+	 * Reads toggle group variant context for child items.
+	 *
+	 * @returns Toggle group variant context.
+	 * @since 0.0.1
+	 */
+	export function get_toggle_group_ctx() {
 		return getContext<Required<ToggleGroupContext>>("toggleGroup");
 	}
 </script>
 
 <script lang="ts">
 	import { ToggleGroup as ToggleGroupPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
 		value = $bindable(),
-		class: className,
+		class: class_name,
 		size = "default",
 		spacing = 0,
 		orientation = "horizontal",
 		variant = "default",
-		...restProps
+		...rest_props
 	}: ToggleGroupPrimitive.RootProps &
 		ToggleVariants & {
 			spacing?: number;
 			orientation?: "horizontal" | "vertical";
 		} = $props();
 
-	setToggleGroupCtx({
+	set_toggle_group_ctx({
 		get variant() {
 			return variant;
 		},
@@ -54,10 +67,6 @@
 	});
 </script>
 
-<!--
-Discriminated Unions + Destructing (required for bindable) do not
-get along, so we shut typescript up by casting `value` to `never`.
--->
 <ToggleGroupPrimitive.Root
 	bind:value={value as never}
 	bind:ref
@@ -69,7 +78,7 @@ get along, so we shut typescript up by casting `value` to `never`.
 	style={`--gap: ${spacing}`}
 	class={cn(
 		"data-[spacing=0]:data-[variant=outline]:rounded-4xl group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] data-vertical:flex-col data-vertical:items-stretch",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 />

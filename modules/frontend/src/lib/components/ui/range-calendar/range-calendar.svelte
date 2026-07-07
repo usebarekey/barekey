@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { RangeCalendar as RangeCalendarPrimitive } from "bits-ui";
-	import * as RangeCalendar from "./index.js";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	import type { ButtonVariant } from "$lib/components/ui/button/index.js";
+	import * as RangeCalendar from "$lib/components/ui/range-calendar";
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils";
+	import type { ButtonVariant } from "$lib/components/ui/button";
 	import type { Snippet } from "svelte";
 	import { isEqualMonth, type DateValue } from "@internationalized/date";
 
@@ -10,18 +10,18 @@
 		ref = $bindable(null),
 		value = $bindable(),
 		placeholder = $bindable(),
-		weekdayFormat = "short",
-		class: className,
-		buttonVariant = "ghost",
-		captionLayout = "label",
+		weekdayFormat: weekday_format = "short",
+		class: class_name,
+		buttonVariant: button_variant = "ghost",
+		captionLayout: caption_layout = "label",
 		locale = "en-US",
-		months: monthsProp,
+		months: months_prop,
 		years,
-		monthFormat: monthFormatProp,
-		yearFormat = "numeric",
+		monthFormat: month_format_prop,
+		yearFormat: year_format = "numeric",
 		day,
-		disableDaysOutsideMonth = false,
-		...restProps
+		disableDaysOutsideMonth: disable_days_outside_month = false,
+		...rest_props
 	}: WithoutChildrenOrChild<RangeCalendarPrimitive.RootProps> & {
 		buttonVariant?: ButtonVariant;
 		captionLayout?: "dropdown" | "dropdown-months" | "dropdown-years" | "label";
@@ -32,9 +32,9 @@
 		day?: Snippet<[{ day: DateValue; outsideMonth: boolean }]>;
 	} = $props();
 
-	const monthFormat = $derived.by(() => {
-		if (monthFormatProp) return monthFormatProp;
-		if (captionLayout.startsWith("dropdown")) return "short";
+	const month_format = $derived.by(() => {
+		if (month_format_prop) return month_format_prop;
+		if (caption_layout.startsWith("dropdown")) return "short";
 		return "long";
 	});
 </script>
@@ -43,36 +43,36 @@
 	bind:ref
 	bind:value
 	bind:placeholder
-	{weekdayFormat}
-	{disableDaysOutsideMonth}
+	weekdayFormat={weekday_format}
+	disableDaysOutsideMonth={disable_days_outside_month}
 	class={cn(
 		"p-3 [--cell-radius:var(--radius-4xl)] [--cell-size:--spacing(8)] bg-background group/calendar p-3 [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
-		className
+		class_name
 	)}
 	{locale}
-	{monthFormat}
-	{yearFormat}
-	{...restProps}
+	monthFormat={month_format}
+	yearFormat={year_format}
+	{...rest_props}
 >
 	{#snippet children({ months, weekdays })}
 		<RangeCalendar.Months>
 			<RangeCalendar.Nav>
-				<RangeCalendar.PrevButton variant={buttonVariant} />
-				<RangeCalendar.NextButton variant={buttonVariant} />
+				<RangeCalendar.PrevButton variant={button_variant} />
+				<RangeCalendar.NextButton variant={button_variant} />
 			</RangeCalendar.Nav>
-			{#each months as month, monthIndex (month)}
+			{#each months as month, month_index (month)}
 				<RangeCalendar.Month>
 					<RangeCalendar.Header>
 						<RangeCalendar.Caption
-							{captionLayout}
-							months={monthsProp}
-							{monthFormat}
+							captionLayout={caption_layout}
+							months={months_prop}
+							monthFormat={month_format}
 							{years}
-							{yearFormat}
+							yearFormat={year_format}
 							month={month.value}
 							bind:placeholder
 							{locale}
-							{monthIndex}
+							monthIndex={month_index}
 						/>
 					</RangeCalendar.Header>
 

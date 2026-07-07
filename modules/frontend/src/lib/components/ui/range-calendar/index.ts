@@ -18,23 +18,22 @@ import GridBody from "./range-calendar-grid-body.svelte";
 import GridHead from "./range-calendar-grid-head.svelte";
 
 export {
-	Day,
+	Caption,
 	Cell,
+	Day,
 	Grid,
-	Header,
-	Months,
-	GridRow,
-	Heading,
 	GridBody,
 	GridHead,
+	GridRow,
 	HeadCell,
+	Header,
+	Heading,
+	Month,
+	Months,
+	MonthSelect,
+	Nav,
 	NextButton,
 	PrevButton,
-	MonthSelect,
-	YearSelect,
-	Caption,
-	Nav,
-	Month,
-	//
 	Root as RangeCalendar,
+	YearSelect,
 };

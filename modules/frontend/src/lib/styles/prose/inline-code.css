@@ -1,0 +1,50 @@
+@reference "../tailwind-reference.css";
+
+.prose.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+	@apply font-mono font-normal text-current;
+}
+
+.prose :where(:not(pre) > code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+	@apply inline align-baseline rounded-full bg-linear-to-t
+    from-background/30 to-foreground/5 px-2 py-0.5 font-mono text-[0.88em]
+    font-normal leading-none text-current card;
+	white-space: pre;
+}
+
+.prose :where(:not(pre) > code):not(:where([class~="not-prose"], [class~="not-prose"] *))::before,
+.prose :where(:not(pre) > code):not(:where([class~="not-prose"], [class~="not-prose"] *))::after {
+	@apply content-none;
+}
+
+.prose
+	:where(:not(pre) > code.docs-inline-code-highlight):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	) {
+	@apply items-baseline;
+	display: inline-flex;
+	white-space: pre;
+}
+
+.prose
+	:where(:not(pre) > code.docs-inline-code-highlight):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	),
+.prose
+	:where(:not(pre) > code.docs-inline-code-highlight span):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	) {
+	@apply text-[var(--shiki-light)];
+}
+
+.dark
+	.prose
+	:where(:not(pre) > code.docs-inline-code-highlight):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	),
+.dark
+	.prose
+	:where(:not(pre) > code.docs-inline-code-highlight span):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	) {
+	@apply text-[var(--shiki-dark)];
+}

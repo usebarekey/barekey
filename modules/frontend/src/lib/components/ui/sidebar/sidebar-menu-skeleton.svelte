@@ -5,15 +5,15 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		showIcon = false,
+		class: class_name,
+		showIcon: show_icon = false,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLElement>> & {
 		showIcon?: boolean;
 	} = $props();
 
-	// Random width between 50% and 90%
+	/** Random width between 50% and 90%. */
 	const width = `${Math.floor(Math.random() * 40) + 50}%`;
 </script>
 
@@ -21,10 +21,10 @@
 	bind:this={ref}
 	data-slot="sidebar-menu-skeleton"
 	data-sidebar="menu-skeleton"
-	class={cn("h-8 gap-2 rounded-md px-2 flex items-center", className)}
-	{...restProps}
+	class={cn("h-8 gap-2 rounded-md px-2 flex items-center", class_name)}
+	{...rest_props}
 >
-	{#if showIcon}
+	{#if show_icon}
 		<Skeleton class="size-4 rounded-md" data-sidebar="menu-skeleton-icon" />
 	{/if}
 	<Skeleton

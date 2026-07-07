@@ -1,9 +1,14 @@
 <script lang="ts" module>
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
 	import { type VariantProps, tv } from "tailwind-variants";
 
-	export const buttonVariants = tv({
+	/**
+ * Tailwind variants for button components.
+ *
+ * @since 0.0.1
+ */
+	export const button_variants = tv({
 		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-4xl border border-transparent bg-clip-padding text-sm font-medium focus-visible:ring-[3px] active:not-aria-[haspopup]:translate-y-px aria-invalid:ring-[3px] [&_svg:not([class*='size-'])]:size-4 group/button inline-flex shrink-0 items-center justify-center whitespace-nowrap transition-all outline-none select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 		variants: {
 			variant: {
@@ -31,9 +36,24 @@
 		},
 	});
 
-	export type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
-	export type ButtonSize = VariantProps<typeof buttonVariants>["size"];
+	/**
+ * Variant names supported by button components.
+ *
+ * @since 0.0.1
+ */
+	export type ButtonVariant = VariantProps<typeof button_variants>["variant"];
+	/**
+ * Size names supported by button components.
+ *
+ * @since 0.0.1
+ */
+	export type ButtonSize = VariantProps<typeof button_variants>["size"];
 
+	/**
+ * Props accepted by the button component.
+ *
+ * @since 0.0.1
+ */
 	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
@@ -43,7 +63,7 @@
 
 <script lang="ts">
 	let {
-		class: className,
+		class: class_name,
 		variant = "default",
 		size = "default",
 		ref = $bindable(null),
@@ -51,7 +71,7 @@
 		type = "button",
 		disabled,
 		children,
-		...restProps
+		...rest_props
 	}: ButtonProps = $props();
 </script>
 
@@ -59,12 +79,12 @@
 	<a
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
+		class={cn(button_variants({ variant, size }), class_name)}
 		href={disabled ? undefined : href}
 		aria-disabled={disabled}
 		role={disabled ? "link" : undefined}
 		tabindex={disabled ? -1 : undefined}
-		{...restProps}
+		{...rest_props}
 	>
 		{@render children?.()}
 	</a>
@@ -72,10 +92,10 @@
 	<button
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
+		class={cn(button_variants({ variant, size }), class_name)}
 		{type}
 		{disabled}
-		{...restProps}
+		{...rest_props}
 	>
 		{@render children?.()}
 	</button>

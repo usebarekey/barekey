@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Menubar as MenubarPrimitive } from "bits-ui";
 
-	let { open = $bindable(false), ...restProps }: MenubarPrimitive.SubProps = $props();
+	let { open = $bindable(false), ...rest_props }: MenubarPrimitive.SubProps = $props();
 </script>
 
-<MenubarPrimitive.Sub bind:open {...restProps} />
+<MenubarPrimitive.Sub bind:open {...rest_props} />

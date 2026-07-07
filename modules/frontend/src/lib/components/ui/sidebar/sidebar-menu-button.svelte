@@ -1,7 +1,12 @@
 <script lang="ts" module>
 	import { tv, type VariantProps } from "tailwind-variants";
 
-	export const sidebarMenuButtonVariants = tv({
+	/**
+	 * Tailwind variants for sidebar menu buttons.
+	 *
+	 * @since 0.0.1
+	 */
+	export const sidebar_menu_button_variants = tv({
 		base: "ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground gap-2 rounded-lg px-3 py-2 text-left text-sm transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 data-active:font-medium peer/menu-button group/menu-button flex w-full items-center overflow-hidden outline-hidden disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
 		variants: {
 			variant: {
@@ -20,10 +25,21 @@
 		},
 	});
 
+	/**
+	 * Variant names supported by sidebar menu buttons.
+	 *
+	 * @since 0.0.1
+	 */
 	export type SidebarMenuButtonVariant = VariantProps<
-		typeof sidebarMenuButtonVariants
+		typeof sidebar_menu_button_variants
 	>["variant"];
-	export type SidebarMenuButtonSize = VariantProps<typeof sidebarMenuButtonVariants>["size"];
+
+	/**
+	 * Size names supported by sidebar menu buttons.
+	 *
+	 * @since 0.0.1
+	 */
+	export type SidebarMenuButtonSize = VariantProps<typeof sidebar_menu_button_variants>["size"];
 </script>
 
 <script lang="ts">
@@ -32,19 +48,19 @@
 	import { mergeProps } from "bits-ui";
 	import type { ComponentProps, Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { useSidebar } from "./context.svelte.js";
+	import { use_sidebar } from "./context.svelte.js";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
 		child,
 		variant = "default",
 		size = "default",
-		isActive = false,
-		tooltipContent,
-		tooltipContentProps,
-		...restProps
+		isActive: is_active = false,
+		tooltipContent: tooltip_content,
+		tooltipContentProps: tooltip_content_props,
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLButtonElement>, HTMLButtonElement> & {
 		isActive?: boolean;
 		variant?: SidebarMenuButtonVariant;
@@ -54,30 +70,30 @@
 		child?: Snippet<[{ props: Record<string, unknown> }]>;
 	} = $props();
 
-	const sidebar = useSidebar();
+	const sidebar = use_sidebar();
 
-	const buttonProps = $derived({
-		class: cn(sidebarMenuButtonVariants({ variant, size }), className),
+	const button_props = $derived({
+		class: cn(sidebar_menu_button_variants({ variant, size }), class_name),
 		"data-slot": "sidebar-menu-button",
 		"data-sidebar": "menu-button",
 		"data-size": size,
-		"data-active": isActive,
-		...restProps,
+		"data-active": is_active,
+		...rest_props,
 	});
 </script>
 
 {#snippet Button({ props }: { props?: Record<string, unknown> })}
-	{@const mergedProps = mergeProps(buttonProps, props)}
+	{@const merged_props = mergeProps(button_props, props)}
 	{#if child}
-		{@render child({ props: mergedProps })}
+		{@render child({ props: merged_props })}
 	{:else}
-		<button bind:this={ref} {...mergedProps}>
+		<button bind:this={ref} {...merged_props}>
 			{@render children?.()}
 		</button>
 	{/if}
 {/snippet}
 
-{#if !tooltipContent}
+{#if !tooltip_content}
 	{@render Button({})}
 {:else}
 	<Tooltip.Root>
@@ -89,13 +105,13 @@
 		<Tooltip.Content
 			side="right"
 			align="center"
-			hidden={sidebar.state !== "collapsed" || sidebar.isMobile}
-			{...tooltipContentProps}
+			hidden={sidebar.state !== "collapsed" || sidebar.is_mobile}
+			{...tooltip_content_props}
 		>
-			{#if typeof tooltipContent === "string"}
-				{tooltipContent}
-			{:else if tooltipContent}
-				{@render tooltipContent()}
+			{#if typeof tooltip_content === "string"}
+				{tooltip_content}
+			{:else if tooltip_content}
+				{@render tooltip_content()}
 			{/if}
 		</Tooltip.Content>
 	</Tooltip.Root>

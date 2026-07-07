@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Popover as PopoverPrimitive } from "bits-ui";
 
-	let { ...restProps }: PopoverPrimitive.PortalProps = $props();
+	let { ...rest_props }: PopoverPrimitive.PortalProps = $props();
 </script>
 
-<PopoverPrimitive.Portal {...restProps} />
+<PopoverPrimitive.Portal {...rest_props} />

@@ -7,27 +7,27 @@
 		ref = $bindable(null),
 		children,
 		child,
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLElement>> & {
 		child?: Snippet<[{ props: Record<string, unknown> }]>;
 	} = $props();
 
-	const mergedProps = $derived({
+	const merged_props = $derived({
 		class: cn(
 			"text-foreground/70 ring-sidebar-ring h-8 rounded-md px-3 text-xs font-medium transition-[margin,opacity] duration-200 ease-linear group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:ring-2 [&>svg]:size-4 flex shrink-0 items-center outline-hidden [&>svg]:shrink-0",
-			className
+			class_name
 		),
 		"data-slot": "sidebar-group-label",
 		"data-sidebar": "group-label",
-		...restProps,
+		...rest_props,
 	});
 </script>
 
 {#if child}
-	{@render child({ props: mergedProps })}
+	{@render child({ props: merged_props })}
 {:else}
-	<div bind:this={ref} {...mergedProps}>
+	<div bind:this={ref} {...merged_props}>
 		{@render children?.()}
 	</div>
 {/if}

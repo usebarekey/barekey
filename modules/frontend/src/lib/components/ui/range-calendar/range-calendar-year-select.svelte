@@ -1,23 +1,23 @@
 <script lang="ts">
 	import { RangeCalendar as RangeCalendarPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	import { IconChevronDown } from '@tabler/icons-svelte';
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils";
+	import { IconChevronDown } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		value,
-		...restProps
+		...rest_props
 	}: WithoutChildrenOrChild<RangeCalendarPrimitive.YearSelectProps> = $props();
 </script>
 
 <span
 	class={cn(
 		"has-focus:border-ring border-input has-focus:ring-ring/50 relative flex rounded-md border shadow-xs has-focus:ring-[3px]",
-		className
+		class_name
 	)}
 >
-	<RangeCalendarPrimitive.YearSelect bind:ref class="absolute inset-0 opacity-0" {...restProps}>
+	<RangeCalendarPrimitive.YearSelect bind:ref class="absolute inset-0 opacity-0" {...rest_props}>
 		{#snippet child({ props, yearItems, selectedYearItem })}
 			<select {...props} {value}>
 				{#each yearItems as yearItem (yearItem.value)}
@@ -36,7 +36,7 @@
 				aria-hidden="true"
 			>
 				{yearItems.find((item) => item.value === value)?.label || selectedYearItem.label}
-				<IconChevronDown class={cn("size-4", className)} />
+				<IconChevronDown class={cn("size-4", class_name)} />
 			</span>
 		{/snippet}
 	</RangeCalendarPrimitive.YearSelect>

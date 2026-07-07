@@ -5,8 +5,8 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: ComponentProps<typeof Separator> = $props();
 </script>
 
@@ -14,6 +14,6 @@
 	bind:ref
 	data-slot="sidebar-separator"
 	data-sidebar="separator"
-	class={cn("bg-sidebar-border mx-2 w-auto", className)}
-	{...restProps}
+	class={cn("bg-sidebar-border mx-2 w-auto", class_name)}
+	{...rest_props}
 />

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLSelectAttributes } from "svelte/elements";
-	import { IconSelector } from '@tabler/icons-svelte';
+	import { IconSelector } from "@tabler/icons-svelte";
 
 	type NativeSelectProps = Omit<WithElementRef<HTMLSelectAttributes>, "size"> & {
 		size?: "sm" | "default";
@@ -10,17 +10,17 @@
 	let {
 		ref = $bindable(null),
 		value = $bindable(),
-		class: className,
+		class: class_name,
 		size = "default",
 		children,
-		...restProps
+		...rest_props
 	}: NativeSelectProps = $props();
 </script>
 
 <div
 	class={cn(
 		"cn-native-select-wrapper group/native-select relative w-fit has-[select:disabled]:opacity-50",
-		className
+		class_name
 	)}
 	data-slot="native-select-wrapper"
 	data-size={size}
@@ -31,7 +31,7 @@
 		data-slot="native-select"
 		data-size={size}
 		class="border-input bg-input/30 placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 dark:hover:bg-input/50 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-9 w-full min-w-0 appearance-none rounded-4xl border py-1 pr-8 pl-3 text-sm transition-colors select-none focus-visible:ring-[3px] aria-invalid:ring-[3px] data-[size=sm]:h-8 outline-none disabled:pointer-events-none disabled:cursor-not-allowed"
-		{...restProps}
+		{...rest_props}
 	>
 		{@render children?.()}
 	</select>

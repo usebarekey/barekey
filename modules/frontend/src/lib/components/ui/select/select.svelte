@@ -4,8 +4,8 @@
 	let {
 		open = $bindable(false),
 		value = $bindable(),
-		...restProps
+		...rest_props
 	}: SelectPrimitive.RootProps = $props();
 </script>
 
-<SelectPrimitive.Root bind:open bind:value={value as never} {...restProps} />
+<SelectPrimitive.Root bind:open bind:value={value as never} {...rest_props} />

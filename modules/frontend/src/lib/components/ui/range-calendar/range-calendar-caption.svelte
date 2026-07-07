@@ -6,15 +6,15 @@
 	import { DateFormatter, getLocalTimeZone, type DateValue } from "@internationalized/date";
 
 	let {
-		captionLayout,
+		captionLayout: caption_layout,
 		months,
-		monthFormat,
+		monthFormat: month_format,
 		years,
-		yearFormat,
+		yearFormat: year_format,
 		month,
 		locale,
 		placeholder = $bindable(),
-		monthIndex = 0,
+		monthIndex: month_index = 0,
 	}: {
 		captionLayout: ComponentProps<typeof RangeCalendar>["captionLayout"];
 		months: ComponentProps<typeof RangeCalendarMonthSelect>["months"];
@@ -27,50 +27,50 @@
 		monthIndex: number;
 	} = $props();
 
-	function formatYear(date: DateValue) {
-		const dateObj = date.toDate(getLocalTimeZone());
-		if (typeof yearFormat === "function") return yearFormat(dateObj.getFullYear());
-		return new DateFormatter(locale, { year: yearFormat }).format(dateObj);
+	function format_year(date: DateValue) {
+		const date_obj = date.toDate(getLocalTimeZone());
+		if (typeof year_format === "function") return year_format(date_obj.getFullYear());
+		return new DateFormatter(locale, { year: year_format }).format(date_obj);
 	}
 
-	function formatMonth(date: DateValue) {
-		const dateObj = date.toDate(getLocalTimeZone());
-		if (typeof monthFormat === "function") return monthFormat(dateObj.getMonth() + 1);
-		return new DateFormatter(locale, { month: monthFormat }).format(dateObj);
+	function format_month(date: DateValue) {
+		const date_obj = date.toDate(getLocalTimeZone());
+		if (typeof month_format === "function") return month_format(date_obj.getMonth() + 1);
+		return new DateFormatter(locale, { month: month_format }).format(date_obj);
 	}
 </script>
 
 {#snippet MonthSelect()}
 	<RangeCalendarMonthSelect
 		{months}
-		{monthFormat}
+		monthFormat={month_format}
 		value={month.month}
-		onchange={(e) => {
+		onchange={(event) => {
 			if (!placeholder) return;
-			const v = Number.parseInt(e.currentTarget.value);
-			const newPlaceholder = placeholder.set({ month: v });
-			placeholder = newPlaceholder.subtract({ months: monthIndex });
+			const value = Number.parseInt(event.currentTarget.value);
+			const new_placeholder = placeholder.set({ month: value });
+			placeholder = new_placeholder.subtract({ months: month_index });
 		}}
 	/>
 {/snippet}
 
 {#snippet YearSelect()}
-	<RangeCalendarYearSelect {years} {yearFormat} value={month.year} />
+	<RangeCalendarYearSelect {years} yearFormat={year_format} value={month.year} />
 {/snippet}
 
-{#if captionLayout === "dropdown"}
+{#if caption_layout === "dropdown"}
 	{@render MonthSelect()}
 	{@render YearSelect()}
-{:else if captionLayout === "dropdown-months"}
+{:else if caption_layout === "dropdown-months"}
 	{@render MonthSelect()}
 	{#if placeholder}
-		{formatYear(placeholder)}
+		{format_year(placeholder)}
 	{/if}
-{:else if captionLayout === "dropdown-years"}
+{:else if caption_layout === "dropdown-years"}
 	{#if placeholder}
-		{formatMonth(placeholder)}
+		{format_month(placeholder)}
 	{/if}
 	{@render YearSelect()}
 {:else}
-	{formatMonth(month)} {formatYear(month)}
+	{format_month(month)} {format_year(month)}
 {/if}

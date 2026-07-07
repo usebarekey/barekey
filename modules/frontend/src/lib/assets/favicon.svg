@@ -1,9 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Barekey">
-	<rect width="64" height="64" fill="#fff" />
-	<path
-		fill="#111"
-		fill-rule="evenodd"
-		d="M32 10a13 13 0 0 0-4 25.37V54h8v-7h9v-7h-9v-4.63A13 13 0 0 0 32 10Zm0 8a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z"
-		clip-rule="evenodd"
-	/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"
+  viewBox="0 0 64 64" role="img" aria-label="Barekey">
+  <rect width="64" height="64" fill="#fff" />
+  <path
+    fill="#111"
+    fill-rule="evenodd"
+    d="M32 10a13 13 0 0 0-4 25.37V54h8v-7h9v-7h-9v-4.63A13 13 0 0 0 32 10Zm0 8a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z"
+    clip-rule="evenodd"
+  />
 </svg>

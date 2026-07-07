@@ -18,23 +18,22 @@ import Nav from "./calendar-nav.svelte";
 import Caption from "./calendar-caption.svelte";
 
 export {
-	Day,
+	Caption,
 	Cell,
+	Day,
 	Grid,
-	Header,
-	Months,
-	GridRow,
-	Heading,
 	GridBody,
 	GridHead,
+	GridRow,
 	HeadCell,
+	Header,
+	Heading,
+	Month,
+	Months,
+	MonthSelect,
+	Nav,
 	NextButton,
 	PrevButton,
-	Nav,
-	Month,
-	YearSelect,
-	MonthSelect,
-	Caption,
-	//
 	Root as Calendar,
+	YearSelect,
 };

@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { ContextMenu as ContextMenuPrimitive } from "bits-ui";
-	import { cn, type WithoutChild } from "$lib/utils.js";
-	import { IconChevronRight } from '@tabler/icons-svelte';
+	import { cn, type WithoutChild } from "$lib/utils";
+	import { IconChevronRight } from "@tabler/icons-svelte";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		inset,
 		children,
-		...restProps
+		...rest_props
 	}: WithoutChild<ContextMenuPrimitive.SubTriggerProps> & {
 		inset?: boolean;
 	} = $props();
@@ -20,9 +20,9 @@
 	data-inset={inset}
 	class={cn(
 		"focus:bg-accent focus:text-accent-foreground data-open:bg-accent data-open:text-accent-foreground rounded-xl px-3 py-2 text-sm data-inset:pl-9.5 [&_svg:not([class*='size-'])]:size-4 flex cursor-default items-center outline-hidden select-none data-inset:ps-8 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{@render children?.()}
 	<IconChevronRight class="ml-auto" />

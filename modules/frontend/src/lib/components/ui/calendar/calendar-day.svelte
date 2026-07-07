@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { cn } from "$lib/utils.js";
+	import { cn } from "$lib/utils";
 	import { Calendar as CalendarPrimitive } from "bits-ui";
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		...restProps
+		class: class_name,
+		...rest_props
 	}: CalendarPrimitive.DayProps = $props();
 </script>
 
@@ -17,17 +17,12 @@
 		"not-data-selected:hover:bg-accent/50 not-data-selected:hover:text-accent-foreground",
 		"[&[data-today]:not([data-selected])]:bg-accent [&[data-today]:not([data-selected])]:text-accent-foreground [&[data-today][data-disabled]]:text-muted-foreground",
 		"data-[selected]:bg-primary data-[selected]:text-primary-foreground data-[selected]:hover:text-foreground",
-		// Outside months
 		"[&[data-outside-month]:not([data-selected])]:text-muted-foreground [&[data-outside-month]:not([data-selected])]:hover:text-accent-foreground",
-		// Disabled
 		"data-[disabled]:text-muted-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-		// Unavailable
 		"data-[unavailable]:text-muted-foreground data-[unavailable]:line-through",
-		// focus
 		"focus:border-ring focus:ring-ring/50 focus:relative",
-		// inner spans
 		"[&>span]:text-xs [&>span]:opacity-70",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 />

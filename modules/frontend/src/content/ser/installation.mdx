@@ -1,0 +1,104 @@
+---
+title: "Installation"
+description: "Installation of SER, quirks around Vite and some tips for the future."
+---
+
+Installation should be easy enough. Just run the following command and update your `vite.config.ts` with the two lines under and you should be finished.
+
+## Installing
+
+To install SER, use your package manager and install the package.
+
+:::command-snippet id="install-ser" default="deno" select="Package manager"
+
+```sh value="deno" label="Deno" icon="deno"
+deno add npm:svelte-effect-runtime
+```
+
+```sh value="bun" label="Bun" icon="bun"
+bun add svelte-effect-runtime
+```
+
+```sh value="pnpm" label="pnpm"
+pnpm add svelte-effect-runtime
+```
+
+```sh value="npm" label="npm"
+npm install svelte-effect-runtime
+```
+
+```sh value="yarn" label="Yarn"
+yarn add svelte-effect-runtime
+```
+
+```sh value="nub" label="Nub"
+nub add svelte-effect-runtime
+```
+
+```sh value="aube" label="Aube"
+aube add svelte-effect-runtime
+```
+
+```sh value="vlt" label="vlt"
+vlt install svelte-effect-runtime
+```
+
+:::
+
+## Adding it to your project
+
+Update your `vite.config.ts` to import `ts effect()` and add it to the `ts plugins[]` array.
+
+```ts diff name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+++ import { effect } from "svelte-effect-runtime";
+
+import tailwindcss from "@tailwindcss/vite";
+import adapter from "@sveltejs/adapter-auto";
+
+export default defineConfig({
+  plugins: [
+++  effect(),
+    tailwindcss(),
+    sveltekit({
+
+      compilerOptions: {
+        /**
+         * Force runes mode for the project, except for libraries.
+         * Can be removed in Svelte 6.
+         */
+        runes: ({ filename }) =>
+            filename.split(/[/\\]/).includes("node_modules") ? undefined : true,
+            experimental: {
+            async: true,
+            },
+      },
+
+      experimental: {
+        remoteFunctions: true,
+      },
+    }),
+  ],
+});
+```
+
+## Order matters
+
+### SER needs to come first
+
+SER must run before plugins that read or transform Svelte
+files. It lowers SER syntax into ordinary Svelte syntax that the rest of your
+tooling can parse, if not -- its probably going to crash your app in every way you can imagine!
+
+### Plugins that force their way first
+
+A lot Vite and SvelteKit plugins for some reason use `ts enforce: "pre"` or
+`ts transform.order = "pre"` to skip the order in `ts plugins[]` and go first.
+
+While most plugins work fine, theres some bad eggs that can really cause a struggle here. SER needs to see
+the file early _(way more early then others!)_, and SER does not use the same hack either to move itself out of the queue.
+
+> [!TIP] We can not help you
+> If a plugin causes problem and you have deemed it 100% incompatible with SER because of this -- open an issue at their end -- or remove it and
+> find an alternative.

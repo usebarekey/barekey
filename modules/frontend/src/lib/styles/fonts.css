@@ -1,6 +1,48 @@
+@reference "./global.css";
+
 @font-face {
-	font-family: "Inter";
-	src: url("../assets/fonts/inter/variable.woff2") format("woff2");
+	font-family: "PP Neue Montreal";
+	src: url("../assets/fonts/neue-montreal/pp-neue-montreal-hairline.otf") format("opentype");
+	font-weight: 100;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "PP Neue Montreal";
+	src: url("../assets/fonts/neue-montreal/pp-neue-montreal-light.otf") format("opentype");
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "PP Neue Montreal";
+	src: url("../assets/fonts/neue-montreal/pp-neue-montreal-regular.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "PP Neue Montreal";
+	src: url("../assets/fonts/neue-montreal/pp-neue-montreal-semibold.otf") format("opentype");
+	font-weight: 600;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "PP Neue Montreal";
+	src: url("../assets/fonts/neue-montreal/pp-neue-montreal-extrabold.otf") format("opentype");
+	font-weight: 800;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Geist";
+	src: url("../assets/fonts/geist/geist-wght.woff2") format("woff2");
 	font-weight: 100 900;
 	font-style: normal;
 	font-display: swap;
@@ -20,4 +62,23 @@
 	font-weight: 100 1000;
 	font-style: normal;
 	font-display: swap;
+}
+
+:root {
+	--font-heading: "Geist", sans-serif;
+	--font-logo: "Cal Sans", sans-serif;
+}
+
+.font-heading {
+	font-family: var(--font-heading);
+	letter-spacing: -0.03em;
+}
+
+.font-logo {
+	@apply text-foreground-extra;
+	font-family: var(--font-logo);
+	font-size: 1.5rem;
+	font-weight: 700;
+	line-height: 2rem;
+	letter-spacing: -0.05em;
 }

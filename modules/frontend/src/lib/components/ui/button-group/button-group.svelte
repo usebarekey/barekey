@@ -1,7 +1,12 @@
 <script lang="ts" module>
 	import { tv, type VariantProps } from "tailwind-variants";
 
-	export const buttonGroupVariants = tv({
+	/**
+ * Tailwind variants for button group components.
+ *
+ * @since 0.0.1
+ */
+	export const button_group_variants = tv({
 		base: "has-[>[data-slot=button-group]]:gap-2 has-[select[aria-hidden=true]:last-child]:[&>[data-slot=select-trigger]:last-of-type]:rounded-r-4xl flex w-fit items-stretch [&>*]:focus-visible:relative [&>*]:focus-visible:z-10 [&>[data-slot=select-trigger]:not([class*='w-'])]:w-fit [&>input]:flex-1",
 		variants: {
 			orientation: {
@@ -16,19 +21,24 @@
 		},
 	});
 
-	export type ButtonGroupOrientation = VariantProps<typeof buttonGroupVariants>["orientation"];
+	/**
+ * Orientation values supported by button groups.
+ *
+ * @since 0.0.1
+ */
+	export type ButtonGroupOrientation = VariantProps<typeof button_group_variants>["orientation"];
 </script>
 
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: class_name,
 		children,
 		orientation = "horizontal",
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		orientation?: ButtonGroupOrientation;
 	} = $props();
@@ -39,8 +49,8 @@
 	role="group"
 	data-slot="button-group"
 	data-orientation={orientation}
-	class={cn(buttonGroupVariants({ orientation }), className)}
-	{...restProps}
+	class={cn(button_group_variants({ orientation }), class_name)}
+	{...rest_props}
 >
 	{@render children?.()}
 </div>

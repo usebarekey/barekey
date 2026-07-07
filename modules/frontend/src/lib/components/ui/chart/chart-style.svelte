@@ -1,37 +1,37 @@
 <script lang="ts">
-	import { THEMES, type ChartConfig } from "./chart-utils.js";
+	import { themes, type ChartConfig } from "./chart-utils.js";
 
 	let { id, config }: { id: string; config: ChartConfig } = $props();
 
-	const colorConfig = $derived(
+	const color_config = $derived(
 		config ? Object.entries(config).filter(([, config]) => config.theme || config.color) : null
 	);
 
-	const themeContents = $derived.by(() => {
-		if (!colorConfig || !colorConfig.length) return;
+	const theme_contents = $derived.by(() => {
+		if (!color_config || !color_config.length) return;
 
-		const themeContents = [];
-		for (const [_theme, prefix] of Object.entries(THEMES)) {
+		const theme_contents = [];
+		for (const [_theme, prefix] of Object.entries(themes)) {
 			let content = `${prefix} [data-chart=${id}] {\n`;
-			const color = colorConfig.map(([key, itemConfig]) => {
-				const theme = _theme as keyof typeof itemConfig.theme;
-				const color = itemConfig.theme?.[theme] || itemConfig.color;
+			const color = color_config.map(([key, item_config]) => {
+				const theme = _theme as keyof typeof item_config.theme;
+				const color = item_config.theme?.[theme] || item_config.color;
 				return color ? `\t--color-${key}: ${color};` : null;
 			});
 
 			content += color.join("\n") + "\n}";
 
-			themeContents.push(content);
+			theme_contents.push(content);
 		}
 
-		return themeContents.join("\n");
+		return theme_contents.join("\n");
 	});
 </script>
 
-{#if themeContents}
+{#if theme_contents}
 	{#key id}
 		<svelte:element this={"style"}>
-			{themeContents}
+			{theme_contents}
 		</svelte:element>
 	{/key}
 {/if}

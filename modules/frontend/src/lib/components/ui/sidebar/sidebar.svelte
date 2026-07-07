@@ -2,41 +2,41 @@
 	import * as Sheet from "$lib/components/ui/sheet/index.js";
 	import { cn, type WithElementRef } from "$lib/utils.js";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { SIDEBAR_WIDTH_MOBILE } from "./constants.js";
-	import { useSidebar } from "./context.svelte.js";
+	import { sidebar_width_mobile } from "./constants.js";
+	import { use_sidebar } from "./context.svelte.js";
 
 	let {
 		ref = $bindable(null),
 		side = "left",
 		variant = "sidebar",
 		collapsible = "offcanvas",
-		class: className,
+		class: class_name,
 		children,
-		...restProps
+		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		side?: "left" | "right";
 		variant?: "sidebar" | "floating" | "inset";
 		collapsible?: "offcanvas" | "icon" | "none";
 	} = $props();
 
-	const sidebar = useSidebar();
+	const sidebar = use_sidebar();
 </script>
 
 {#if collapsible === "none"}
 	<div
 		class={cn(
 			"bg-background text-foreground flex h-full w-(--sidebar-width) flex-col",
-			className
+			class_name
 		)}
 		bind:this={ref}
-		{...restProps}
+		{...rest_props}
 	>
 		{@render children?.()}
 	</div>
-{:else if sidebar.isMobile}
+{:else if sidebar.is_mobile}
 	<Sheet.Root
-		bind:open={() => sidebar.openMobile, (v) => sidebar.setOpenMobile(v)}
-		{...restProps}
+		bind:open={() => sidebar.open_mobile, (value) => sidebar.set_open_mobile(value)}
+		{...rest_props}
 	>
 		<Sheet.Content
 			bind:ref
@@ -45,9 +45,9 @@
 			data-mobile="true"
 			class={cn(
 				"bg-background text-foreground w-(--sidebar-width) p-0 [&>button]:hidden",
-				className
+				class_name
 			)}
-			style="--sidebar-width: {SIDEBAR_WIDTH_MOBILE};"
+			style="--sidebar-width: {sidebar_width_mobile};"
 			{side}
 		>
 			<Sheet.Header class="sr-only">
@@ -69,7 +69,6 @@
 		data-side={side}
 		data-slot="sidebar"
 	>
-		<!-- This is what handles the sidebar gap on desktop -->
 		<div
 			data-slot="sidebar-gap"
 			class={cn(
@@ -88,13 +87,12 @@
 				side === "left"
 					? "start-0 group-data-[collapsible=offcanvas]:start-[calc(var(--sidebar-width)*-1)]"
 					: "end-0 group-data-[collapsible=offcanvas]:end-[calc(var(--sidebar-width)*-1)]",
-				// Adjust the padding for floating and inset variants.
 				variant === "floating" || variant === "inset"
 					? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
 					: "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-e group-data-[side=right]:border-s",
-				className
+				class_name
 			)}
-			{...restProps}
+			{...rest_props}
 		>
 			<div
 				data-sidebar="sidebar"

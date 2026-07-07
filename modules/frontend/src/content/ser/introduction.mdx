@@ -1,0 +1,34 @@
+---
+title: "An introduction to SER"
+description: "SER introduces native-like effect code execution in Svelte for SvelteKit."
+---
+
+`svelte-effect-runtime` is a Vite plugin for SvelteKit that enables native [Effect.ts](https://effect.website/) execution on both the client, and the server.
+
+```ser name="+page.svelte" icon="svelte"
+<script lang="ts" effect>
+  import * as StockCard from "./ticker-card.ts";
+  import { GetAllStocks, GetLivePrice } from "./tickers.remote.ts";
+  import { GetUser } from "user.ts";
+</script>
+
+<ScrollArea>
+  {const currency = $derived((yield* GetUser()).preferredCurrency)}
+
+  {#each yield* GetAllStocks() as stock}
+    {const liveQuery = yield* GetLivePrice(stock.ticker)}
+    {const price = $derived(liveQuery.current ?? stock.initialPrice)}
+
+    <StockCard.Root>
+      <StockCard.Header>{stock.name}</StockCard.Header>
+      <StockCard.Price>{price} {currency.displayName}</StockCard.Price>
+    </StockCard.Root>
+  {/each}
+</ScrollArea>
+```
+
+If this is something that interests you, or you already use [Effect.ts](https://effect.website/)
+on the backend and want to introduce it to the frontend, `svelte-effect-runtime` is a perfect fit.
+
+> [!NOTE] SER abbreviation
+> Going deeper, documentation for `svelte-effect-runtime` will refer to the project as SER.

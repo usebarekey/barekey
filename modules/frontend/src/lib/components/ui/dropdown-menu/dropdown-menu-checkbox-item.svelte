@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
-	import { IconMinus } from '@tabler/icons-svelte';
-	import { IconCheck } from '@tabler/icons-svelte';
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { IconMinus } from "@tabler/icons-svelte";
+	import { IconCheck } from "@tabler/icons-svelte";
+	import { cn, type WithoutChildrenOrChild } from "$lib/utils";
 	import type { Snippet } from "svelte";
 
 	let {
 		ref = $bindable(null),
 		checked = $bindable(false),
 		indeterminate = $bindable(false),
-		class: className,
-		children: childrenProp,
-		...restProps
+		class: class_name,
+		children: children_prop,
+		...rest_props
 	}: WithoutChildrenOrChild<DropdownMenuPrimitive.CheckboxItemProps> & {
 		children?: Snippet;
 	} = $props();
@@ -24,9 +24,9 @@
 	data-slot="dropdown-menu-checkbox-item"
 	class={cn(
 		"focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground gap-2.5 rounded-xl py-2 pr-8 pl-3 text-sm data-inset:pl-9.5 [&_svg:not([class*='size-'])]:size-4 relative flex cursor-default items-center outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-		className
+		class_name
 	)}
-	{...restProps}
+	{...rest_props}
 >
 	{#snippet children({ checked, indeterminate })}
 		<span
@@ -39,6 +39,6 @@
 				<IconCheck  />
 			{/if}
 		</span>
-		{@render childrenProp?.()}
+		{@render children_prop?.()}
 	{/snippet}
 </DropdownMenuPrimitive.CheckboxItem>
