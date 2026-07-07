@@ -66,7 +66,7 @@ const current_href = $derived(get_docs_href(route));
 					alt=""
 					class="size-5 shrink-0 invert dark:invert-0"
 				/>
-				<span class="font-logo barekey-gradient">Barekey</span>
+				<span class="font-logo">Barekey</span>
 			</div>
 		</div>
 	</Sidebar.Header>
@@ -108,24 +108,3 @@ const current_href = $derived(get_docs_href(route));
     {/each}
   </Sidebar.Content>
 </div>
-
-<style>
-.barekey-gradient {
-	display: inline-block;
-	background-image: linear-gradient(
-		to bottom,
-		#f97316 0%,
-		#f5a24c 52%,
-		#2563eb 100%
-	);
-	background-position: center;
-	background-repeat: no-repeat;
-	background-size: 100% 100%;
-	background-clip: text;
-	color: transparent;
-	line-height: 1.15;
-	padding-block: 0.04em;
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-}
-</style>
