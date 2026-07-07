@@ -114,16 +114,17 @@ const current_href = $derived(get_docs_href(route));
 	display: inline-block;
 	background-image: linear-gradient(
 		to bottom,
-		#ffd84d 0%,
-		#f97316 28%,
-		#ffe0b0 56%,
+		#f97316 0%,
+		#f5a24c 52%,
 		#2563eb 100%
 	);
 	background-position: center;
 	background-repeat: no-repeat;
-	background-size: 100% 1em;
+	background-size: 100% 100%;
 	background-clip: text;
 	color: transparent;
+	line-height: 1.15;
+	padding-block: 0.04em;
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 }
