@@ -1,13 +1,13 @@
-import Root from "./item.svelte";
-import Group from "./item-group.svelte";
-import Separator from "./item-separator.svelte";
-import Header from "./item-header.svelte";
-import Footer from "./item-footer.svelte";
-import Content from "./item-content.svelte";
-import Title from "./item-title.svelte";
-import Description from "./item-description.svelte";
-import Actions from "./item-actions.svelte";
-import Media from "./item-media.svelte";
+import Root from "./item.sv";
+import Group from "./item-group.sv";
+import Separator from "./item-separator.sv";
+import Header from "./item-header.sv";
+import Footer from "./item-footer.sv";
+import Content from "./item-content.sv";
+import Title from "./item-title.sv";
+import Description from "./item-description.sv";
+import Actions from "./item-actions.sv";
+import Media from "./item-media.sv";
 
 export {
 	Actions,

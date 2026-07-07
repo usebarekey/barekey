@@ -1,14 +1,14 @@
-import Root from "./drawer.svelte";
-import Content from "./drawer-content.svelte";
-import Description from "./drawer-description.svelte";
-import Overlay from "./drawer-overlay.svelte";
-import Footer from "./drawer-footer.svelte";
-import Header from "./drawer-header.svelte";
-import Title from "./drawer-title.svelte";
-import NestedRoot from "./drawer-nested.svelte";
-import Close from "./drawer-close.svelte";
-import Trigger from "./drawer-trigger.svelte";
-import Portal from "./drawer-portal.svelte";
+import Root from "./drawer.sv";
+import Content from "./drawer-content.sv";
+import Description from "./drawer-description.sv";
+import Overlay from "./drawer-overlay.sv";
+import Footer from "./drawer-footer.sv";
+import Header from "./drawer-header.sv";
+import Title from "./drawer-title.sv";
+import NestedRoot from "./drawer-nested.sv";
+import Close from "./drawer-close.sv";
+import Trigger from "./drawer-trigger.sv";
+import Portal from "./drawer-portal.sv";
 
 export {
 	Close,

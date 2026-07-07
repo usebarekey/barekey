@@ -1,9 +1,9 @@
-import Root from "./empty.svelte";
-import Header from "./empty-header.svelte";
-import Media from "./empty-media.svelte";
-import Title from "./empty-title.svelte";
-import Description from "./empty-description.svelte";
-import Content from "./empty-content.svelte";
+import Root from "./empty.sv";
+import Header from "./empty-header.sv";
+import Media from "./empty-media.sv";
+import Title from "./empty-title.sv";
+import Description from "./empty-description.sv";
+import Content from "./empty-content.sv";
 
 export {
 	Content,

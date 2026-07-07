@@ -2,10 +2,10 @@
 	import type { PageProps } from "./$types";
 	import { GetPost } from "$/docs/[category]/[slug]/page.remote";
 	import content_meta from "$content/meta.json";
-	import DocsContent from "$/docs/[category]/[slug]/components/docs-content.svelte";
-	import DocsSidebar from "$/docs/[category]/[slug]/components/docs-sidebar.svelte";
-	import DocsPageFrame from "$/docs/[category]/[slug]/components/docs-page-frame.svelte";
-	import DocsTableOfContents from "$/docs/[category]/[slug]/components/docs-table-of-contents.svelte";
+	import DocsContent from "$/docs/[category]/[slug]/components/docs-content.sv";
+	import DocsSidebar from "$/docs/[category]/[slug]/components/docs-sidebar.sv";
+	import DocsPageFrame from "$/docs/[category]/[slug]/components/docs-page-frame.sv";
+	import DocsTableOfContents from "$/docs/[category]/[slug]/components/docs-table-of-contents.sv";
 
 	let { params }: PageProps = $props();
 

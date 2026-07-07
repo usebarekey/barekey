@@ -1,3 +1,3 @@
-import Root from "./floating-feedback.svelte";
+import Root from "./floating-feedback.sv";
 
 export { Root, Root as FloatingFeedback };

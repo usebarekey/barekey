@@ -1,11 +1,11 @@
-import Root from "./popover.svelte";
-import Close from "./popover-close.svelte";
-import Content from "./popover-content.svelte";
-import Description from "./popover-description.svelte";
-import Header from "./popover-header.svelte";
-import Title from "./popover-title.svelte";
-import Trigger from "./popover-trigger.svelte";
-import Portal from "./popover-portal.svelte";
+import Root from "./popover.sv";
+import Close from "./popover-close.sv";
+import Content from "./popover-content.sv";
+import Description from "./popover-description.sv";
+import Header from "./popover-header.sv";
+import Title from "./popover-title.sv";
+import Trigger from "./popover-trigger.sv";
+import Portal from "./popover-portal.sv";
 
 export {
 	Close,

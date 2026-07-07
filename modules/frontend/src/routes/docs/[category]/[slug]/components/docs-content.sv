@@ -1,5 +1,5 @@
 <script lang="ts">
-	import DocsArticle from "$/docs/[category]/[slug]/components/docs-article.svelte";
+	import DocsArticle from "$/docs/[category]/[slug]/components/docs-article.sv";
 
 	type DocsRoute = {
 		category: string;

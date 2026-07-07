@@ -1,12 +1,12 @@
-import Root from "./pagination.svelte";
-import Content from "./pagination-content.svelte";
-import Item from "./pagination-item.svelte";
-import Link from "./pagination-link.svelte";
-import PrevButton from "./pagination-prev-button.svelte";
-import NextButton from "./pagination-next-button.svelte";
-import Ellipsis from "./pagination-ellipsis.svelte";
-import Previous from "./pagination-previous.svelte";
-import Next from "./pagination-next.svelte";
+import Root from "./pagination.sv";
+import Content from "./pagination-content.sv";
+import Item from "./pagination-item.sv";
+import Link from "./pagination-link.sv";
+import PrevButton from "./pagination-prev-button.sv";
+import NextButton from "./pagination-next-button.sv";
+import Ellipsis from "./pagination-ellipsis.sv";
+import Previous from "./pagination-previous.sv";
+import Next from "./pagination-next.sv";
 
 export {
 	Content,

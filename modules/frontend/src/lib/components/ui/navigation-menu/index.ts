@@ -1,11 +1,11 @@
-import Root from "./navigation-menu.svelte";
-import Content from "./navigation-menu-content.svelte";
-import Indicator from "./navigation-menu-indicator.svelte";
-import Item from "./navigation-menu-item.svelte";
-import Link from "./navigation-menu-link.svelte";
-import List from "./navigation-menu-list.svelte";
-import Trigger from "./navigation-menu-trigger.svelte";
-import Viewport from "./navigation-menu-viewport.svelte";
+import Root from "./navigation-menu.sv";
+import Content from "./navigation-menu-content.sv";
+import Indicator from "./navigation-menu-indicator.sv";
+import Item from "./navigation-menu-item.sv";
+import Link from "./navigation-menu-link.sv";
+import List from "./navigation-menu-list.sv";
+import Trigger from "./navigation-menu-trigger.sv";
+import Viewport from "./navigation-menu-viewport.sv";
 
 export {
 	Content,

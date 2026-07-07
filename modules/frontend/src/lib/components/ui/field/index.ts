@@ -1,13 +1,13 @@
-import Field from "./field.svelte";
-import Set from "./field-set.svelte";
-import Legend from "./field-legend.svelte";
-import Group from "./field-group.svelte";
-import Content from "./field-content.svelte";
-import Label from "./field-label.svelte";
-import Title from "./field-title.svelte";
-import Description from "./field-description.svelte";
-import Separator from "./field-separator.svelte";
-import Error from "./field-error.svelte";
+import Field from "./field.sv";
+import Set from "./field-set.sv";
+import Legend from "./field-legend.sv";
+import Group from "./field-group.sv";
+import Content from "./field-content.sv";
+import Label from "./field-label.sv";
+import Title from "./field-title.sv";
+import Description from "./field-description.sv";
+import Separator from "./field-separator.sv";
+import Error from "./field-error.sv";
 
 export {
 	Content,

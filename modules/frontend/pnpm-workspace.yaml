@@ -14,3 +14,4 @@ minimumReleaseAgeExclude:
     - svelte-plugin-composer@1.0.1
     - svelte-sv-extension@1.0.1
     - vitest@4.1.10
+    - svelte-effect-runtime@3.4.6

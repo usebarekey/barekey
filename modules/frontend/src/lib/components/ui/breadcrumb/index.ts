@@ -1,10 +1,10 @@
-import Root from "./breadcrumb.svelte";
-import Ellipsis from "./breadcrumb-ellipsis.svelte";
-import Item from "./breadcrumb-item.svelte";
-import Separator from "./breadcrumb-separator.svelte";
-import Link from "./breadcrumb-link.svelte";
-import List from "./breadcrumb-list.svelte";
-import Page from "./breadcrumb-page.svelte";
+import Root from "./breadcrumb.sv";
+import Ellipsis from "./breadcrumb-ellipsis.sv";
+import Item from "./breadcrumb-item.sv";
+import Separator from "./breadcrumb-separator.sv";
+import Link from "./breadcrumb-link.sv";
+import List from "./breadcrumb-list.sv";
+import Page from "./breadcrumb-page.sv";
 
 export {
 	Ellipsis,

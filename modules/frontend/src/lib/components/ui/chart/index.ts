@@ -1,5 +1,5 @@
-import ChartContainer from "./chart-container.svelte";
-import ChartTooltip from "./chart-tooltip.svelte";
+import ChartContainer from "./chart-container.sv";
+import ChartTooltip from "./chart-tooltip.sv";
 
 export { type ChartConfig, get_payload_config_from_payload } from "./chart-utils.ts";
 
