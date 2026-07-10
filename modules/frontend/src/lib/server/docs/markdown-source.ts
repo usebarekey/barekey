@@ -19,7 +19,7 @@ type DocsContentMeta = Record<
 	}
 >;
 
-type DocsRoute = {
+export type DocsRoute = {
 	category: string;
 	slug: string;
 };

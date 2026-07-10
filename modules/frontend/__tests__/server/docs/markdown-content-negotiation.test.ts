@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { readFile } from "node:fs/promises";
 import type { RequestEvent } from "@sveltejs/kit";
 import { GET } from "$/docs/[category]/[slug]/+server";
+import { GET as get_markdown } from "$/docs/[category]/[slug].md/+server";
 import { handle_docs_markdown_request } from "$lib/server/docs/markdown-response";
 
 const make_docs_event = (category: string, slug: string, accept = "text/markdown") =>
@@ -48,4 +49,21 @@ test("rejects endpoint requests that do not accept Markdown", async () => {
 	const event = make_docs_event("ser", "introduction", "application/json");
 
 	await expect(GET(event)).rejects.toMatchObject({ status: 406 });
+});
+
+test("serves raw docs source from a browser-addressable Markdown URL", async () => {
+	const event = make_docs_event(
+		"ser",
+		"introduction",
+		"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+	);
+	const expected_markdown = await readFile(
+		new URL("../../../src/content/ser/introduction.mdx", import.meta.url),
+		"utf8",
+	);
+
+	const response = await get_markdown(event);
+
+	expect(response.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+	expect(await response.text()).toBe(expected_markdown);
 });

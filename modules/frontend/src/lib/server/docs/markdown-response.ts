@@ -1,5 +1,5 @@
 import type { RequestEvent } from "@sveltejs/kit";
-import { load_docs_markdown_source } from "$lib/server/docs/markdown-source";
+import { type DocsRoute, load_docs_markdown_source } from "$lib/server/docs/markdown-source";
 
 type AcceptRange = {
 	media_type: string;
@@ -7,6 +7,11 @@ type AcceptRange = {
 };
 
 type DocsMarkdownRequestEvent = Pick<RequestEvent, "params" | "request" | "route">;
+
+type DocsMarkdownResponseOptions = {
+	head?: boolean;
+	vary_accept?: boolean;
+};
 
 const docs_route_id = "/docs/[category]/[slug]";
 
@@ -57,6 +62,27 @@ const get_quality = (ranges: AcceptRange[], target: string) =>
 export const accepts_docs_markdown = (accept: string | null) =>
 	get_quality(parse_accept(accept), "text/markdown") > 0;
 
+export const load_docs_markdown_response = async (
+	route: DocsRoute,
+	{ head = false, vary_accept = false }: DocsMarkdownResponseOptions = {},
+) => {
+	const markdown = await load_docs_markdown_source(route);
+
+	if (markdown === null) {
+		return null;
+	}
+
+	const headers = new Headers({
+		"Content-Type": "text/markdown; charset=utf-8",
+	});
+
+	if (vary_accept) {
+		headers.set("Vary", "Accept");
+	}
+
+	return new Response(head ? null : markdown, { headers });
+};
+
 const prefers_docs_markdown = (accept: string | null) => {
 	const ranges = parse_accept(accept);
 	const explicitly_accepts_markdown = ranges.some(
@@ -84,19 +110,14 @@ export const handle_docs_markdown_request = async ({
 		return null;
 	}
 
-	const markdown = await load_docs_markdown_source({
-		category: params.category,
-		slug: params.slug,
-	});
-
-	if (markdown === null) {
-		return null;
-	}
-
-	return new Response(method === "HEAD" ? null : markdown, {
-		headers: {
-			"Content-Type": "text/markdown; charset=utf-8",
-			Vary: "Accept",
+	return load_docs_markdown_response(
+		{
+			category: params.category,
+			slug: params.slug,
 		},
-	});
+		{
+			head: method === "HEAD",
+			vary_accept: true,
+		},
+	);
 };
