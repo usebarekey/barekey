@@ -50,8 +50,12 @@ const get_content_path = ({ category, slug }: DocsRoute) => {
 };
 
 export const load_docs_markdown_source = async (route: DocsRoute) => {
-	const content_path = get_content_path(route);
-	const raw_loader = content_path ? raw_modules[content_path] : undefined;
+	const configured_content_path = get_content_path(route);
+	const direct_content_path = `/src/content/${route.category}/${route.slug}.mdx`;
+	const raw_loader = [configured_content_path, direct_content_path]
+		.filter((content_path): content_path is string => content_path !== null)
+		.map((content_path) => raw_modules[content_path])
+		.find(Boolean);
 
 	return raw_loader ? raw_loader() : null;
 };

@@ -1,6 +1,6 @@
-import type { Handle, ServerInit } from "@sveltejs/kit";
-import { NodeFileSystem } from "@effect/platform-node";
 import { ServerRuntime } from "svelte-effect-runtime";
+import { NodeFileSystem } from "@effect/platform-node";
+import type { Handle, ServerInit } from "@sveltejs/kit";
 import { handle_docs_markdown_request } from "$lib/server/docs/markdown-response";
 
 export const handle: Handle = async ({ event, resolve }) => {

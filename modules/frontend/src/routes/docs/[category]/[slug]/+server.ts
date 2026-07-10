@@ -1,7 +1,7 @@
 import { error } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
-import { load_docs_markdown_source } from "$lib/server/docs/markdown-source";
 import { accepts_docs_markdown } from "$lib/server/docs/markdown-response";
+import { load_docs_markdown_source } from "$lib/server/docs/markdown-source";
 
 export const prerender = false;
 
