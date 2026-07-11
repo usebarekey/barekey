@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { capture_event, get_referrer_path } from "$lib/client/analytics";
 	import Badge from "$lib/components/ui/badge/badge.sv";
 	import Switch from "$lib/components/ui/switch/switch.sv";
 	import AppWindow from "@tabler/icons-svelte/icons/app-window";
@@ -62,6 +63,7 @@
 
 	let annual = $state(true);
 	let overages = $state(true);
+	let tracked_pricing_view = $state(false);
 
 	const format_currency = (cents: number) => {
 		const dollars = cents / 100;
@@ -81,6 +83,23 @@
 		plan.overage_experiment_cents
 			? `${format_currency(plan.overage_experiment_cents)} per additional experiment`
 			: "Upgrade to Max for experiment overages";
+
+	const track_pricing_toggle = (toggle: "annual" | "overages", enabled: boolean) => {
+		capture_event("pricing_toggle_changed", { toggle, enabled });
+	};
+
+	const track_plan_interest = (plan_name: string) => {
+		capture_event("plan_cta_clicked", { plan_name });
+	};
+
+	$effect(() => {
+		if (tracked_pricing_view) {
+			return;
+		}
+
+		tracked_pricing_view = true;
+		capture_event("pricing_viewed", { referrer_path: get_referrer_path() });
+	});
 </script>
 
 <svelte:head>
@@ -109,7 +128,10 @@
 						<Switch
 							aria-label="Overages enabled"
 							checked={overages}
-							onCheckedChange={(checked) => (overages = checked)}
+							onCheckedChange={(checked) => {
+								overages = checked;
+								track_pricing_toggle("overages", checked);
+							}}
 						/>
 						Overages enabled
 					</div>
@@ -117,7 +139,10 @@
 						<Switch
 							aria-label="Annual pricing"
 							checked={annual}
-							onCheckedChange={(checked) => (annual = checked)}
+							onCheckedChange={(checked) => {
+								annual = checked;
+								track_pricing_toggle("annual", checked);
+							}}
 						/>
 						Annual pricing
 						<Badge class="absolute -top-6 -right-6 rotate-6 bg-yellow-500 text-yellow-950">
@@ -130,7 +155,8 @@
 
 		<div class="grid grid-cols-1 gap-12 lg:grid-cols-3 lg:gap-14">
 			{#each plans as plan}
-				<MarketingFrame class="z-10 p-6 sm:p-8">
+				<div role="presentation" onclick={() => track_plan_interest(plan.name)}>
+					<MarketingFrame class="z-10 p-6 sm:p-8">
 					<div class="flex h-full flex-col gap-8">
 						<section class="flex flex-col gap-2">
 							<h2 class="font-heading text-2xl font-medium text-foreground">{plan.name}</h2>
@@ -197,7 +223,8 @@
 							</ul>
 						</section>
 					</div>
-				</MarketingFrame>
+					</MarketingFrame>
+				</div>
 			{/each}
 		</div>
 

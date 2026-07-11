@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { capture_event, get_page_path } from "$lib/client/analytics";
 	import { get_sidebar_stagger_delays } from "$lib/client/sidebar-motion";
 	import type { DocsContentMeta, DocsNavEntry, DocsNavEntryGroup, DocsNavGroup } from "$lib/data/docs-content-meta";
 	import { tick } from "svelte";
@@ -67,6 +68,23 @@
 			.join(" ");
 
 	const get_docs_href = ({ category, slug }: DocsRoute) => `/docs/${category}/${slug}`;
+
+	const track_docs_nav_click = ({
+		category,
+		slug,
+		doc_title,
+	}: {
+		category: string;
+		slug: string;
+		doc_title: string;
+	}) => {
+		capture_event("docs_nav_clicked", {
+			category,
+			slug,
+			doc_title,
+			from_path: get_page_path(),
+		});
+	};
 
 	const get_docs_nav_groups = (meta: DocsContentMeta) => Object.entries(meta);
 
@@ -629,6 +647,12 @@
 											data-active={href === current_href}
 											data-sidebar="menu-sub-button"
 											class="docs-sidebar-nav-link group/docs-nav flex h-7 w-full min-w-0 items-center rounded-full px-2.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+											onclick={() =>
+												track_docs_nav_click({
+													category: render_group.category,
+													slug: render_entry.slug,
+													doc_title: title,
+												})}
 											onpointerenter={show_hover_highlight}
 										>
 											<span class="docs-sidebar-nav-link-text truncate whitespace-nowrap">{title}</span>

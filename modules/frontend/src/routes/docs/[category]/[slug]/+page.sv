@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { capture_event } from "$lib/client/analytics";
 	import type { PageProps } from "./$types";
 	import content_meta from "$content/meta.json";
 	import DocsContent from "$/docs/[category]/[slug]/components/docs-content.sv";
@@ -17,6 +18,23 @@
 	const article_heading = $derived({
 		id: "docs-page-heading",
 		title: data.title,
+	});
+
+	let tracked_docs_page = $state<string | null>(null);
+
+	$effect(() => {
+		const page_key = `${route.category}/${route.slug}`;
+
+		if (tracked_docs_page === page_key) {
+			return;
+		}
+
+		tracked_docs_page = page_key;
+		capture_event("docs_page_viewed", {
+			category: route.category,
+			slug: route.slug,
+			doc_title: metadata.title,
+		});
 	});
 </script>
 

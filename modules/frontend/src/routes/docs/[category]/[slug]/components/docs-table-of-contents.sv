@@ -1,4 +1,5 @@
 <script lang="ts" effect>
+import { capture_event, get_page_path } from "$lib/client/analytics";
 import { Effect } from "effect";
 import type { Action } from "svelte/action";
 import ListLetters from "@tabler/icons-svelte/icons/list-letters";
@@ -260,6 +261,11 @@ const ScrollToHeading = (
 			behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
 				? "auto"
 				: "smooth",
+		});
+
+		capture_event("toc_heading_clicked", {
+			heading_id: id,
+			page_path: get_page_path(),
 		});
 	});
 </script>

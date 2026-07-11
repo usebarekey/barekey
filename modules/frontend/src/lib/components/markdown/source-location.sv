@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { capture_event, get_page_path } from "$lib/client/analytics";
 	import FileIcon from "$lib/components/markdown/file-icon.sv";
 
 	type Props = {
@@ -18,6 +19,18 @@
 		link,
 		name,
 	}: Props = $props();
+
+	const track_external_source_click = () => {
+		if (!link) {
+			return;
+		}
+
+		capture_event("external_source_clicked", {
+			page_path: get_page_path(),
+			source_name: name,
+			source_url: link,
+		});
+	};
 </script>
 
 {#snippet content()}
@@ -33,7 +46,13 @@
 {/snippet}
 
 {#if link}
-	<a class={class_name} href={link} rel="external noopener noreferrer" target="_blank">
+	<a
+		class={class_name}
+		href={link}
+		rel="external noopener noreferrer"
+		target="_blank"
+		onclick={track_external_source_click}
+	>
 		{@render content()}
 	</a>
 {:else}

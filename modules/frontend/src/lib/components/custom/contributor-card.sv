@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { capture_event } from "$lib/client/analytics";
 	import { Avatar, AvatarFallback, AvatarImage } from "$lib/components/ui/avatar";
 
 	import barekey_logo from "$lib/assets/barekey/logo-40.png";
@@ -42,6 +43,8 @@
 			target="_blank"
 			rel="noreferrer"
 			class="font-heading font-semibold text-foreground underline-offset-4 hover:underline"
+			onclick={() =>
+				capture_event("contributor_clicked", { contributor: contributor.name })}
 			>{contributor.name}</a
 		>{#if contributor.is_barekey_member}<img
 				src={barekey_logo}

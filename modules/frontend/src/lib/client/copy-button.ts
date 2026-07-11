@@ -1,3 +1,4 @@
+import { capture_event, get_page_path } from "$lib/client/analytics";
 import { Data, Effect, Fiber } from "effect";
 import { play } from "cuelume";
 
@@ -98,6 +99,16 @@ const get_copy_text = (button: HTMLButtonElement) =>
 		: button.dataset.copyKind === "command"
 			? get_command_text(button)
 			: get_code_text(button);
+
+const get_copy_kind = (button: HTMLButtonElement) => {
+	const copy_kind = button.dataset.copyKind;
+
+	if (copy_kind === "heading-link" || copy_kind === "command") {
+		return copy_kind;
+	}
+
+	return "snippet";
+};
 
 const write_clipboard_text_with_textarea = (text: string, fallback_error?: unknown) =>
 	Effect.gen(function* () {
@@ -285,6 +296,10 @@ const run_copy = (button: HTMLButtonElement, state: CopyButtonState) =>
 
 		yield* write_clipboard_text(text);
 		yield* Effect.sync(() => {
+			capture_event("code_copied", {
+				copy_kind: get_copy_kind(button),
+				page_path: get_page_path(),
+			});
 			play("release");
 			keep_success_visible(button, state);
 		});

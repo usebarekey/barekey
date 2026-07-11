@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { capture_event } from "$lib/client/analytics";
 	import { Effect } from "effect";
 	import type { Component } from "svelte";
 	import Button from "$lib/components/ui/button/button.sv";
@@ -72,11 +73,12 @@
 		);
 	};
 
-	const CopyCommand = (command: string) =>
+	const CopyCommand = (command: string, package_manager: string) =>
 		Effect.gen(function* () {
 			const generation = ++copy_generation;
 
 			yield* WriteClipboard(command);
+			capture_event("cli_install_copied", { package_manager });
 			copied_command = command;
 
 			yield* Effect.sleep("1200 millis");
@@ -142,7 +144,10 @@
 					<button
 						type="button"
 						aria-label="Copy install command"
-						onclick={yield* CopyCommand(selected_provider.command)}
+						onclick={yield* CopyCommand(
+							selected_provider.command,
+							selected_provider.name.toLowerCase(),
+						)}
 						class="focus-visible:border-ring focus-visible:ring-ring/50 absolute right-3 inline-flex size-9 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-all outline-none hover:bg-background hover:text-foreground active:scale-90 focus-visible:ring-3 sm:right-4"
 					>
 						{#if copied_command === selected_provider.command}
