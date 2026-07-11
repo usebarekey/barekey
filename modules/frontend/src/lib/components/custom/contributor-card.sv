@@ -183,11 +183,11 @@
 					d={`M ${diff_slash_top} 0.5 H ${diff_card_right_curve} A 11.5 11.5 0 0 1 ${diff_card_right_edge} 12 A 11.5 11.5 0 0 1 ${diff_card_right_curve} 23.5 H ${diff_slash_bottom}`}
 				/>
 			</svg>
-			<span class="contributor-diff-segment contributor-diff-plus px-1.5">
+			<span class="contributor-diff-segment contributor-diff-plus px-2">
 				<span aria-hidden="true">+</span>
 				<span class="max-w-[4ch] text-left tabular-nums">{format_diff(plus.current)}</span>
 			</span>
-			<span class="contributor-diff-segment contributor-diff-minus px-1.5">
+			<span class="contributor-diff-segment contributor-diff-minus px-2">
 				<span aria-hidden="true">-</span>
 				<span class="max-w-[4ch] text-left tabular-nums">{format_diff(minus.current)}</span>
 			</span>
