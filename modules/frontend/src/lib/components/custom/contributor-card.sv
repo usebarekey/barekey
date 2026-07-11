@@ -115,18 +115,21 @@
 
 <article
 	bind:this={card_element}
-	class="relative isolate min-w-0 overflow-hidden rounded-full bg-background card"
+	class="relative isolate min-w-0 rounded-full bg-background card"
 >
-	<img
-		src={contributor.avatar}
-		alt=""
-		aria-hidden="true"
-		class="pointer-events-none absolute inset-0 size-full scale-125 object-cover opacity-70"
-	/>
 	<div
 		aria-hidden="true"
-		class="pointer-events-none absolute inset-0 bg-linear-to-r from-background/65 via-background/70 to-background/80 backdrop-blur-xl"
-	></div>
+		class="contributor-card-background pointer-events-none absolute inset-0"
+	>
+		<img
+			src={contributor.avatar}
+			alt=""
+			class="contributor-card-avatar absolute inset-0 size-full max-w-none object-cover opacity-70"
+		/>
+		<div
+			class="absolute inset-0 bg-linear-to-r from-background/65 via-background/70 to-background/80 backdrop-blur-2xl"
+		></div>
+	</div>
 
 	<div class="relative flex min-h-12 min-w-0 items-center gap-1.5 px-3 py-2">
 		<p class="min-w-0 truncate font-heading text-sm font-semibold text-foreground">
@@ -196,6 +199,18 @@
 </article>
 
 <style>
+	.contributor-card-background {
+		border-radius: inherit;
+		clip-path: inset(0 round 9999px);
+		contain: paint;
+		overflow: hidden;
+	}
+
+	.contributor-card-avatar {
+		filter: blur(1.5rem);
+		transform: scale(1.4);
+	}
+
 	.contributor-diff-pill {
 		--contributor-diff-minus: oklch(0.68 0.2 25);
 		--contributor-diff-plus: oklch(0.72 0.19 145);
