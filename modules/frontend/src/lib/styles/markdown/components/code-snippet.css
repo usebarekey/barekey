@@ -11,16 +11,24 @@
 
 .docs-code-snippet-filename {
 	@apply flex w-min flex-row items-center gap-2 rounded-3xl bg-linear-to-t
-		from-background/30 to-foreground/5 px-2 py-px text-sm text-foreground
+		from-background/30 to-foreground/5 px-2 py-px text-sm text-muted-foreground
 		no-underline card-lg;
 }
 
 .docs-code-snippet-filename .docs-source-location-name {
-	@apply whitespace-nowrap font-bold text-foreground;
+	@apply whitespace-nowrap font-normal text-muted-foreground;
 }
 
 .docs-code-snippet-filename .docs-source-location-position {
-	@apply whitespace-nowrap font-mono text-muted-foreground;
+	@apply whitespace-nowrap font-medium text-muted-foreground;
+}
+
+.docs-code-snippet-filename[href] .docs-source-location-position {
+	@apply text-foreground transition-colors duration-(--duration-fast) ease-in-out;
+}
+
+.docs-code-snippet-filename[href]:hover .docs-source-location-position {
+	@apply text-foreground-extra;
 }
 
 .docs-code-snippet-copy {
