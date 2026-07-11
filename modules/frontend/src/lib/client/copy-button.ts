@@ -1,4 +1,5 @@
 import { Data, Effect, Fiber } from "effect";
+import { play } from "cuelume";
 
 /**
  * Error raised when browser clipboard APIs cannot copy the requested text.
@@ -292,6 +293,7 @@ const run_copy = (button: HTMLButtonElement, state: CopyButtonState) =>
 
 		yield* write_clipboard_text(text);
 		yield* Effect.sync(() => {
+			play("release");
 			keep_success_visible(button, state);
 		});
 	});
