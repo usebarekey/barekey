@@ -24,7 +24,36 @@
 }
 
 .docs-command-snippet-code {
-	@apply min-w-0 max-w-full flex-1 overflow-x-auto;
+	@apply min-w-0 max-w-full flex-1 overflow-hidden;
+}
+
+.docs-command-snippet-option {
+	@apply relative min-w-0 max-w-full;
+}
+
+.docs-command-snippet-source {
+	@apply min-w-0 max-w-full;
+}
+
+.docs-command-snippet-middle-display,
+.docs-command-snippet-measurement {
+	@apply whitespace-pre font-mono text-sm leading-6 font-normal;
+}
+
+.docs-command-snippet-middle-display {
+	@apply hidden min-w-0 max-w-full overflow-hidden;
+}
+
+.docs-command-snippet-measurement {
+	@apply pointer-events-none invisible absolute top-0 left-0 w-max;
+}
+
+.docs-command-snippet-option[data-command-truncated="true"] .docs-command-snippet-source {
+	@apply sr-only;
+}
+
+.docs-command-snippet-option[data-command-truncated="true"] .docs-command-snippet-middle-display {
+	@apply block;
 }
 
 .docs-command-snippet-code .shiki {
@@ -56,10 +85,10 @@
 
 .docs-command-snippet-trigger {
 	@apply inline-flex h-9 w-fit min-w-30 items-center justify-between gap-1.5
-    whitespace-nowrap rounded-4xl bg-linear-to-t from-background/30
-    to-foreground/5 px-3 py-2 text-sm text-muted-foreground transition-colors
-    outline-none card-lg hover:text-foreground focus-visible:text-foreground
-    focus-visible:ring-[3px] focus-visible:ring-ring/50;
+		whitespace-nowrap rounded-full bg-linear-to-b from-foreground/7.5
+		to-foreground/2.5 px-3 py-2 text-sm leading-none text-muted-foreground transition-colors
+		outline-none card-lg hover:text-foreground focus-visible:text-foreground
+		focus-visible:ring-[3px] focus-visible:ring-ring/50;
 }
 
 .docs-command-snippet-selector-icon {
@@ -170,6 +199,24 @@
 .docs-command-snippet-selected-option[hidden],
 .docs-command-snippet-content[hidden] {
 	@apply hidden;
+}
+
+@media (max-width: 639px) {
+	.docs-command-snippet-body {
+		@apply gap-2 px-3;
+	}
+
+	.docs-command-snippet-trigger {
+		@apply h-auto min-w-0 p-2;
+	}
+
+	.docs-command-snippet-selected-option > span:last-child {
+		@apply hidden;
+	}
+
+	.docs-command-snippet-selector-icon {
+		@apply hidden;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
