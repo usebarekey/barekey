@@ -24,7 +24,7 @@
 }
 
 .docs-code-snippet-filename[href] .docs-source-location-position {
-	@apply text-blue-600 transition-colors duration-(--duration-fast) ease-in-out
+	@apply font-medium text-blue-600 transition-colors duration-(--duration-fast) ease-in-out
 		dark:text-blue-400;
 }
 
