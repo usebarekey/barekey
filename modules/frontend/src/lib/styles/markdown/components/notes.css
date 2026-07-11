@@ -71,7 +71,7 @@
 .docs-note-body code {
 	@apply inline align-baseline rounded-full bg-linear-to-t from-background/30
     to-foreground/5 px-2 py-0.5 font-mono text-[0.88em] font-normal
-    leading-none text-current card;
+    leading-none text-foreground card;
 	white-space: pre;
 }
 
