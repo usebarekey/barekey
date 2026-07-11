@@ -61,6 +61,15 @@ export const get_docs_entries = () =>
 		})),
 	);
 
+export const get_docs_categories = () => Object.keys(docs_content_meta);
+
+export const get_first_slug_for_category = (category: string): string | null => {
+	const group = docs_content_meta[category];
+	if (!group?.entries) return null;
+	const pairs = get_docs_nav_entry_pairs(group.entries);
+	return pairs[0]?.[0] ?? null;
+};
+
 export const load_docs_content = async (route: DocsRoute) => {
 	const entry = get_content_entry(route);
 

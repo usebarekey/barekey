@@ -1,5 +1,6 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import { type DocsRoute, load_docs_markdown_source } from "$lib/server/docs/markdown-source";
+import { get_first_slug_for_category } from "./content";
 
 type AcceptRange = {
 	media_type: string;
@@ -14,6 +15,7 @@ type DocsMarkdownResponseOptions = {
 };
 
 const docs_route_id = "/docs/[category]/[slug]";
+const docs_category_route_id = "/docs/[category]";
 
 const parse_accept_range = (value: string): AcceptRange => {
 	const [media_type, ...parameters] = value.toLowerCase().split(";");
@@ -101,19 +103,31 @@ export const handle_docs_markdown_request = async ({
 	route,
 }: DocsMarkdownRequestEvent) => {
 	const method = request.method.toUpperCase();
+	const routeId = route.id;
 
 	if (
-		route.id !== docs_route_id ||
+		(routeId !== docs_route_id && routeId !== docs_category_route_id) ||
 		(method !== "GET" && method !== "HEAD") ||
 		!prefers_docs_markdown(request.headers.get("accept"))
 	) {
 		return null;
 	}
 
+	let slug: string | undefined = (params as any).slug;
+	if (routeId === docs_category_route_id && !slug) {
+		slug = get_first_slug_for_category((params as any).category) ?? undefined;
+	}
+
+	if (!slug) {
+		return null;
+	}
+
+	const finalSlug = slug as string;
+
 	return load_docs_markdown_response(
 		{
-			category: params.category,
-			slug: params.slug,
+			category: (params as any).category,
+			slug: finalSlug,
 		},
 		{
 			head: method === "HEAD",
