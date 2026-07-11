@@ -1,3 +1,4 @@
+import adapter from "@sveltejs/adapter-vercel";
 import tailwindcss from "@tailwindcss/vite";
 import { sveltekitOG } from "@ethercorps/sveltekit-og/plugin";
 import { mdsvex } from "mdsvex";
@@ -27,6 +28,7 @@ export default defineConfig({
 				ts(),
 				href(),
 				kit({
+					adapter: adapter(),
 					inlineStyleThreshold: 2048,
 					alias: {
 						$: "src/routes",
