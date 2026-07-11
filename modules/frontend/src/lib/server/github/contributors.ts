@@ -65,6 +65,42 @@ const GitHubCommitSearchSchema = Schema.Struct({
 	),
 });
 
+const GitHubGraphResponseSchema = Schema.Struct({
+	data: Schema.Struct({
+		repository: Schema.NullOr(
+			Schema.Struct({
+				defaultBranchRef: Schema.NullOr(
+					Schema.Struct({
+						target: Schema.Struct({
+							history: Schema.Struct({
+								nodes: Schema.Array(
+									Schema.Struct({
+										additions: Schema.Number,
+										authors: Schema.Struct({
+											nodes: Schema.Array(
+												Schema.Struct({
+													email: Schema.String,
+													name: Schema.String,
+													user: Schema.NullOr(GitHubAuthorSchema),
+												}),
+											),
+										}),
+										deletions: Schema.Number,
+									}),
+								),
+								pageInfo: Schema.Struct({
+									endCursor: Schema.NullOr(Schema.String),
+									hasNextPage: Schema.Boolean,
+								}),
+							}),
+						}),
+					}),
+				),
+			}),
+		),
+	}),
+});
+
 type GitHubContributorStats = typeof GitHubContributorStatsSchema.Type;
 type GitHubContributorList = typeof GitHubContributorListSchema.Type;
 type GitHubCommitSearch = typeof GitHubCommitSearchSchema.Type;
@@ -174,6 +210,109 @@ export const to_fallback_contributors = (
 	return Array.from(contributors.values()).sort((left, right) => right.commits - left.commits);
 };
 
+const github_graph_query = [
+	"query Contributors($owner: String!, $name: String!, $cursor: String) {",
+	"  repository(owner: $owner, name: $name) {",
+	"    defaultBranchRef {",
+	"      target {",
+	"        ... on Commit {",
+	"          history(first: 100, after: $cursor) {",
+	"            pageInfo { endCursor hasNextPage }",
+	"            nodes {",
+	"              additions",
+	"              deletions",
+	"              authors(first: 10) {",
+	"                nodes {",
+	"                  email",
+	"                  name",
+	"                  user { login avatar_url: avatarUrl html_url: url }",
+	"                }",
+	"              }",
+	"            }",
+	"          }",
+	"        }",
+	"      }",
+	"    }",
+	"  }",
+	"}",
+].join("\n");
+
+const FetchGraphqlContributors = Effect.gen(function* () {
+	if (!github_token) {
+		return yield* Effect.fail(new Error("GitHub GraphQL requires GITHUB_TOKEN"));
+	}
+
+	const contributors = new Map<string, Contributor>();
+	let cursor: string | null = null;
+
+	for (;;) {
+		const response = yield* Effect.tryPromise({
+			try: () =>
+				fetch("https://api.github.com/graphql", {
+					method: "POST",
+					headers: {
+						...github_headers,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						query: github_graph_query,
+						variables: {
+							cursor,
+							name: repository_name,
+							owner: repository_owner,
+						},
+					}),
+				}),
+			catch: (cause) =>
+				new Error("Could not fetch GitHub contributor history: " + String(cause)),
+		});
+		const value = yield* ReadGithubJson(response);
+		const graph = yield* Schema.decodeUnknownEffect(GitHubGraphResponseSchema)(value);
+		const history = graph.data.repository?.defaultBranchRef?.target.history;
+
+		if (!history) {
+			return yield* Effect.fail(new Error("GitHub default branch history is unavailable"));
+		}
+
+		for (const commit of history.nodes) {
+			const commit_authors = new Set<string>();
+
+			for (const author of commit.authors.nodes) {
+				const known_profile = known_coauthor_profiles.get(author.email.toLowerCase());
+				const key =
+					author.user?.login.toLowerCase() ??
+					known_profile?.key ??
+					"email:" + author.email;
+
+				if (commit_authors.has(key)) continue;
+				commit_authors.add(key);
+
+				const contributor = contributors.get(key) ?? {
+					avatar: author.user?.avatar_url ?? known_profile?.avatar ?? null,
+					commits: 0,
+					diff: { minus: 0, plus: 0 },
+					is_barekey_member: known_barekey_members.has(key),
+					name: author.user?.login ?? known_profile?.name ?? author.name,
+					profile_url: author.user?.html_url ?? known_profile?.profile_url ?? null,
+				};
+				contributors.set(key, {
+					...contributor,
+					commits: contributor.commits + 1,
+					diff: {
+						minus: (contributor.diff?.minus ?? 0) + commit.deletions,
+						plus: (contributor.diff?.plus ?? 0) + commit.additions,
+					},
+				});
+			}
+		}
+
+		if (!history.pageInfo.hasNextPage) break;
+		cursor = history.pageInfo.endCursor;
+	}
+
+	return Array.from(contributors.values()).sort((left, right) => right.commits - left.commits);
+});
+
 const FetchFallbackContributors = Effect.gen(function* () {
 	const search_query = new URLSearchParams({
 		per_page: "100",
@@ -203,7 +342,7 @@ export const FetchGithubContributors = Effect.gen(function* () {
 	const response = yield* FetchGithubResponse(repository_path + "/stats/contributors");
 
 	if (response.status === 202) {
-		return yield* FetchFallbackContributors;
+		return yield* github_token ? FetchGraphqlContributors : FetchFallbackContributors;
 	}
 
 	const value = yield* ReadGithubJson(response);

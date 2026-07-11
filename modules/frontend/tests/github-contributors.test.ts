@@ -80,4 +80,7 @@ test("serves generated contributor data through a dedicated ISR route", () => {
 	expect(route).toContain("FetchGithubContributors");
 	expect(component).toContain('fetch("/api/github/contributors")');
 	expect(component).toContain("We hit the GitHub rate limit when fetching contributor data.");
+	expect(readFileSync("src/lib/server/github/contributors.ts", "utf8")).toContain(
+		"FetchGraphqlContributors",
+	);
 });
