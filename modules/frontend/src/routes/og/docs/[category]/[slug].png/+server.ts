@@ -3,7 +3,8 @@ import { error } from "@sveltejs/kit";
 import { CustomFont, resolveFonts } from "@ethercorps/sveltekit-og/fonts";
 import { ImageResponse } from "@ethercorps/sveltekit-og";
 import logo_url from "$lib/assets/barekey/logo.png?url";
-import pp_neue_montreal_extrabold_url from "$lib/assets/fonts/neue-montreal/pp-neue-montreal-extrabold.otf?url";
+import cal_sans_url from "$lib/assets/fonts/calsans/variable.woff2?url";
+import geist_url from "$lib/assets/fonts/geist/geist-wght.woff2?url";
 import pp_neue_montreal_regular_url from "$lib/assets/fonts/neue-montreal/pp-neue-montreal-regular.otf?url";
 import { get_docs_entries, load_docs_content, type DocsRoute } from "$lib/server/docs/content";
 import OgCard from "$lib/components/og/og-card.sv";
@@ -39,11 +40,12 @@ const get_og_fonts = () =>
 		new CustomFont("PP Neue Montreal", () => read(pp_neue_montreal_regular_url).arrayBuffer(), {
 			weight: 400,
 		}),
-		new CustomFont(
-			"PP Neue Montreal",
-			() => read(pp_neue_montreal_extrabold_url).arrayBuffer(),
-			{ weight: 800 },
-		),
+		new CustomFont("Geist", () => read(geist_url).arrayBuffer(), {
+			weight: 600,
+		}),
+		new CustomFont("Cal Sans", () => read(cal_sans_url).arrayBuffer(), {
+			weight: 700,
+		}),
 	]));
 
 export const entries: EntryGenerator = async () => {

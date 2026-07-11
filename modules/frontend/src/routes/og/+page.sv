@@ -3,7 +3,7 @@
 	import OgCard from "$lib/components/og/og-card.sv";
 </script>
 
-<div class="m-12 h-[630px] w-[1200px]">
+<div class="h-[630px] w-[1200px]">
 	<OgCard
 		description="SER introduces native-like effect code execution in Svelte for SvelteKit."
 		logo_src={logo}
