@@ -1,0 +1,320 @@
+---
+title: "Query"
+description: "Read data from the server without side-effects."
+---
+
+`ts Query` is a wrapper around SvelteKit's `ts query()`. It lets you expose read-only data fetching to the client. Think of queries like HTTP GET requests: they should be free of side effects.
+
+> [!TIP]
+> SER cannot detect side effects inside a query handler. It is up to you to keep queries read-only. Use [Command](/docs/ser/command) or [Form](/docs/ser/form) for mutations.
+
+Define a query by passing an Effect (or an Effect-returning function) to `ts Query`:
+
+```ts icon="ts" name="post.remote.ts"
+import { Effect } from "effect";
+import { db } from "$lib/server/database";
+import { Query } from "svelte-effect-runtime";
+
+export const GetPosts = Query(
+	Effect.gen(function* () {
+		return yield* db.sql`
+			SELECT title, slug
+			FROM post
+			ORDER BY published_at DESC
+		`;
+	}),
+);
+```
+
+On the client you call the exported function and `ser yield*` the result inside an `ser effect` script. The call returns an Effect that resolves to your data:
+
+```ser icon="svelte" name="+page.svelte"
+<script effect>
+	import { GetPosts } from "./post.remote.ts";
+
+	const posts = yield* GetPosts();
+</script>
+
+{#each posts as post}
+	<p>{post.title}</p>
+{/each}
+```
+
+The value returned by calling a query (before yielding) is also a resource object. It carries reactive state and helper methods even if you never yield it:
+
+```ser icon="svelte" name="+page.svelte"
+<script effect>
+	import { GetPosts } from "./post.remote.ts";
+
+	const postsQuery = GetPosts();
+</script>
+
+<p>Loaded: {postsQuery.ready}</p>
+```
+
+## Arguments
+
+Pass a schema as the first argument to validate and decode input on the server before your handler runs.
+
+Using an Effect Schema:
+
+```ts icon="ts" name="post.remote.ts"
+import { Effect, Schema } from "effect";
+import { db } from "$lib/server/database";
+import { Error, Query } from "svelte-effect-runtime";
+
+export const GetPost = Query(Schema.String, (slug) =>
+	Effect.gen(function* () {
+		const [post] = yield* db.sql`
+			SELECT *
+			FROM post
+			WHERE slug = ${slug}
+		`;
+
+		if (!post) {
+			return yield* Error("NotFound", "Post not found");
+		}
+
+		return post;
+	}),
+);
+```
+
+Using a struct schema gives you a typed object:
+
+```ts icon="ts" name="post.remote.ts"
+import { Schema } from "effect";
+import { Query } from "svelte-effect-runtime";
+
+export const GetPost = Query(Schema.Struct({ slug: Schema.String }), ({ slug }) =>
+	Effect.succeed({ slug }),
+);
+```
+
+You can also use `ts "unchecked"` to opt out of validation entirely (the input type is whatever the caller sends):
+
+```ts icon="ts" name="post.remote.ts"
+import { Query } from "svelte-effect-runtime";
+
+export const GetPost = Query("unchecked", (slug: string) => Effect.succeed(slug));
+```
+
+## The query resource
+
+Calling a query function returns an object that is both:
+
+- An Effect you can `ser yield*` to obtain the data (`ts A`)
+- A resource with reactive fields and methods
+
+Available on every query call result:
+
+- `ts current` – last successful value (or `ts undefined`)
+- `ts loading`, `ts ready`, `ts error`
+- `ts refresh()` – returns an Effect that forces a refetch
+
+```ser icon="svelte" name="+page.svelte"
+<script effect>
+	import { GetPost } from "./post.remote.ts";
+
+	const post = GetPost("hello-world");
+</script>
+
+{#if post.ready}
+	<h1>{post.current.title}</h1>
+{:else if post.loading}
+	<p>Loading…</p>
+{/if}
+```
+
+## Refreshing
+
+Call `ts .refresh()` to invalidate the cached value and fetch fresh data:
+
+```ser icon="svelte" name="+page.svelte"
+<button onclick={yield* GetPosts().refresh()}>
+	Refresh posts
+</button>
+```
+
+> [!WARNING]
+> SER creates a fresh wrapper object for every call (`ts GetPosts() !== GetPosts()`). The underlying SvelteKit cache is still shared by argument. Do not compare call results with `ts ===`.
+
+## Deduplication
+
+SvelteKit automatically deduplicates identical query calls using a serialized argument as the cache key.
+
+- On the server: work only runs once per request for the same arguments.
+- On the client: concurrent identical calls share the same resource while it is in use.
+
+SER inherits this behavior for free:
+
+```ser icon="svelte" name="+page.svelte"
+<script effect>
+	import { GetData } from "./data.remote.ts";
+
+	const data = GetData();
+</script>
+
+<p>{yield* data}</p>
+
+<!-- Reuses the same underlying request / cache entry -->
+<button onclick={yield* GetData()}>
+	Also uses cached data
+</button>
+```
+
+## Query.batch
+
+`ts Query.batch` lets multiple calls in the same macro-task be sent to the server together. Your handler receives the array of inputs and returns a resolver function:
+
+```ts
+(inputs: readonly Input[]) => (input: Input, index: number) => Output;
+```
+
+```ts icon="ts" name="weather.remote.ts"
+import { Effect, Schema } from "effect";
+import { db } from "$lib/server/database";
+import { Query } from "svelte-effect-runtime";
+
+export const GetWeather = Query.batch(Schema.String, (cityIds) =>
+	Effect.gen(function* () {
+		const rows = yield* db.sql`
+			SELECT *
+			FROM weather
+			WHERE city_id = ANY(${cityIds})
+		`;
+
+		const byId = new Map(rows.map((r) => [r.city_id, r]));
+
+		return (cityId, index) => byId.get(cityId) ?? null;
+	}),
+);
+```
+
+Batching only affects transport. Each caller still receives its own result.
+
+## Query.live
+
+A normal `ts Query` asks the server for one value. `ts Query.live` may look like a query that refreshes repeatedly, but its contract is quite different: it opens a remote source and gives the client an Effect Stream.
+
+The handler must return Effect's `ts Stream.Stream<A, E, R>` data type directly. Returning `ts 42`, an object, an array, or a Promise is invalid. Returning `ts Effect.succeed(42)` is also invalid, as is `ts Effect.succeed(Stream.make(42))`. Those are single Effects, and `ts Query.live` does not unwrap an Effect to search for a Stream inside it.
+
+The Stream may emit ordinary JavaScript values. A `ts Stream<number>` emits numbers and a `ts Stream<User>` emits user objects. The important part is that the handler returns the Stream itself rather than returning one of its elements.
+
+|                                  | `ts Query`                                  | `ts Query.live`                               |
+| -------------------------------- | ------------------------------------------- | --------------------------------------------- |
+| Server handler returns           | An Effect that resolves to one value        | An Effect Stream that may emit many values    |
+| Calling it on the client returns | A query Effect/resource                     | `ts RemoteLiveStream<A, E>`                   |
+| A direct `ser yield*` reads      | The query result                            | Only the first emitted Stream element         |
+| Keeping it active                | SvelteKit retains the cached query resource | A Stream runner consumes it until interrupted |
+
+This can feel odd at first because calling the exported function does not start by giving you a user, count, date, or other application value. It gives you the Stream that will carry those values. Stream operators such as `ts Stream.map`, `ts Stream.filter`, and `ts Stream.runForEach` are therefore the normal client API.
+
+```ts icon="ts" name="time.remote.ts"
+import { Stream } from "effect";
+import { Query } from "svelte-effect-runtime";
+
+export const Clock = Query.live(
+	Stream.tick("1 second").pipe(Stream.map(() => new Date().toISOString())),
+);
+```
+
+With input, use the same validator forms as an ordinary query. The caller passes the encoded value, while the handler receives the decoded one:
+
+```ts icon="ts" name="room.remote.ts"
+import { Schema, Stream } from "effect";
+import { Query } from "svelte-effect-runtime";
+
+export const WatchRoom = Query.live(Schema.String, (room_id) =>
+	Stream.make({ room_id, state: "connected" as const }),
+);
+```
+
+In this example, the handler returns `ts Stream.make(...)`. The room object is an element emitted by that Stream. Returning the room object by itself would cause `ts InvalidLiveQueryReturnError` when the server invokes the handler.
+
+For a query without input, pass either a Stream or a callback that returns one. An input-bearing handler takes a schema or `ts "unchecked"`; once a validator is present, the second argument must be a function that returns a Stream.
+
+### Consume the stream
+
+Calling `ts Clock()` returns a `ts RemoteLiveStream` immediately. No clock value has been selected at that point. The returned object is the live sequence, with SER's transport metadata attached so `ts Live.status(...)` and `ts Live.reconnect(...)` can still reach the underlying connection.
+
+```ser icon="svelte" name="+page.svelte"
+<script lang="ts" effect>
+	import { Clock } from "./time.remote.ts";
+	import { Effect, Stream } from "effect";
+	import { Live } from "svelte-effect-runtime";
+
+	let time = $state("Connecting...");
+	const clock = Clock();
+
+	yield* clock.pipe(
+		Stream.runForEach((next) =>
+			Effect.sync(() => {
+				time = next;
+			}),
+		),
+	);
+</script>
+
+<p>{time}</p>
+
+<button onclick={yield* Live.reconnect(clock)}>
+	Reconnect
+</button>
+```
+
+A direct `ser yield* clock` converts the Stream into one value by waiting for its first element. Once that element arrives, the yield is complete. It does not leave a subscription running in the background. If the Stream finishes before emitting anything, the Effect fails with `ts EmptyStreamYieldError`.
+
+Use a Stream runner when later elements matter. `ts Stream.runForEach(...)` stays attached until the Stream ends, fails, or the surrounding script effect is interrupted. In the example above, each element is copied into Svelte state as it arrives.
+
+### Compose values and transport state
+
+Stream-preserving operators keep the live transport attached:
+
+```ts
+const labels = Clock()
+	.pipe(Stream.map((time) => `Updated at ${time}`))
+	.pipe(Stream.filter((label) => label.length > 0));
+```
+
+`ts Live.status(labels)` returns another stream with `ts "Connecting"`, `ts "Open"`, `ts "Failed"`, and `ts "Closed"` states. Manual reconnect is an Effect returned by `ts Live.reconnect(labels)`, so it must be yielded or run. Derived live streams retain the hidden transport metadata those helpers need.
+
+Ordinary stream operators handle retry policies as well:
+
+```ts
+import { Schedule, Stream } from "effect";
+
+const ResilientClock = Clock().pipe(
+	Stream.retry(Schedule.exponential("100 millis").pipe(Schedule.take(5))),
+);
+```
+
+### Moving from the old live resource
+
+The 4.0.0 client is stream-native. These replacements cover the old resource API:
+
+| Before                                                        | 4.0.0                                                   |
+| ------------------------------------------------------------- | ------------------------------------------------------- |
+| `ser const clock = yield* Clock()`                            | `ts const clock = Clock()`                              |
+| `ts clock.current`                                            | Local state updated through `ts Stream.runForEach(...)` |
+| `ts clock.ready`, `ts clock.loading`, or `ts clock.connected` | Consume `ts Live.status(clock)`                         |
+| `ser yield* clock.reconnect()`                                | `ser yield* Live.reconnect(clock)`                      |
+
+Async generators and native iterables need an Effect Stream wrapper before the server returns them:
+
+```ts icon="ts" name="counter.remote.ts"
+import { Stream } from "effect";
+import { Query } from "svelte-effect-runtime";
+
+async function* count_to(limit: number) {
+	for (let count = 0; count < limit; count += 1) {
+		yield count;
+	}
+}
+
+export const Counter = Query.live("unchecked", (limit: number) =>
+	Stream.fromAsyncIterable(count_to(limit), (error) => error),
+);
+```
+
+Stream failures before or after an emitted value arrive through the client's `ts RemoteFailure` error channel. When the component unmounts or a tracked dependency changes, its script effect interrupts the stream consumer; iterator cleanup is forwarded when the downstream consumer closes.
