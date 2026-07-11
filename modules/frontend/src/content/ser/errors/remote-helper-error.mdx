@@ -1,0 +1,32 @@
+---
+title: "RemoteHelperError"
+description: "Trace a non-Error JavaScript value caught at a remote helper boundary."
+---
+
+## What this error means and what can trigger it
+
+`ts RemoteHelperError` normalizes a value caught while SER creates a native remote helper, captures request state, or synchronously invokes a handler when that value is not an `ts Error` instance.
+
+Examples include `ts throw "failed"`, `ts throw 42`, `ts throw null`, or `ts throw { reason: "failed" }`. The class stores the original value in `ts value`; its message uses `ts String(value)` and the stable `ts REMOTE_HELPER_ERROR` prefix. Existing JavaScript errors pass through unchanged. Recognized SvelteKit context errors become `ts RemoteHelperContextError` instead.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/server.ts:293:38`
+
+```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts"
+if (is_sveltekit_remote_context_error(err)) {
+	return new RemoteHelperContextError(helper_name);
+}
+
+return err instanceof Error ? err : new RemoteHelperError(err);
+```
+
+Every normalization call listed for `ts RemoteHelperContextError` can reach this branch. Factory catches live in `ts server/factories.ts`; wrapper catches live in `ts server/wrappers.ts`. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:848:14`.
+
+This class describes synchronous JavaScript values caught at those boundaries. A typed Effect failure produced after handler execution starts is encoded through the remote failure protocol and does not automatically become `ts RemoteHelperError`.
+
+## Why this is the case
+
+JavaScript permits throwing values that have no stack, name, or message contract. Remote helper boundaries need an actual `ts Error` for consistent rethrowing and diagnostics, while replacing the raw value entirely would remove useful evidence.
+
+The conditional preserves well-formed errors, gives request-context failures their specific class, and wraps only the remaining arbitrary values.

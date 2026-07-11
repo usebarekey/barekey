@@ -1,0 +1,32 @@
+---
+title: "AsyncEffectInEventCallbackError"
+description: "Trace yield work hidden inside a nested synchronous callback in an event expression."
+---
+
+## What this error means and what can trigger it
+
+`ts AsyncEffectInEventCallbackError` means an event expression has a valid outer SER boundary, yet another `ts yield*` remains inside a nested non-generator callback. A representative case is `ser onclick={yield* Effect.try(() => yield* Save())}`.
+
+SER parses the event body in a synthetic generator and tracks whether each `ts yield*` belongs to the top-level event body, a nested generator, or an invalid nested function. Arrows, ordinary functions, methods, getters, and setters enter the invalid context. Generator functions enter a separate valid generator context.
+
+Known Effect combinators can be normalized into generator-safe forms before this check. The error is raised when invalid nested work remains, including yielding callbacks attached to unrecognized receivers whose invocation semantics SER cannot prove.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/markup/transform/emit.ts:205:3`
+
+```ts name="modules/svelte-effect-runtime/src/markup/transform/emit.ts" icon="ts"
+const analysis = analyze_event_body_yield_star(expr_text);
+
+if (analysis.has_nested_invalid_yield_star) {
+	throw new AsyncEffectInEventCallbackError(candidate.filename, expr_text);
+}
+```
+
+The callback-shaped whole-expression check runs first. This second check therefore addresses nested callback boundaries inside an otherwise direct event expression. It throws synchronously during the markup transform. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:222:14`.
+
+## Why this is the case
+
+Moving a `ts yield*` out of an arbitrary callback could change when the callback runs, how many times it runs, which arguments it receives, what it returns, and how thrown values propagate. Those details are observable JavaScript semantics.
+
+SER only relocates callbacks for Effect operators whose behavior it knows how to preserve. An unknown callback stays opaque, so generator work cannot cross its boundary automatically.

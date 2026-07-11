@@ -1,0 +1,38 @@
+---
+title: "SvelteKitServerExportUnavailableError"
+description: "Trace execution of SER's publish-time fallback for a SvelteKit virtual server export."
+---
+
+## What this error means and what can trigger it
+
+`ts SvelteKitServerExportUnavailableError` means code executed SER's internal publish-time shim for `ts $app/server` instead of the virtual module implementation supplied by SvelteKit. The class records the unavailable export in `ts export_name`.
+
+The shim contains placeholders for `ts query`, `ts command`, `ts form`, `ts prerender`, and `ts getRequestEvent`. Each placeholder throws immediately. This file is an internal build fallback and is not currently exposed as a supported public package entry, so ordinary application code should not normally import it directly.
+
+## Exactly where it triggers
+
+All five placeholders construct through:
+
+`icon="ts" modules/svelte-effect-runtime/src/internal/sveltekit-server.ts:58:9`
+
+```ts name="modules/svelte-effect-runtime/src/internal/sveltekit-server.ts" icon="ts"
+function make_sveltekit_server_error(name: string): Error {
+	return new SvelteKitServerExportUnavailableError(name);
+}
+```
+
+They throw from these exact placeholders:
+
+- `icon="ts" modules/svelte-effect-runtime/src/internal/sveltekit-server.ts:11:2` for `ts query`.
+- `icon="ts" modules/svelte-effect-runtime/src/internal/sveltekit-server.ts:22:2` for `ts command`.
+- `icon="ts" modules/svelte-effect-runtime/src/internal/sveltekit-server.ts:33:2` for `ts form`.
+- `icon="ts" modules/svelte-effect-runtime/src/internal/sveltekit-server.ts:44:2` for `ts prerender`.
+- `icon="ts" modules/svelte-effect-runtime/src/internal/sveltekit-server.ts:54:2` for `ts getRequestEvent`.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:786:14`.
+
+## Why this is the case
+
+`ts $app/server` is provided by SvelteKit's compilation environment, not by a normal file available to plain Node execution. SER needs a publish-time module shape for building the package, but that fallback cannot implement route-bound remote helpers or request lookup.
+
+Immediate named failure prevents the shim from behaving like a partial server implementation. The recorded export identifies which virtual capability was requested outside the environment that owns it.

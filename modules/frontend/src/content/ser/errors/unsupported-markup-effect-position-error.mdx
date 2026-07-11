@@ -1,0 +1,34 @@
+---
+title: "UnsupportedMarkupEffectPositionError"
+description: "Trace a scanned markup expression for which SER has no lowering rule."
+---
+
+## What this error means and what can trigger it
+
+`ts UnsupportedMarkupEffectPositionError` means SER found a braced markup expression containing `ts yield*`, but the Svelte AST placed that expression somewhere without an implemented lowering strategy.
+
+SER supports expression tags; `ts if`, `ts each`, `ts await`, and `ts key` block expressions; render and HTML tags; declaration tags; and event attributes following Svelte's current or legacy conventions. Ordinary component/element attributes are not implicit Effect boundaries. A prop such as `ser <Widget value={yield* Load()} />` triggers this error, as does an unsupported tag position such as `ser {@debug yield* Inspect()}`.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/markup/transform/index.ts:79:3`
+
+```ts name="modules/svelte-effect-runtime/src/markup/transform/index.ts" icon="ts"
+const classified = classify_candidates(ast, work.candidates);
+const matched = new Set(classified.map(({ candidate }) => candidate.placeholder));
+const unmatched = work.candidates.find((candidate) => !matched.has(candidate.placeholder));
+
+if (unmatched) {
+	throw new UnsupportedMarkupEffectPositionError(filename, unmatched.expr_text);
+}
+```
+
+The scanner first replaces every relevant brace expression with a placeholder so Svelte can parse the sanitized markup. The classifier then walks only AST positions SER knows how to emit. The first placeholder that was scanned but never classified becomes `ts unmatched` and causes this synchronous transform exception.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:322:14`.
+
+## Why this is the case
+
+Each supported position has a concrete generated representation. Interpolation can wait on a dispatcher promise; an event can submit a dispatcher run; a block can resolve the expression that controls its branch or iteration. An ordinary prop or unsupported directive follows a different Svelte evaluation contract.
+
+Resolving such a value early could change SSR output, update timing, prop identity, or directive ownership. SER requires an explicit classifier and emitter pair before it will transform a markup position.

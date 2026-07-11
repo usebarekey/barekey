@@ -1,0 +1,30 @@
+---
+title: "UncheckedLiveQueryHandlerMissingError"
+description: "Trace an unchecked live Query with no Stream-producing handler."
+---
+
+## What this error means and what can trigger it
+
+`ts UncheckedLiveQueryHandlerMissingError` means `ts Query.live("unchecked", handler)` reached its server factory without a truthy second argument. The sentinel removes input decoding; the handler must still create the live Effect `ts Stream`.
+
+The guard catches omitted and other falsy values when static typing has been bypassed. A truthy value can proceed past this exact branch, although a non-callable value will fail later.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:397:10`
+
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+if (is_unchecked(validate_or_handler)) {
+	throw new UncheckedLiveQueryHandlerMissingError();
+}
+```
+
+The surrounding `ts try`/`ts catch` rethrows this existing error unchanged after helper normalization. It is raised synchronously while the remote export is created, before any live request starts.
+
+The declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:421:14`.
+
+## Why this is the case
+
+Unchecked validation changes only the input boundary. A live query still needs code that selects a source, constructs a Stream, and defines its failure and environment requirements.
+
+Treating the sentinel as a handler would create neither a callable operation nor a source that can be converted into SvelteKit's async iterable protocol.

@@ -1,0 +1,40 @@
+---
+title: "AwaitInEffectWorkError"
+description: "Trace one lowered statement that mixes native await with Effect sequencing."
+---
+
+## What this error means and what can trigger it
+
+`ts AwaitInEffectWorkError` means one script statement belongs to both JavaScript's Promise continuation model and SER's Effect generator model. The statement contains a top-level `ts yield*`, SER successfully lowered at least one Effect block from it, and the same statement also contains a top-level `ts await`.
+
+Top-level is relative to the statement being inspected. The detectors do not descend through nested function boundaries. An ordinary statement such as `ts const response = await fetch(url)` does not trigger because it contains no SER work. A combined expression such as `ts record(await transform(yield* Load()))` does.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/script-transform/index.ts:145:4`
+
+```ts name="modules/svelte-effect-runtime/src/script-transform/index.ts" icon="ts"
+const has_top_level_yield_star = contains_top_level_yield_star(stmt);
+
+if (!has_top_level_yield_star) {
+	continue;
+}
+
+has_effect = true;
+const lowered = lower_statement(stmt, content, context);
+
+if (lowered.effect_blocks.length > 0 && contains_top_level_await(stmt)) {
+	const text = slice(content, stmt);
+	throw new AwaitInEffectWorkError(filename, text);
+}
+```
+
+All three predicates are relevant: a top-level `ts yield*` must exist, lowering must have produced an Effect block, and a top-level `ts await` must remain in that statement. The exception is synchronous and stops preprocessing.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:126:14`.
+
+## Why this is the case
+
+The lowered statement runs inside generator-based Effect sequencing, where `ts yield*` controls suspension, interruption, scope, and the typed error channel. Native `ts await` suspends an async JavaScript function around a Promise. SER would have to invent how Promise cancellation, rejection, and continuation order interact with the dispatcher-owned Effect fiber.
+
+Rejecting the mixed statement keeps the two execution models explicit. Ordinary Svelte top-level await remains untouched in statements that SER does not lower.

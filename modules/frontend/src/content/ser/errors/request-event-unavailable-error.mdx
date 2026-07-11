@@ -1,0 +1,34 @@
+---
+title: "RequestEventUnavailableError"
+description: "Trace RequestEvent resolution outside a request-provided Effect context."
+---
+
+## What this error means and what can trigger it
+
+`ts RequestEventUnavailableError` means Effect tried to resolve SER's `ts RequestEvent` context reference while no request-specific service was present.
+
+Common triggers include yielding the reference during module initialization, running a request-dependent Effect manually without its handler context, or detaching work from the Effect that was provided the current event. Startup and process-wide runtime scopes cannot supply it either.
+
+Valid remote execution paths provide the service immediately before running handler work. Ordinary handlers do so in `ts server/effects.ts`, live handlers do so in their Stream execution path, and the `ts Handler` wrapper provides it around the user handler Effect.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/runtime.ts:39:14`
+
+```ts name="modules/svelte-effect-runtime/src/server/runtime.ts" icon="ts"
+export const RequestEvent = Context.Reference<RequestEvent>("@ser/RequestEvent", {
+	defaultValue: () => {
+		throw new RequestEventUnavailableError();
+	},
+});
+```
+
+The default function executes only when Effect cannot find a provided value in the current context. It throws synchronously during context resolution, which occurs while the surrounding Effect is running.
+
+Providing sites include `icon="ts" modules/svelte-effect-runtime/src/server/handler.ts:50:34`, `icon="ts" modules/svelte-effect-runtime/src/server/effects.ts:91:33`, and `icon="ts" modules/svelte-effect-runtime/src/server/effects.ts:165:33`. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:361:14`.
+
+## Why this is the case
+
+There is no safe global request event. A server can execute concurrent requests, each with different cookies, locals, URL, platform values, and lifecycle. Falling back to shared state could expose one request's data to another.
+
+The context reference makes request ownership part of Effect execution. Work retains access only while it runs inside the context provided for that specific handler invocation.

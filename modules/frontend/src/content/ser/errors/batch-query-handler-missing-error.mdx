@@ -1,0 +1,30 @@
+---
+title: "BatchQueryHandlerMissingError"
+description: "Trace Query.batch without the function that resolves collected inputs."
+---
+
+## What this error means and what can trigger it
+
+`ts BatchQueryHandlerMissingError` means `ts Query.batch` received no truthy batch handler. A batch declaration always needs a handler: it receives the collected, validated inputs and returns an Effect-like value containing the resolver used for each original caller.
+
+Omitted, `ts undefined`, `ts null`, `ts false`, `ts 0`, and an empty string trigger the runtime guard when TypeScript is bypassed. A truthy non-function passes this specific presence check and fails elsewhere. Unlike ordinary `ts Query`, the batch helper has no inputless one-argument handler overload.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:345:10`
+
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+if (!maybe_handler) {
+	throw new BatchQueryHandlerMissingError();
+}
+```
+
+This check runs before SER calls the native SvelteKit batch helper. The enclosing factory normalizes and rethrows the existing error unchanged, making it a synchronous declaration-time exception.
+
+The declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:401:14`.
+
+## Why this is the case
+
+The schema or `ts "unchecked"` sentinel describes how individual inputs enter the batch. It cannot define the data source, batching operation, or the mapping from each input and index to its result.
+
+Allowing a handlerless batch would create a remote export that can collect calls but has no rule for completing any of them. The early guard prevents that invalid export from reaching SvelteKit's batching machinery.

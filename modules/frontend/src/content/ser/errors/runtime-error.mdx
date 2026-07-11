@@ -1,0 +1,35 @@
+---
+title: "RuntimeError"
+description: "Understand the nominal base shared by SER-authored JavaScript errors."
+---
+
+## What this error means and what can trigger it
+
+`ts RuntimeError` is the common JavaScript base class for SER-authored runtime and compiler exceptions. It preserves the native `ts Error` stack and message while giving direct instances the stable name `ts RuntimeError`. Concrete subclasses replace that name with their own class name and may add structured fields.
+
+The current production source never constructs `ts RuntimeError` directly. It therefore has no standalone runtime trigger. Its meaning comes from subclasses such as `ts PreprocessError`, `ts DispatcherDisposedError`, and `ts RuntimeAlreadyInitializedError`.
+
+The base does not add a `ts cause`, error code, tagged-data protocol, or Effect failure behavior. A subclass may be thrown synchronously, placed in a Promise rejection, or supplied to `ts Effect.fail`; inheritance alone does not determine delivery.
+
+## Exactly where it triggers
+
+There is no production trigger site. The declaration is:
+
+`icon="ts" modules/svelte-effect-runtime/src/errors.ts:16:14`
+
+```ts name="modules/svelte-effect-runtime/src/errors.ts" icon="ts"
+export class RuntimeError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "RuntimeError";
+	}
+}
+```
+
+The only direct `ts new RuntimeError(...)` in current source is the documentation example above the class. Reporting that example as a production throw would be inaccurate.
+
+## Why this is the case
+
+The base gives integration code a nominal boundary for errors authored by SER while allowing each invariant to keep a precise class and fields. It also avoids turning tagged remote failures such as `ts RemoteHttpError` into JavaScript exceptions merely for inheritance.
+
+Because the class represents no single invariant, production code selects a concrete subclass at each failure site. Catching only the base is intentionally broad and loses the detail that identifies the failed subsystem.

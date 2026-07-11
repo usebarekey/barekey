@@ -1,0 +1,58 @@
+---
+title: "RemoteHttpError"
+description: "Trace remote failures for which SER has a concrete HTTP status."
+---
+
+## What this error means and what can trigger it
+
+`ts RemoteHttpError` means a remote operation reached a failure with known HTTP semantics. It is a tagged data record, not a JavaScript `ts Error`. Its required `status` identifies the response class; `body` may preserve a parsed response body, and `cause` may retain the native failure that supplied the status.
+
+SER constructs this variant in three situations. A remote form error envelope may contain a payload that is not one of SER's tagged failures. A native remote helper may reject with an object that exposes a numeric `status`. A non-successful `ts Response` may contain a body that does not decode to an existing tagged failure. In each case an HTTP status is known, even though no more specific typed failure could be recovered.
+
+## Exactly where it triggers
+
+An unrecognized form error envelope falls back to its reported status, or `ts 500` when the envelope omitted one:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:158:9`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts"
+const decoded_error = decode_remote_error(response.error);
+
+if (is_remote_failure(decoded_error)) {
+	throw decoded_error;
+}
+
+throw create_remote_http_error(response.status ?? 500, response.error);
+```
+
+A native rejected value with a numeric status is normalized here:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:181:10`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
+if (status !== undefined) {
+	return create_remote_http_error(status, body, error);
+}
+```
+
+A failed `ts Response` whose body is not already a tagged failure is converted here:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/responses.ts:28:9`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/responses.ts" icon="ts"
+const decoded_error = decode_remote_error(body);
+
+if (is_remote_failure(decoded_error)) {
+	return decoded_error;
+}
+
+return create_remote_http_error(response.status, body);
+```
+
+The common constructor is `icon="ts" modules/svelte-effect-runtime/src/remote/shared.ts:313:17`.
+
+## Why this is the case
+
+The presence of a status changes what callers can decide. A `ts 401`, `ts 404`, and `ts 503` describe different server outcomes even if their bodies are empty or use an unknown format. Folding those values into `ts RemoteTransportError` would discard information that can drive authentication, absence, or retry behavior.
+
+SER preserves an existing tagged remote failure before using this fallback. The HTTP wrapper is therefore reserved for failures whose status is meaningful but whose body cannot be assigned a more specific SER tag. Only the native normalization path includes the original thrown object as `cause`, because that is the path where such an object exists.

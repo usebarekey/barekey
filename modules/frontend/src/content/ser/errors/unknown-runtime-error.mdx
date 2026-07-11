@@ -1,0 +1,36 @@
+---
+title: "UnknownRuntimeError"
+description: "Understand SER's public generic wrapper for arbitrary non-Error values."
+---
+
+## What this error means and what can trigger it
+
+`ts UnknownRuntimeError` is a normalization class for converting an arbitrary value into a JavaScript `ts Error`. Its message is `ts String(value)`, and the original value is retained in the readonly `ts value` field.
+
+Current SER production code does not construct or throw this class. It remains exported from the public root entrypoint for callers that need a generic normalization boundary. The remote-helper boundary uses the more specific `ts RemoteHelperError` instead.
+
+## Exactly where it triggers
+
+There is no internal production trigger. The class is declared here:
+
+`icon="ts" modules/svelte-effect-runtime/src/errors.ts:875:14`
+
+```ts name="modules/svelte-effect-runtime/src/errors.ts" icon="ts"
+export class UnknownRuntimeError extends RuntimeError {
+	readonly value: unknown;
+
+	constructor(value: unknown) {
+		super(String(value));
+		this.name = "UnknownRuntimeError";
+		this.value = value;
+	}
+}
+```
+
+It is re-exported from `icon="ts" modules/svelte-effect-runtime/src/mod.ts:239:2`. Any observed instance must have been constructed by application or integration code against that public API.
+
+## Why this is the case
+
+JavaScript permits throwing any value, while error-handling boundaries often require an actual `ts Error` for stack handling, logging, or typed APIs. Converting with `ts String` provides a message; retaining the raw value avoids destroying diagnostic information.
+
+SER does not use this generic class where it knows more context. Remote helper normalization uses `ts RemoteHelperError` and adds a stable code, while existing `ts Error` objects remain unchanged.

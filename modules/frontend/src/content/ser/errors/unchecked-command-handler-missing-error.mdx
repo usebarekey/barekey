@@ -1,0 +1,30 @@
+---
+title: "UncheckedCommandHandlerMissingError"
+description: "Trace an unchecked Command whose mutation handler is absent."
+---
+
+## What this error means and what can trigger it
+
+`ts UncheckedCommandHandlerMissingError` means `ts Command("unchecked", handler)` has no truthy second argument at runtime. The unchecked sentinel opts out of schema validation. It cannot perform the mutation or return its result.
+
+Omission and other falsy values can reach the guard through JavaScript, generated mismatch, or an unsafe cast. TypeScript's intended overload requires the handler.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:523:10`
+
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+if (is_unchecked(validate_or_handler)) {
+	throw new UncheckedCommandHandlerMissingError();
+}
+```
+
+The factory catches, normalizes, and synchronously rethrows the same `ts Error` instance at its declaration boundary. No Command Effect has run at this point.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:441:14`.
+
+## Why this is the case
+
+`ts "unchecked"` says that SER should trust the caller's input shape. It says nothing about the state change to execute. Allowing the sentinel to flow into the one-argument path would turn a configuration token into an alleged command program.
+
+The dedicated class makes the invalid overload selection visible during module evaluation, before a user action reaches a broken remote export.

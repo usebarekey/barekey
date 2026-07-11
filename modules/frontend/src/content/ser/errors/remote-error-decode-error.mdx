@@ -1,0 +1,46 @@
+---
+title: "RemoteErrorDecodeError"
+description: "Trace a marked SER failure envelope whose encoded value cannot be decoded."
+---
+
+## What this error means and what can trigger it
+
+`ts RemoteErrorDecodeError` means the client recognized SER's serialized remote-failure envelope, then failed to decode its encoded payload. Recognition of the envelope matters: an arbitrary invalid JSON string does not trigger this class. The value must first carry the marker that says it is a serialized SER failure.
+
+Decoding uses a custom payload decoder when the adapter supplies one, otherwise it uses devalue's `ts parse`. A thrown decoder exception or an invalid decoded result produces the internal invalid state. The class retains the original wire value in `ts raw`.
+
+Client Effects see `ts RemoteTransportError`. Its `cause` is this class and its `body` is the same raw value.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:78:45`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
+const serialized = decode_serialized_remote_failure(raw);
+
+if (serialized._tag === "SerializedRemoteFailureInvalid") {
+	return create_remote_transport_error(new RemoteErrorDecodeError(raw), raw);
+}
+```
+
+The decoder catches failures here:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:136:4`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
+try {
+	const decoded = decode_payload ? decode_payload(envelope.encoded) : parse(envelope.encoded);
+
+	return { _tag: "SerializedRemoteFailureDecoded", decoded };
+} catch {
+	return { _tag: "SerializedRemoteFailureInvalid" };
+}
+```
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:728:14`; the construction above is its only production use.
+
+## Why this is the case
+
+The marker says the server intended to preserve a typed Effect failure across the remote boundary. Returning the encoded value as ordinary data would silently turn a failed Effect into a successful one, while treating it as an unknown domain failure would invent a tag the client never decoded.
+
+The transport wrapper reports that the representation failed before application meaning could be restored. Keeping `ts raw` makes codec and version mismatches inspectable without allowing the malformed payload into the typed failure union.

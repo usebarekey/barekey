@@ -1,0 +1,35 @@
+---
+title: "InvalidCommandFactoryError"
+description: "Trace a generated Command client value without a callable invocation shape."
+---
+
+## What this error means and what can trigger it
+
+`ts InvalidCommandFactoryError` means the client Command adapter received neither a callable value nor a non-null object with a callable `ts invoke` method. SER supports both shapes because SvelteKit output and compatibility paths can represent a Command either way.
+
+An incorrect import, stale generated module, compiler/runtime version mismatch, or malformed direct call to the internal adapter can violate this shape.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/command.ts:37:9`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/command.ts" icon="ts"
+const invoke = has_method(native_factory, "invoke")
+	? native_factory.invoke.bind(native_factory)
+	: undefined;
+const command = typeof native_factory === "function" ? native_factory : undefined;
+
+if (!command && !invoke) {
+	throw new InvalidCommandFactoryError();
+}
+```
+
+The check runs synchronously while generated client exports are initialized. The compiler emits the adapter call at `icon="ts" modules/svelte-effect-runtime/src/compiler/remote-client.ts:118:10`. No Command Effect or network request has started.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:627:14`.
+
+## Why this is the case
+
+The adapter's execution path later calls either `ts invoke(input)` or the direct function. Accepting any other value would postpone a fixed integration error until the first mutation and would leave the adapter's pending-state bridge attached to an operation it cannot invoke.
+
+The early shape guard also avoids relying on accidental object callability or property presence. The selected property must be an actual function and is bound to its source object before use.

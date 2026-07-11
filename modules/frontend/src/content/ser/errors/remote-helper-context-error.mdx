@@ -1,0 +1,50 @@
+---
+title: "RemoteHelperContextError"
+description: "Trace a SvelteKit request-context failure normalized at an SER remote helper boundary."
+---
+
+## What this error means and what can trigger it
+
+`ts RemoteHelperContextError` means a native SvelteKit remote helper or request lookup reported that it was running outside its route/request context. This commonly follows a declaration outside a valid `ts *.remote.ts` route module or execution in tooling that does not establish SvelteKit's request store.
+
+SER recognizes the condition by message because SvelteKit does not expose a stable exported error class for an `ts instanceof` check. It accepts a message beginning with `ts Can only read the current request event inside functions invoked during \`handle\``or exactly equal to`ts Could not get the request store.`A user-thrown`ts Error` with the same message is therefore classified the same way.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/server.ts:290:10`
+
+```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts"
+export function normalize_remote_helper_error(err: unknown, helper_name: string): Error {
+	if (is_sveltekit_remote_context_error(err)) {
+		return new RemoteHelperContextError(helper_name);
+	}
+
+	return err instanceof Error ? err : new RemoteHelperError(err);
+}
+```
+
+Factory-level catches call this normalization at:
+
+- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:318:3` for `ts Query`.
+- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:355:3` for `ts Query.batch`.
+- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:409:3` for `ts Query.live`.
+- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:530:3` for `ts Command`.
+- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:595:3` for `ts Form`.
+- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:719:3` for `ts Prerender`.
+
+Wrapper-level catches also normalize request capture and synchronous handler invocation:
+
+- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:54:4`
+- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:63:5`
+- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:87:4`
+- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:96:5`
+- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:120:4`
+- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:135:5`
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:816:14`.
+
+## Why this is the case
+
+SER wraps several SvelteKit helper shapes and needs one stable error class for missing route context across those boundaries. Message recognition is the available compatibility seam when the upstream failure has no public nominal type.
+
+The synchronous catches cover factory setup, request capture, and a handler that throws before returning. A Promise that rejects later has already crossed that catch boundary and travels through the remote Effect failure machinery instead.

@@ -1,0 +1,45 @@
+---
+title: "PreprocessError"
+description: "Trace SER's transform base error and its direct class-member trigger."
+---
+
+## What this error means and what can trigger it
+
+`ts PreprocessError` is the common base for synchronous failures raised while SER lowers component script or markup. It extends `ts RuntimeError` and adds a `ts filename`, allowing Vite and other tooling to retain source context without parsing the diagnostic string.
+
+Most instances use a concrete subclass. The base class itself has one production trigger: a class field initializer contains a top-level `ts yield*`. For example, `ts class Store { value = yield* LoadValue() }` places Effect work inside object construction rather than component-level script work.
+
+The detector stops at nested function boundaries. A `ts yield*` inside an arrow, method, accessor, or other nested function is not treated as top-level work belonging to the field initializer.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/script-transform/index.ts:381:2`
+
+```ts name="modules/svelte-effect-runtime/src/script-transform/index.ts" icon="ts"
+const bad_member = find_class_member_with_yield_star(stmt);
+
+if (!bad_member) {
+	return;
+}
+
+throw new PreprocessError(
+	[
+		`[ASYNC_EFFECT_IN_CLASS_MEMBER]: ${filename}: yield* cannot be used inside class members.`,
+		`Class fields and methods are not component top-level reactive work. Move the Effect work into a script effect statement before assigning it to the class instance.`,
+		"",
+		"Problematic member:",
+		slice(content, bad_member),
+	].join("\n"),
+	filename,
+);
+```
+
+This is a synchronous compiler exception. It is raised during the Vite/SER transform, before the component module can evaluate and before any Effect runtime exists.
+
+The base class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:55:14`.
+
+## Why this is the case
+
+SER lowers component-level statements into dispatcher-owned work. A class field follows JavaScript object-construction timing and may run once per instance, long after or long before the component-level statement SER would have generated. Hoisting the expression would change evaluation order and ownership; leaving it in place would put generator syntax into a synchronous initializer.
+
+The compiler rejects the field instead of guessing whether the result should belong to the component, the class instance, or every future instance.

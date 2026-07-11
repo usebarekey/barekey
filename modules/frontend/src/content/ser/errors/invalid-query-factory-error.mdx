@@ -1,0 +1,37 @@
+---
+title: "InvalidQueryFactoryError"
+description: "Trace a generated Query client value that has no callable transport shape."
+---
+
+## What this error means and what can trigger it
+
+`ts InvalidQueryFactoryError` means the client adapter received neither a callable native factory nor a non-null object with a callable `ts load` method. The error is raised while the adapter is created, usually during evaluation of the generated client module.
+
+Likely causes are a missing or incompatible SvelteKit-generated export, stale generated code, version skew at the compiler boundary, or direct use of SER's internal adapter with the wrong value.
+
+The current error message mentions objects exposing `ts query` or `ts load`. The 4.0.0 implementation accepts a direct function or an object with `ts load`; an object that exposes only `ts query` still triggers this error. This page describes the implemented predicate.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/query.ts:90:9`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/query.ts" icon="ts"
+const load = has_method(native_factory, "load")
+	? native_factory.load.bind(native_factory)
+	: undefined;
+const query = typeof native_factory === "function" ? native_factory : undefined;
+
+if (!query && !load) {
+	throw new InvalidQueryFactoryError();
+}
+```
+
+`ts has_method` requires a non-null object and a callable property. The throw is synchronous and occurs before the wrapped Query Effect is returned. Generated code calls this adapter from `icon="ts" modules/svelte-effect-runtime/src/compiler/remote-client.ts:129:2`.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:587:14`.
+
+## Why this is the case
+
+Every later Query execution must choose one concrete operation: call the factory with the input, or call its bound `ts load` method. A value satisfying neither branch cannot initiate a request.
+
+Checking during adapter construction turns a deterministic integration mismatch into a module-level diagnostic. Deferring it until the Query Effect runs would make the failure dependent on user interaction and obscure which generated boundary supplied the malformed value.

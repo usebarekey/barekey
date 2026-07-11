@@ -1,0 +1,55 @@
+---
+title: "InvalidLiveQueryFactoryError"
+description: "Trace invalid live Query factories, resources, and reconnect metadata."
+---
+
+## What this error means and what can trigger it
+
+`ts InvalidLiveQueryFactoryError` covers three distinct live-query shape invariants.
+
+First, the client adapter requires the generated native factory itself to be callable. Second, invoking a nominal live factory must produce a value with a callable `ts Symbol.asyncIterator`; ordinary query resources, arrays, primitives, and arbitrary objects are rejected. Third, `ts Live.reconnect(stream)` requires hidden live metadata whose native resource exposes a callable `ts reconnect` method.
+
+The current diagnostic message mentions an object with a `ts query` method. The client adapter in 4.0.0 accepts only a function. The async-iterable validator and reconnect path inspect different later shapes.
+
+## Exactly where it triggers
+
+Non-callable client factory, thrown synchronously during adapter creation:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/query.ts:147:9`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/query.ts" icon="ts"
+if (typeof native_factory !== "function") {
+	throw new InvalidLiveQueryFactoryError();
+}
+```
+
+Factory result without a callable async iterator, thrown synchronously by the live resource validator:
+
+`icon="ts" modules/svelte-effect-runtime/src/live.ts:204:9`
+
+```ts name="modules/svelte-effect-runtime/src/live.ts" icon="ts"
+if (!is_async_iterable_resource(resource)) {
+	throw new InvalidLiveQueryFactoryError();
+}
+```
+
+Missing reconnect metadata or method, returned as a lazy Effect failure:
+
+`icon="ts" modules/svelte-effect-runtime/src/live.ts:188:23`
+
+```ts name="modules/svelte-effect-runtime/src/live.ts" icon="ts"
+if (!metadata || typeof metadata.resource.reconnect !== "function") {
+	return Effect.fail(new InvalidLiveQueryFactoryError()) as unknown as Effect.Effect<
+		void,
+		RemoteFailure<E>
+	>;
+}
+```
+
+The third path is not a synchronous throw. It becomes a typed failure only when the reconnect Effect runs. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:607:14`.
+
+## Why this is the case
+
+An Effect Stream can be built from a native async iterable only when that protocol is actually present. The explicit validator protects `ts Stream.fromAsyncIterable` from receiving a lookalike resource with unrelated methods.
+
+Reconnect is stricter still. SER attaches hidden metadata only when it creates a remote live Stream, preserving the native resource needed for reconnection. A plain Stream cast to the remote type has no such resource, and a native resource without `ts reconnect` cannot perform the requested operation.

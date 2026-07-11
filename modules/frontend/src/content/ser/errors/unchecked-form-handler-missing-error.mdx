@@ -1,0 +1,30 @@
+---
+title: "UncheckedFormHandlerMissingError"
+description: "Trace an unchecked Form declaration with no submission handler."
+---
+
+## What this error means and what can trigger it
+
+`ts UncheckedFormHandlerMissingError` means `ts Form("unchecked", handler)` reached its server factory without a truthy handler. The sentinel suppresses schema validation for the submitted input. It cannot process that input or produce a form result.
+
+Calls from untyped code with an omitted, `ts undefined`, `ts null`, or other falsy second argument enter this branch. The declared TypeScript overload normally prevents them.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:580:10`
+
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+if (is_unchecked(validate_or_handler)) {
+	throw new UncheckedFormHandlerMissingError();
+}
+```
+
+The error is thrown synchronously while SER builds the remote Form helper. Helper normalization preserves existing `ts Error` instances, so the dedicated class is rethrown unchanged.
+
+The declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:461:14`.
+
+## Why this is the case
+
+Form has a one-argument path for an inputless Effect-like handler. Without the sentinel guard, `ts "unchecked"` could be treated as that program and fail later with a less precise invocation error.
+
+Validation policy and submission behavior are separate inputs to the factory. Disabling the former never supplies the latter.

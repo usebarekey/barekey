@@ -1,0 +1,36 @@
+---
+title: "YieldStarInEventCallbackError"
+description: "Trace a markup event whose entire attribute value is a callback containing yield work."
+---
+
+## What this error means and what can trigger it
+
+`ts YieldStarInEventCallbackError` means an event-like attribute contains SER work, but the whole attribute expression is already an arrow function or function expression. Examples include `ser onclick={() => yield* Save()}` and `ser oninput={function (event) { yield* Validate(event); }}`.
+
+Markup classification has already established that the attribute follows Svelte's event conventions. The error is about the expression's outer AST shape, not a textual search for `ts =>`. SER parses the expression as an initializer and checks whether that initializer is an arrow or function expression.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/markup/transform/emit.ts:199:3`
+
+```ts name="modules/svelte-effect-runtime/src/markup/transform/emit.ts" icon="ts"
+const expr_text = candidate.expr_text;
+
+if (is_callback_function_expression(expr_text)) {
+	throw new YieldStarInEventCallbackError(candidate.filename, expr_text);
+}
+```
+
+This happens during markup emission, before SER generates the actual event callback. It is a synchronous preprocessing exception. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:272:14`.
+
+The accepted boundary form leaves callback creation to SER:
+
+```ser
+<button onclick={yield* Save()}>Save</button>
+```
+
+## Why this is the case
+
+SER generates an event callback whose body submits generator work to the component dispatcher. A source arrow function creates another JavaScript function boundary around the `ts yield*`. Ordinary arrows and non-generator functions cannot own generator delegation syntax, and preserving the wrapper would keep the work outside SER's generated generator.
+
+Removing the wrapper also gives the dispatcher ownership of interruption and component teardown for that event execution. SER can generate that lifecycle only when the Effect expression sits directly at the attribute boundary.

@@ -1,0 +1,30 @@
+---
+title: "UncheckedPrerenderHandlerMissingError"
+description: "Trace an unchecked Prerender declaration without a callable build-time handler."
+---
+
+## What this error means and what can trigger it
+
+`ts UncheckedPrerenderHandlerMissingError` means the first argument to `ts Prerender` is `ts "unchecked"`, while the second argument is not a function. This differs slightly from the other unchecked helpers because the second position may also contain Prerender options.
+
+The guard therefore uses an exact callable check rather than truthiness. An omitted value, falsy value, options object, or any other truthy non-function triggers the error when paired with the unchecked sentinel.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:711:10`
+
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+if (is_unchecked(validate_or_handler)) {
+	throw new UncheckedPrerenderHandlerMissingError();
+}
+```
+
+This branch is reached after the factory has tested the second argument with `ts typeof value === "function"`. It throws synchronously during helper creation and is rethrown unchanged after normalization.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:481:14`.
+
+## Why this is the case
+
+The sentinel disables input validation during build-time resolution. A callable handler is still required to compute the value that SvelteKit will prerender.
+
+Options can configure prerender behavior, but they do not replace the computation. The callable check prevents an options object from being mistaken for executable work.

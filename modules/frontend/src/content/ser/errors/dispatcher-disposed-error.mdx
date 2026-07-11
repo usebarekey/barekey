@@ -1,0 +1,44 @@
+---
+title: "DispatcherDisposedError"
+description: "Trace Promise-backed dispatcher work requested after component teardown."
+---
+
+## What this error means and what can trigger it
+
+`ts DispatcherDisposedError` means code called `ts dispatcher.promise(...)` or `ts dispatcher.run(...)` after the dispatcher had been disposed. Disposal sets the private flag, interrupts active fibers, clears dispatcher caches, and begins disposal of the managed runtime.
+
+The usual cause is work retained past component teardown: a delayed task, external callback, stale event reference, or manual dispatcher reference outlives the component that owned it.
+
+The dispatcher treats other post-disposal operations differently. `ts fork(...)` returns an inert disposer, and `ts value(...)` returns its fallback. The error is reserved for methods whose contracts already return a Promise and would otherwise imply that new asynchronous work had started.
+
+## Exactly where it triggers
+
+Promise bridge:
+
+`icon="ts" modules/svelte-effect-runtime/src/dispatcher/index.ts:266:26`
+
+```ts name="modules/svelte-effect-runtime/src/dispatcher/index.ts" icon="ts"
+promise<A>(options: PromiseOptions<A>): Promise<A> {
+	if (this.#disposed) {
+		return Promise.reject(new DispatcherDisposedError());
+	}
+```
+
+Direct Effect run:
+
+`icon="ts" modules/svelte-effect-runtime/src/dispatcher/index.ts:306:26`
+
+```ts name="modules/svelte-effect-runtime/src/dispatcher/index.ts" icon="ts"
+run<A, E, R>(effect: Effect.Effect<A, E, R>): Promise<A> {
+	if (this.#disposed) {
+		return Promise.reject(new DispatcherDisposedError());
+	}
+```
+
+These methods do not throw synchronously. They return rejected Promises. Failing to await or otherwise observe the Promise can surface the class as an unhandled rejection. Disposal marks the flag at `icon="ts" modules/svelte-effect-runtime/src/dispatcher/index.ts:385:3`.
+
+## Why this is the case
+
+Both methods promise to bridge work through the dispatcher's managed runtime. After disposal, that runtime no longer has valid lifecycle ownership, and starting a fiber would detach it from component cleanup.
+
+Returning a rejected Promise preserves each method's asynchronous contract and lets generated callers handle failure through their existing Promise path. The inert/fallback behavior of `ts fork` and `ts value` avoids creating new completion promises where their public contracts do not expose one.

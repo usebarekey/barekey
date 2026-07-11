@@ -1,0 +1,46 @@
+---
+title: "UnsupportedRemoteFormResponseError"
+description: "Trace a recognized form envelope whose result payload SER cannot consume."
+---
+
+## What this error means and what can trigger it
+
+`ts UnsupportedRemoteFormResponseError` means the response passed SER's top-level envelope check as `ts type: "result"`, but the result branch cannot supply a usable decoded payload. The class retains the original value in `ts envelope` and is nested in `ts RemoteTransportError.cause`.
+
+Two shapes trigger it. The envelope may omit both of the supported encoded slots, `ts result` and `ts data`. Alternatively, one of those strings may parse with devalue but produce a value that fails SER's payload schema. That schema accepts an optional issue array and an optional result value; issue paths must consist of string or numeric segments.
+
+Invalid devalue syntax is a different path. The parser throws before this explicit construction, and the outer Promise normalization handles that thrown parser error as a transport failure.
+
+## Exactly where it triggers
+
+Missing encoded result slot:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:165:8`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts"
+const serialized = response.result ?? response.data;
+
+if (serialized === undefined) {
+	throw create_remote_transport_error(new UnsupportedRemoteFormResponseError(envelope), envelope);
+}
+```
+
+Decoded value does not match the result payload schema:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:175:8`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts"
+const decoded = decode_form_result_payload(parsed);
+
+if (!decoded) {
+	throw create_remote_transport_error(new UnsupportedRemoteFormResponseError(envelope), envelope);
+}
+```
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:699:14`.
+
+## Why this is the case
+
+Recognizing the envelope's discriminator proves that the server intended a result response. It does not prove that the client can extract a result from it. Separating this case from `ts InvalidRemoteFormResponseError` pinpoints version skew and payload-contract changes after the top-level protocol has already succeeded.
+
+SER validates the decoded value before reading issues or results from it. That check prevents arbitrary devalue output from being treated as validation data and gives the transport boundary one controlled failure shape.

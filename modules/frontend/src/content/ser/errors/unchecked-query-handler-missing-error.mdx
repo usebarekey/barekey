@@ -1,0 +1,30 @@
+---
+title: "UncheckedQueryHandlerMissingError"
+description: "Trace an unchecked Query declaration whose executable handler is absent."
+---
+
+## What this error means and what can trigger it
+
+`ts UncheckedQueryHandlerMissingError` means `ts Query("unchecked", handler)` reached the server factory without a truthy second argument. The string sentinel disables input-schema validation; it does not contain the operation that reads data.
+
+In untyped JavaScript or through an unsafe cast, omitted, `ts undefined`, `ts null`, `ts false`, `ts 0`, or an empty string as the second argument all reach this guard. The public TypeScript overload normally rejects these calls earlier. A truthy non-function does not hit this particular guard and can fail later while the wrapper is built or invoked.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:309:10`
+
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+if (is_unchecked(validate_or_handler)) {
+	throw new UncheckedQueryHandlerMissingError();
+}
+```
+
+The enclosing factory catches the exception, passes it through `ts normalize_remote_helper_error`, and rethrows it. Existing `ts Error` instances are returned unchanged, so the class, message, and stack survive. This is a synchronous factory exception, not an Effect failure from the query handler.
+
+The declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:381:14`.
+
+## Why this is the case
+
+The one-argument `ts Query(handler)` overload represents an inputless query. The two-argument unchecked overload uses its first argument only to select validation behavior. Without the guard, the factory could mistake the sentinel string for the inputless handler and pass it into the remote wrapper.
+
+The explicit error keeps overload misuse separate from an eventual “value is not callable” failure and identifies that validation was intentionally disabled while execution logic was accidentally omitted.

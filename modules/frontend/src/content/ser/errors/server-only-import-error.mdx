@@ -1,0 +1,44 @@
+---
+title: "ServerOnlyImportError"
+description: "Trace a root server helper that reached its defensive placeholder instead of the server entrypoint."
+---
+
+## What this error means and what can trigger it
+
+`ts ServerOnlyImportError` means a server-only export from the package root was invoked without SER's Vite rewrite replacing it with the implementation from `ts svelte-effect-runtime/server`. The error records the invoked export in `ts export_name`.
+
+Function placeholders exist for `ts Query`, `ts Query.batch`, `ts Query.live`, `ts Command`, `ts Error`, `ts Form`, `ts Prerender`, `ts Redirect`, `ts RequestEvent`, and `ts get_server_runtime_or_throw`. `ts ServerRuntime.make` uses a class placeholder. Invocation can reach the placeholder when the SER Vite plugin is missing, a file does not follow recognized server naming conventions, or tooling executes the module without Vite's transform.
+
+The rewrite recognizes `ts *.server.ts`, `ts *.remote.ts`, their module-suffix variants, and `ts hooks.server.ts`. It handles static imports, re-exports, and literal dynamic imports.
+
+## Exactly where it triggers
+
+Every route constructs the error through:
+
+`icon="ts" modules/svelte-effect-runtime/src/mod.ts:318:2`
+
+```ts name="modules/svelte-effect-runtime/src/mod.ts" icon="ts"
+function make_server_only_error(name: string): globalThis.Error {
+	return new ServerOnlyImportError(name);
+}
+```
+
+Function placeholders synchronously throw here:
+
+`icon="ts" modules/svelte-effect-runtime/src/mod.ts:313:3`
+
+```ts name="modules/svelte-effect-runtime/src/mod.ts" icon="ts"
+function make_server_only_function(name: string): (...args: unknown[]) => never {
+	return (..._args: unknown[]): never => {
+		throw make_server_only_error(name);
+	};
+}
+```
+
+The `ts ServerRuntime` class placeholder throws from `icon="ts" modules/svelte-effect-runtime/src/mod.ts:306:4` when its static `ts make` method is called. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:757:14`.
+
+## Why this is the case
+
+The root entrypoint must be importable by code that can enter a browser bundle. The real factories depend on SvelteKit server modules, request state, and server runtime services. Shipping those implementations through the universal root would weaken the server boundary.
+
+The placeholders act as named tripwires. Correctly transformed server files never execute them; an untransformed invocation fails immediately with the exact export name instead of loading server code into an unsupported environment or producing a later undefined-function error.

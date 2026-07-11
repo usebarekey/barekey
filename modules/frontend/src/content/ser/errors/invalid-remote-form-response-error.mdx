@@ -1,0 +1,34 @@
+---
+title: "InvalidRemoteFormResponseError"
+description: "Trace a form response that fails SER's top-level envelope schema."
+---
+
+## What this error means and what can trigger it
+
+`ts InvalidRemoteFormResponseError` means the raw remote form response is not one of the two top-level envelopes SER understands. A valid error envelope has `ts type: "error"` plus optional error and status fields. A valid result envelope has `ts type: "result"` plus an optional devalue-encoded `ts data` or `ts result` string.
+
+The raw response may be a primitive, `ts null`, an array, an object without a string `ts type`, an object with an unknown type, or an otherwise incompatible field shape. The class stores that value in `ts envelope`. SER also copies it into the surrounding transport failure's `ts body`.
+
+This differs from `ts UnsupportedRemoteFormResponseError`: the invalid variant means SER could not establish the top-level protocol branch at all.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:148:43`
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts"
+const response = decode_form_response_envelope(envelope);
+
+if (!response) {
+	throw create_remote_transport_error(new InvalidRemoteFormResponseError(envelope), envelope);
+}
+```
+
+The decoder above uses Effect Schema to match the raw JSON against the error/result envelope union. The error is constructed only when that decoder returns no recognized branch. It is immediately nested inside `ts RemoteTransportError`, so client code normally inspects `ts error.cause` to reach it.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:669:14`. This is its sole production construction site.
+
+## Why this is the case
+
+SER must choose the error protocol or the result protocol before it can decode any inner value. Reading fields from an unvalidated object would allow malformed or version-skewed responses to drift into later branches and fail with misleading parser errors.
+
+Preserving the raw envelope supports protocol diagnosis while maintaining the classification boundary. No status or domain meaning is invented, because the client has not successfully decoded the structure that would establish either one.

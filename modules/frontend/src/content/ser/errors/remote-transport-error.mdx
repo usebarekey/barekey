@@ -1,0 +1,39 @@
+---
+title: "RemoteTransportError"
+description: "Trace failures that prevent SER from recovering application or HTTP meaning."
+---
+
+## What this error means and what can trigger it
+
+`ts RemoteTransportError` means the client could not complete or interpret the remote protocol. It is tagged data with optional `cause` and `body` fields. It deliberately has no `status`, because this category includes failures for which SER cannot prove that a usable HTTP response existed.
+
+The tag covers endpoint discovery, malformed form envelopes, missing result slots, payload-schema mismatches, undecodable serialized failures, and generic native promise rejections without a numeric status. Lower-level SER classes such as `ts RemoteFormEndpointMissingError`, `ts InvalidRemoteFormResponseError`, `ts UnsupportedRemoteFormResponseError`, and `ts RemoteErrorDecodeError` normally appear in `cause` rather than directly on the public Effect error channel.
+
+## Exactly where it triggers
+
+The factory itself is `icon="ts" modules/svelte-effect-runtime/src/remote/shared.ts:335:17`. Current construction sites are:
+
+- `icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:90:9` for missing form endpoint metadata.
+- `icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:148:9` for a top-level form envelope that fails structural decoding.
+- `icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:164:9` for a result envelope with neither a `ts result` nor `ts data` slot.
+- `icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:174:9` for a parsed result payload that fails SER's payload schema.
+- `icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:78:11` for a marked serialized failure whose encoded value cannot be decoded.
+- `icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:184:9` for a native rejection that is neither an existing tagged failure nor an object with a numeric status.
+
+The final fallback shows the classification boundary:
+
+```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
+if (status !== undefined) {
+	return create_remote_http_error(status, body, error);
+}
+
+return create_remote_transport_error(error);
+```
+
+Remote adapters pass rejected native calls through this normalization from `icon="ts" modules/svelte-effect-runtime/src/remote/client/effect.ts:33:11`.
+
+## Why this is the case
+
+Typed remote failures require a successfully decoded error envelope. HTTP failures require a trustworthy numeric status. Transport failures are what remain when the operation breaks before either fact can be established.
+
+Keeping `cause` and `body` separate matters during diagnosis. `cause` records why the protocol failed, often as a specific SER `ts RuntimeError`; `body` records the value that arrived, if anything did. Neither field upgrades the failure into a domain error. The wrapper prevents low-level parser errors, rejected strings, and protocol details from creating an unstable public error union.

@@ -1,0 +1,50 @@
+---
+title: "AsyncEffectInSyncRuneError"
+description: "Trace Effect work found in a Svelte rune position with a synchronous contract."
+---
+
+## What this error means and what can trigger it
+
+`ts AsyncEffectInSyncRuneError` means SER found `ts yield*` inside a Svelte rune position that it cannot turn into dispatcher work without changing the rune's semantics. The error records the rune name, complete expression text, and source filename.
+
+There are two trigger families. The first is a rune call outside SER's small set of async-expression-compatible runes. The currently allowed set is `ts $derived`, `ts $state`, `ts $state.raw`, `ts $state.snapshot`, and `ts $bindable`. Calls such as `ts $props(yield* Load())`, `ts $effect.pending(yield* Load())`, or `ts $inspect(yield* Load())` fail the general check.
+
+The second family opens the first callback passed to `ts $derived.by`, `ts $effect`, `ts $effect.pre`, or `ts $effect.root`. A direct `ts yield*` in that callback fails even though the general detector stops at the callback's function boundary.
+
+## Exactly where it triggers
+
+Unsupported rune argument:
+
+`icon="ts" modules/svelte-effect-runtime/src/script-transform/runes.ts:53:3`
+
+```ts name="modules/svelte-effect-runtime/src/script-transform/runes.ts" icon="ts"
+if (!ASYNC_EXPRESSION_RUNES.has(rune_name) && contains_top_level_yield_star(call)) {
+	throw new AsyncEffectInSyncRuneError(rune_name, slice(content, call), filename);
+}
+```
+
+Synchronous rune callback:
+
+`icon="ts" modules/svelte-effect-runtime/src/script-transform/runes.ts:66:2`
+
+```ts name="modules/svelte-effect-runtime/src/script-transform/runes.ts" icon="ts"
+if (!CALLBACK_RUNES.has(rune_name)) {
+	return;
+}
+
+const callback = call.arguments[0];
+
+if (!callback || !callback_has_top_level_yield_star(callback)) {
+	return;
+}
+
+throw new AsyncEffectInSyncRuneError(rune_name, slice(content, call), filename);
+```
+
+Both are synchronous transform exceptions. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:169:14`.
+
+## Why this is the case
+
+Svelte assigns specific compile-time and runtime contracts to each rune. An effect callback participates in Svelte's lifecycle; a derived callback computes synchronously; props, host, and inspection helpers have compiler-defined return behavior. Replacing one of those expressions with a value that resolves later would alter the rune itself.
+
+SER only lowers rune positions for which it has an explicit value-preserving transformation. A callback is checked separately because its function boundary hides its body from the normal top-level scan.

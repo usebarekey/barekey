@@ -1,0 +1,30 @@
+---
+title: "InvalidLiveQueryReturnError"
+description: "Trace a live Query handler result that is not an Effect Stream."
+---
+
+## What this error means and what can trigger it
+
+`ts InvalidLiveQueryReturnError` means a server-side `ts Query.live` handler returned a value for which Effect's `ts Stream.isStream` predicate is false. Arrays, synchronous iterables, async iterables, Promises, scalars, `ts null`, generator objects, and an Effect that later succeeds with a Stream all fail this runtime check.
+
+The handler must return the Effect Stream directly. Native sources can be wrapped with `ts Stream.fromIterable`, `ts Stream.fromAsyncIterable`, or another Stream constructor. The public handler type already expresses this requirement; the runtime guard protects JavaScript, unsafe casts, and compiler/integration mismatches.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/effects.ts:87:9`
+
+```ts name="modules/svelte-effect-runtime/src/server/effects.ts" icon="ts"
+if (!is_live_source(source)) {
+	throw new InvalidLiveQueryReturnError();
+}
+```
+
+The wrapper invokes the handler synchronously, passes its immediate return value into this validator, and catches the thrown class. Helper normalization returns existing `ts Error` instances unchanged, so the async remote wrapper's Promise rejects with `ts InvalidLiveQueryReturnError`.
+
+The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:501:14`.
+
+## Why this is the case
+
+SER converts the returned Effect Stream into an async iterable while providing the request event and server runtime. That conversion preserves the Stream's typed failures, environment requirements, interruption, and resource scopes.
+
+A native iterable does not carry those Effect semantics, while an Effect that merely produces a Stream adds another execution layer the wrapper does not flatten. Requiring the Stream at the handler boundary makes the server-to-SvelteKit conversion unambiguous.

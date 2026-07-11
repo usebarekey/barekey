@@ -1,0 +1,53 @@
+---
+title: "FormError"
+description: "Trace field and form validation from the invalid proxy to SvelteKit's form boundary."
+---
+
+## What this error means and what can trigger it
+
+`ts FormError` is the server-side validation value produced by a SER `ts Form` handler. Despite its name, it is not a JavaScript `ts Error`, does not extend `ts RuntimeError`, and is not thrown by SER. It is a tagged data structure with `_tag: "FormError"` and an `issues` array. Each issue contains a message and a path made from string or numeric segments.
+
+The normal trigger is the path-aware `ts invalid` proxy passed to a form handler. Calling `ts invalid.email("Required")` fails the current Effect with an issue at `ts ["email"]`. Property access extends the path, so `ts invalid.profile.email("Required")` produces `ts ["profile", "email"]`. Calling the proxy itself, such as `ts invalid("Could not save")`, produces an issue whose path is empty and therefore belongs to the whole form.
+
+Application code may also call `ts create_form_error(issues)` and place the returned value on an Effect error channel. The factory is public precisely because validation can be assembled by code that does not use the proxy.
+
+## Exactly where it triggers
+
+`icon="ts" modules/svelte-effect-runtime/src/server/invalid.ts:18:3`
+
+```ts name="modules/svelte-effect-runtime/src/server/invalid.ts" icon="ts"
+return (message: string) =>
+	Effect.fail(create_form_error([{ message, path: [...path] } satisfies FormIssue]));
+```
+
+This is an `ts Effect.fail`, not a synchronous `ts throw`. The failure becomes observable when the handler Effect runs. The same proxy recursively handles nested properties, carrying the accumulated path into the next call.
+
+The value itself is constructed here:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/shared.ts:100:17`
+
+```ts name="modules/svelte-effect-runtime/src/remote/shared.ts" icon="ts"
+export function create_form_error(issues: readonly FormIssue[]): FormError {
+	return { _tag: "FormError", issues };
+}
+```
+
+At the request boundary, SER recognizes the tag and hands the issues to SvelteKit:
+
+`icon="ts" modules/svelte-effect-runtime/src/remote/server.ts:98:42`
+
+```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts"
+const form_error = cause.failureOrCause.pipe(
+	Option.filter((failure): failure is FormError => is_tagged_failure(failure, "FormError")),
+);
+
+if (Option.isSome(form_error)) {
+	invalid(...form_error.value.issues);
+}
+```
+
+## Why this is the case
+
+Validation is expected control flow inside a form handler. Keeping it in Effect's typed error channel allows the handler to compose validation with database work, services, retries, and ordinary domain failures without throwing an untyped exception through the middle of that program.
+
+SvelteKit's `ts invalid` helper belongs at the request boundary because it uses framework control flow to produce the form response. SER therefore keeps validation as plain data until it has the active request and can translate the issue list once. The `_schema` member on `ts FormError` is phantom typing only. It helps TypeScript relate paths to a form schema, but it is absent from the runtime object and never sent over the wire.
