@@ -13,7 +13,7 @@ Application code may also call `ts create_form_error(issues)` and place the retu
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/server/invalid.ts:18:3`
+`name="modules/svelte-effect-runtime/src/server/invalid.ts" line="18" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/invalid.ts#L18"`
 
 ```ts name="modules/svelte-effect-runtime/src/server/invalid.ts" icon="ts"
 return (message: string) =>
@@ -24,7 +24,7 @@ This is an `ts Effect.fail`, not a synchronous `ts throw`. The failure becomes o
 
 The value itself is constructed here:
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/shared.ts:100:17`
+`name="modules/svelte-effect-runtime/src/remote/shared.ts" line="100" char="17" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/shared.ts#L100"`
 
 ```ts name="modules/svelte-effect-runtime/src/remote/shared.ts" icon="ts"
 export function create_form_error(issues: readonly FormIssue[]): FormError {
@@ -34,7 +34,7 @@ export function create_form_error(issues: readonly FormIssue[]): FormError {
 
 At the request boundary, SER recognizes the tag and hands the issues to SvelteKit:
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/server.ts:98:42`
+`name="modules/svelte-effect-runtime/src/remote/server.ts" line="98" char="42" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/server.ts#L98"`
 
 ```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts"
 const form_error = cause.failureOrCause.pipe(

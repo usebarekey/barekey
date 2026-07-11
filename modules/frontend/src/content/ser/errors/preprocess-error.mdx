@@ -13,9 +13,7 @@ The detector stops at nested function boundaries. A `ts yield*` inside an arrow,
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/script-transform/index.ts:381:2`
-
-```ts name="modules/svelte-effect-runtime/src/script-transform/index.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/script-transform/index.ts" icon="ts" line="381" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/script-transform/index.ts#L381"
 const bad_member = find_class_member_with_yield_star(stmt);
 
 if (!bad_member) {
@@ -36,7 +34,7 @@ throw new PreprocessError(
 
 This is a synchronous compiler exception. It is raised during the Vite/SER transform, before the component module can evaluate and before any Effect runtime exists.
 
-The base class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:55:14`.
+The base class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="55" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L55"`.
 
 ## Why this is the case
 

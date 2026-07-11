@@ -13,9 +13,7 @@ Known Effect combinators can be normalized into generator-safe forms before this
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/markup/transform/emit.ts:205:3`
-
-```ts name="modules/svelte-effect-runtime/src/markup/transform/emit.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/markup/transform/emit.ts" icon="ts" line="205" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/markup/transform/emit.ts#L205"
 const analysis = analyze_event_body_yield_star(expr_text);
 
 if (analysis.has_nested_invalid_yield_star) {
@@ -23,7 +21,7 @@ if (analysis.has_nested_invalid_yield_star) {
 }
 ```
 
-The callback-shaped whole-expression check runs first. This second check therefore addresses nested callback boundaries inside an otherwise direct event expression. It throws synchronously during the markup transform. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:222:14`.
+The callback-shaped whole-expression check runs first. This second check therefore addresses nested callback boundaries inside an otherwise direct event expression. It throws synchronously during the markup transform. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="222" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L222"`.
 
 ## Why this is the case
 

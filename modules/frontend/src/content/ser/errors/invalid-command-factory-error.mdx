@@ -11,9 +11,7 @@ An incorrect import, stale generated module, compiler/runtime version mismatch, 
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/command.ts:37:9`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/command.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/command.ts" icon="ts" line="37" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/command.ts#L37"
 const invoke = has_method(native_factory, "invoke")
 	? native_factory.invoke.bind(native_factory)
 	: undefined;
@@ -24,9 +22,9 @@ if (!command && !invoke) {
 }
 ```
 
-The check runs synchronously while generated client exports are initialized. The compiler emits the adapter call at `icon="ts" modules/svelte-effect-runtime/src/compiler/remote-client.ts:118:10`. No Command Effect or network request has started.
+The check runs synchronously while generated client exports are initialized. The compiler emits the adapter call at `name="modules/svelte-effect-runtime/src/compiler/remote-client.ts" line="118" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/compiler/remote-client.ts#L118"`. No Command Effect or network request has started.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:627:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="627" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L627"`.
 
 ## Why this is the case
 

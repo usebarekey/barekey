@@ -11,14 +11,14 @@ The tag covers endpoint discovery, malformed form envelopes, missing result slot
 
 ## Exactly where it triggers
 
-The factory itself is `icon="ts" modules/svelte-effect-runtime/src/remote/shared.ts:335:17`. Current construction sites are:
+The factory itself is `name="modules/svelte-effect-runtime/src/remote/shared.ts" line="335" char="17" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/shared.ts#L335"`. Current construction sites are:
 
-- `icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:90:9` for missing form endpoint metadata.
-- `icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:148:9` for a top-level form envelope that fails structural decoding.
-- `icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:164:9` for a result envelope with neither a `ts result` nor `ts data` slot.
-- `icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:174:9` for a parsed result payload that fails SER's payload schema.
-- `icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:78:11` for a marked serialized failure whose encoded value cannot be decoded.
-- `icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:184:9` for a native rejection that is neither an existing tagged failure nor an object with a numeric status.
+- `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="90" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L90"` for missing form endpoint metadata.
+- `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="148" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L148"` for a top-level form envelope that fails structural decoding.
+- `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="164" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L164"` for a result envelope with neither a `ts result` nor `ts data` slot.
+- `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="174" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L174"` for a parsed result payload that fails SER's payload schema.
+- `name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="78" char="11" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L78"` for a marked serialized failure whose encoded value cannot be decoded.
+- `name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="184" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L184"` for a native rejection that is neither an existing tagged failure nor an object with a numeric status.
 
 The final fallback shows the classification boundary:
 
@@ -30,7 +30,7 @@ if (status !== undefined) {
 return create_remote_transport_error(error);
 ```
 
-Remote adapters pass rejected native calls through this normalization from `icon="ts" modules/svelte-effect-runtime/src/remote/client/effect.ts:33:11`.
+Remote adapters pass rejected native calls through this normalization from `name="modules/svelte-effect-runtime/src/remote/client/effect.ts" line="33" char="11" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/effect.ts#L33"`.
 
 ## Why this is the case
 

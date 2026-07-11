@@ -11,9 +11,7 @@ The distinctions are exact. A Stream that fails before emitting preserves its or
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/yieldable.ts:68:24`
-
-```ts name="modules/svelte-effect-runtime/src/yieldable.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/yieldable.ts" icon="ts" line="68" char="24" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/yieldable.ts#L68"
 return Stream.runHead(yieldable).pipe(
 	Effect.flatMap((head) => {
 		if (Option.isSome(head)) {
@@ -27,7 +25,7 @@ return Stream.runHead(yieldable).pipe(
 
 This is an `ts Effect.fail`, not a JavaScript throw. The error enters the generated component Effect's typed failure channel when the Stream completes empty.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:522:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="522" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L522"`.
 
 ## Why this is the case
 

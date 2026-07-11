@@ -13,7 +13,7 @@ Client Effects see `ts RemoteTransportError`. Its `cause` is this class and its 
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:78:45`
+`name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="78" char="45" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L78"`
 
 ```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
 const serialized = decode_serialized_remote_failure(raw);
@@ -25,7 +25,7 @@ if (serialized._tag === "SerializedRemoteFailureInvalid") {
 
 The decoder catches failures here:
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:136:4`
+`name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="136" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L136"`
 
 ```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
 try {
@@ -37,7 +37,7 @@ try {
 }
 ```
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:728:14`; the construction above is its only production use.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="728" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L728"`; the construction above is its only production use.
 
 ## Why this is the case
 

@@ -11,9 +11,7 @@ Calls from untyped code with an omitted, `ts undefined`, `ts null`, or other fal
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:580:10`
-
-```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts" line="580" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L580"
 if (is_unchecked(validate_or_handler)) {
 	throw new UncheckedFormHandlerMissingError();
 }
@@ -21,7 +19,7 @@ if (is_unchecked(validate_or_handler)) {
 
 The error is thrown synchronously while SER builds the remote Form helper. Helper normalization preserves existing `ts Error` instances, so the dedicated class is rethrown unchanged.
 
-The declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:461:14`.
+The declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="461" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L461"`.
 
 ## Why this is the case
 

@@ -15,9 +15,7 @@ The rewrite recognizes `ts *.server.ts`, `ts *.remote.ts`, their module-suffix v
 
 Every route constructs the error through:
 
-`icon="ts" modules/svelte-effect-runtime/src/mod.ts:318:2`
-
-```ts name="modules/svelte-effect-runtime/src/mod.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/mod.ts" icon="ts" line="318" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/mod.ts#L318"
 function make_server_only_error(name: string): globalThis.Error {
 	return new ServerOnlyImportError(name);
 }
@@ -25,9 +23,7 @@ function make_server_only_error(name: string): globalThis.Error {
 
 Function placeholders synchronously throw here:
 
-`icon="ts" modules/svelte-effect-runtime/src/mod.ts:313:3`
-
-```ts name="modules/svelte-effect-runtime/src/mod.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/mod.ts" icon="ts" line="313" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/mod.ts#L313"
 function make_server_only_function(name: string): (...args: unknown[]) => never {
 	return (..._args: unknown[]): never => {
 		throw make_server_only_error(name);
@@ -35,7 +31,7 @@ function make_server_only_function(name: string): (...args: unknown[]) => never 
 }
 ```
 
-The `ts ServerRuntime` class placeholder throws from `icon="ts" modules/svelte-effect-runtime/src/mod.ts:306:4` when its static `ts make` method is called. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:757:14`.
+The `ts ServerRuntime` class placeholder throws from `name="modules/svelte-effect-runtime/src/mod.ts" line="306" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/mod.ts#L306"` when its static `ts make` method is called. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="757" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L757"`.
 
 ## Why this is the case
 

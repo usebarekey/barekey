@@ -11,9 +11,7 @@ In untyped JavaScript or through an unsafe cast, omitted, `ts undefined`, `ts nu
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:309:10`
-
-```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts" line="309" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L309"
 if (is_unchecked(validate_or_handler)) {
 	throw new UncheckedQueryHandlerMissingError();
 }
@@ -21,7 +19,7 @@ if (is_unchecked(validate_or_handler)) {
 
 The enclosing factory catches the exception, passes it through `ts normalize_remote_helper_error`, and rethrows it. Existing `ts Error` instances are returned unchanged, so the class, message, and stack survive. This is a synchronous factory exception, not an Effect failure from the query handler.
 
-The declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:381:14`.
+The declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="381" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L381"`.
 
 ## Why this is the case
 

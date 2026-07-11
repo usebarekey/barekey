@@ -1,7 +1,8 @@
 @reference "../../tailwind-reference.css";
 
 .prose .docs-code-snippet {
-	@apply my-6 max-w-full w-fit;
+	@apply relative my-6 max-w-full;
+	width: var(--docs-prose-media-inline-size, min(100%, 74ch));
 }
 
 .docs-code-snippet-header {
@@ -10,20 +11,33 @@
 
 .docs-code-snippet-filename {
 	@apply flex w-min flex-row items-center gap-2 rounded-3xl bg-linear-to-t
-    from-background/30 to-foreground/5 px-2 py-px card card-outline;
+		from-background/30 to-foreground/5 px-2 py-px text-sm text-foreground
+		no-underline card-lg;
 }
 
-.docs-code-snippet-filename-text {
-	@apply whitespace-nowrap text-sm text-muted-foreground;
+.docs-code-snippet-filename .docs-source-location-name {
+	@apply whitespace-nowrap font-bold text-foreground;
+}
+
+.docs-code-snippet-filename .docs-source-location-position {
+	@apply whitespace-nowrap font-mono text-muted-foreground;
 }
 
 .docs-code-snippet-copy {
 	@apply p-1.5;
 }
 
+.docs-code-snippet-copy-overlay {
+	@apply absolute right-4 top-4 z-10;
+}
+
+.docs-code-snippet-copy-overlay + .docs-code-snippet-body {
+	@apply pr-14;
+}
+
 .docs-code-snippet-body {
-	@apply max-w-full w-fit items-center overflow-x-auto rounded-3xl
-    bg-linear-to-t from-background/30 to-foreground/5 p-4 card card-outline;
+	@apply max-w-full w-full items-center overflow-x-auto rounded-3xl
+    bg-linear-to-t from-background/30 to-foreground/5 p-4 card-lg;
 }
 
 .docs-code-snippet-body .shiki {
@@ -44,6 +58,9 @@
 .docs-code-snippet-body code {
 	@apply block bg-transparent p-0 font-mono font-normal;
 	counter-reset: docs-code-line;
+	isolation: isolate;
+	position: relative;
+	z-index: 0;
 }
 
 .docs-code-snippet-body .line {
@@ -53,23 +70,79 @@
 }
 
 .docs-code-snippet-body .line[data-diff] {
-	@apply rounded-md pr-2 card-diff;
-	--diff-line-from-opacity: 12.5%;
-	--diff-line-to-opacity: 20%;
-	background-image: linear-gradient(
-		to bottom,
-		color-mix(in oklab, var(--shiki-diff-light) var(--diff-line-from-opacity), transparent),
-		color-mix(in oklab, var(--shiki-diff-light) var(--diff-line-to-opacity), transparent)
-	);
+	@apply pr-2;
+	--diff-fill-from-opacity: 12.5%;
+	--diff-fill-to-opacity: 20%;
+	--diff-radius: 0.875rem;
+	--diff-lip-radius: var(--diff-radius);
+	--diff-card-drop-opacity: 45%;
+	--diff-card-ring-opacity: 36%;
+	--diff-card-shadow-opacity: 8%;
+	--diff-card-top-opacity: 24%;
 }
 
 .docs-code-snippet-body .line[data-diff="deleted"] {
-	--diff-line-from-opacity: 9%;
-	--diff-line-to-opacity: 18%;
-	--diff-card-top-opacity: 16%;
-	--diff-card-shadow-opacity: 5%;
-	--diff-card-ring-opacity: 24%;
+	--diff-fill-from-opacity: 9%;
+	--diff-fill-to-opacity: 18%;
 	--diff-card-drop-opacity: 30%;
+	--diff-card-ring-opacity: 24%;
+	--diff-card-shadow-opacity: 5%;
+	--diff-card-top-opacity: 16%;
+}
+
+.docs-code-diff-card {
+	--diff-fill-from-color: color-mix(
+		in oklab,
+		var(--shiki-diff-light) var(--diff-fill-from-opacity),
+		transparent
+	);
+	--diff-fill-to-color: color-mix(
+		in oklab,
+		var(--shiki-diff-light) var(--diff-fill-to-opacity),
+		transparent
+	);
+	--diff-card-drop-color: color-mix(
+		in oklab,
+		var(--shiki-diff-light) var(--diff-card-drop-opacity),
+		#000
+	);
+	--diff-card-ring-color: color-mix(
+		in oklab,
+		var(--shiki-diff-light) var(--diff-card-ring-opacity),
+		transparent
+	);
+	--diff-card-shadow-color: color-mix(
+		in oklab,
+		var(--shiki-diff-light) var(--diff-card-shadow-opacity),
+		transparent
+	);
+	--diff-card-top-color: color-mix(
+		in oklab,
+		var(--shiki-diff-light) var(--diff-card-top-opacity),
+		transparent
+	);
+	filter: drop-shadow(0 -0.5px var(--diff-card-top-color))
+		drop-shadow(0 4px 8px var(--diff-card-shadow-color))
+		drop-shadow(0 1px 2px var(--diff-card-drop-color));
+	overflow: visible;
+	pointer-events: none;
+	position: absolute;
+	z-index: -1;
+}
+
+.docs-code-diff-card-gradient-start {
+	stop-color: var(--diff-fill-from-color);
+}
+
+.docs-code-diff-card-gradient-end {
+	stop-color: var(--diff-fill-to-color);
+}
+
+.docs-code-diff-card path {
+	stroke: var(--diff-card-ring-color);
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 1px;
 }
 
 .docs-code-snippet-body .line::before {

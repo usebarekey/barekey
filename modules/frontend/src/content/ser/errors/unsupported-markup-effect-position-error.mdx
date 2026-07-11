@@ -11,9 +11,7 @@ SER supports expression tags; `ts if`, `ts each`, `ts await`, and `ts key` block
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/markup/transform/index.ts:79:3`
-
-```ts name="modules/svelte-effect-runtime/src/markup/transform/index.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/markup/transform/index.ts" icon="ts" line="79" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/markup/transform/index.ts#L79"
 const classified = classify_candidates(ast, work.candidates);
 const matched = new Set(classified.map(({ candidate }) => candidate.placeholder));
 const unmatched = work.candidates.find((candidate) => !matched.has(candidate.placeholder));
@@ -25,7 +23,7 @@ if (unmatched) {
 
 The scanner first replaces every relevant brace expression with a placeholder so Svelte can parse the sanitized markup. The classifier then walks only AST positions SER knows how to emit. The first placeholder that was scanned but never classified becomes `ts unmatched` and causes this synchronous transform exception.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:322:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="322" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L322"`.
 
 ## Why this is the case
 

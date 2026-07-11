@@ -11,9 +11,7 @@ Top-level is relative to the statement being inspected. The detectors do not des
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/script-transform/index.ts:145:4`
-
-```ts name="modules/svelte-effect-runtime/src/script-transform/index.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/script-transform/index.ts" icon="ts" line="145" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/script-transform/index.ts#L145"
 const has_top_level_yield_star = contains_top_level_yield_star(stmt);
 
 if (!has_top_level_yield_star) {
@@ -31,7 +29,7 @@ if (lowered.effect_blocks.length > 0 && contains_top_level_await(stmt)) {
 
 All three predicates are relevant: a top-level `ts yield*` must exist, lowering must have produced an Effect block, and a top-level `ts await` must remain in that statement. The exception is synchronous and stops preprocessing.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:126:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="126" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L126"`.
 
 ## Why this is the case
 

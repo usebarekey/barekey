@@ -13,9 +13,7 @@ This differs from `ts UnsupportedRemoteFormResponseError`: the invalid variant m
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:148:43`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts" line="148" char="43" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L148"
 const response = decode_form_response_envelope(envelope);
 
 if (!response) {
@@ -25,7 +23,7 @@ if (!response) {
 
 The decoder above uses Effect Schema to match the raw JSON against the error/result envelope union. The error is constructed only when that decoder returns no recognized branch. It is immediately nested inside `ts RemoteTransportError`, so client code normally inspects `ts error.cause` to reach it.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:669:14`. This is its sole production construction site.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="669" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L669"`. This is its sole production construction site.
 
 ## Why this is the case
 

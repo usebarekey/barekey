@@ -11,9 +11,7 @@ Omission and other falsy values can reach the guard through JavaScript, generate
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:523:10`
-
-```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts" line="523" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L523"
 if (is_unchecked(validate_or_handler)) {
 	throw new UncheckedCommandHandlerMissingError();
 }
@@ -21,7 +19,7 @@ if (is_unchecked(validate_or_handler)) {
 
 The factory catches, normalizes, and synchronously rethrows the same `ts Error` instance at its declaration boundary. No Command Effect has run at this point.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:441:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="441" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L441"`.
 
 ## Why this is the case
 

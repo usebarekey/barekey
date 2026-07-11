@@ -13,9 +13,7 @@ Application Effects normally receive a `ts RemoteTransportError`. This class is 
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:90:43`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts" line="90" char="43" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L90"
 if (!action_id || remote_base.length === 0) {
 	throw create_remote_transport_error(new RemoteFormEndpointMissingError());
 }
@@ -23,7 +21,7 @@ if (!action_id || remote_base.length === 0) {
 
 The guard runs before `ts to_remote_form_url` and before any request is issued. It is a synchronous throw inside the asynchronous submission path, so the surrounding Promise rejects and the adapter exposes the resulting tagged `ts RemoteTransportError` through its Effect error channel.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:647:14`. No other production construction site exists.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="647" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L647"`. No other production construction site exists.
 
 ## Why this is the case
 

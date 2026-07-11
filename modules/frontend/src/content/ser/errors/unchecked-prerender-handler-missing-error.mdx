@@ -11,9 +11,7 @@ The guard therefore uses an exact callable check rather than truthiness. An omit
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:711:10`
-
-```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts" line="711" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L711"
 if (is_unchecked(validate_or_handler)) {
 	throw new UncheckedPrerenderHandlerMissingError();
 }
@@ -21,7 +19,7 @@ if (is_unchecked(validate_or_handler)) {
 
 This branch is reached after the factory has tested the second argument with `ts typeof value === "function"`. It throws synchronously during helper creation and is rethrown unchanged after normalization.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:481:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="481" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L481"`.
 
 ## Why this is the case
 

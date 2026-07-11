@@ -15,9 +15,7 @@ The dispatcher treats other post-disposal operations differently. `ts fork(...)`
 
 Promise bridge:
 
-`icon="ts" modules/svelte-effect-runtime/src/dispatcher/index.ts:266:26`
-
-```ts name="modules/svelte-effect-runtime/src/dispatcher/index.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/dispatcher/index.ts" icon="ts" line="266" char="26" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/dispatcher/index.ts#L266"
 promise<A>(options: PromiseOptions<A>): Promise<A> {
 	if (this.#disposed) {
 		return Promise.reject(new DispatcherDisposedError());
@@ -26,16 +24,14 @@ promise<A>(options: PromiseOptions<A>): Promise<A> {
 
 Direct Effect run:
 
-`icon="ts" modules/svelte-effect-runtime/src/dispatcher/index.ts:306:26`
-
-```ts name="modules/svelte-effect-runtime/src/dispatcher/index.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/dispatcher/index.ts" icon="ts" line="306" char="26" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/dispatcher/index.ts#L306"
 run<A, E, R>(effect: Effect.Effect<A, E, R>): Promise<A> {
 	if (this.#disposed) {
 		return Promise.reject(new DispatcherDisposedError());
 	}
 ```
 
-These methods do not throw synchronously. They return rejected Promises. Failing to await or otherwise observe the Promise can surface the class as an unhandled rejection. Disposal marks the flag at `icon="ts" modules/svelte-effect-runtime/src/dispatcher/index.ts:385:3`.
+These methods do not throw synchronously. They return rejected Promises. Failing to await or otherwise observe the Promise can surface the class as an unhandled rejection. Disposal marks the flag at `name="modules/svelte-effect-runtime/src/dispatcher/index.ts" line="385" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/dispatcher/index.ts#L385"`.
 
 ## Why this is the case
 

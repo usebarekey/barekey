@@ -11,9 +11,7 @@ Markup classification has already established that the attribute follows Svelte'
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/markup/transform/emit.ts:199:3`
-
-```ts name="modules/svelte-effect-runtime/src/markup/transform/emit.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/markup/transform/emit.ts" icon="ts" line="199" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/markup/transform/emit.ts#L199"
 const expr_text = candidate.expr_text;
 
 if (is_callback_function_expression(expr_text)) {
@@ -21,7 +19,7 @@ if (is_callback_function_expression(expr_text)) {
 }
 ```
 
-This happens during markup emission, before SER generates the actual event callback. It is a synchronous preprocessing exception. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:272:14`.
+This happens during markup emission, before SER generates the actual event callback. It is a synchronous preprocessing exception. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="272" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L272"`.
 
 The accepted boundary form leaves callback creation to SER:
 

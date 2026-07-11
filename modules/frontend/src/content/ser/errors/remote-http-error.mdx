@@ -13,9 +13,7 @@ SER constructs this variant in three situations. A remote form error envelope ma
 
 An unrecognized form error envelope falls back to its reported status, or `ts 500` when the envelope omitted one:
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:158:9`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts" line="158" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L158"
 const decoded_error = decode_remote_error(response.error);
 
 if (is_remote_failure(decoded_error)) {
@@ -27,9 +25,7 @@ throw create_remote_http_error(response.status ?? 500, response.error);
 
 A native rejected value with a numeric status is normalized here:
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/failures.ts:181:10`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts" line="181" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L181"
 if (status !== undefined) {
 	return create_remote_http_error(status, body, error);
 }
@@ -37,9 +33,7 @@ if (status !== undefined) {
 
 A failed `ts Response` whose body is not already a tagged failure is converted here:
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/responses.ts:28:9`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/responses.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/responses.ts" icon="ts" line="28" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/responses.ts#L28"
 const decoded_error = decode_remote_error(body);
 
 if (is_remote_failure(decoded_error)) {
@@ -49,7 +43,7 @@ if (is_remote_failure(decoded_error)) {
 return create_remote_http_error(response.status, body);
 ```
 
-The common constructor is `icon="ts" modules/svelte-effect-runtime/src/remote/shared.ts:313:17`.
+The common constructor is `name="modules/svelte-effect-runtime/src/remote/shared.ts" line="313" char="17" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/shared.ts#L313"`.
 
 ## Why this is the case
 

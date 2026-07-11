@@ -15,9 +15,7 @@ The second family opens the first callback passed to `ts $derived.by`, `ts $effe
 
 Unsupported rune argument:
 
-`icon="ts" modules/svelte-effect-runtime/src/script-transform/runes.ts:53:3`
-
-```ts name="modules/svelte-effect-runtime/src/script-transform/runes.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/script-transform/runes.ts" icon="ts" line="53" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/script-transform/runes.ts#L53"
 if (!ASYNC_EXPRESSION_RUNES.has(rune_name) && contains_top_level_yield_star(call)) {
 	throw new AsyncEffectInSyncRuneError(rune_name, slice(content, call), filename);
 }
@@ -25,9 +23,7 @@ if (!ASYNC_EXPRESSION_RUNES.has(rune_name) && contains_top_level_yield_star(call
 
 Synchronous rune callback:
 
-`icon="ts" modules/svelte-effect-runtime/src/script-transform/runes.ts:66:2`
-
-```ts name="modules/svelte-effect-runtime/src/script-transform/runes.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/script-transform/runes.ts" icon="ts" line="66" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/script-transform/runes.ts#L66"
 if (!CALLBACK_RUNES.has(rune_name)) {
 	return;
 }
@@ -41,7 +37,7 @@ if (!callback || !callback_has_top_level_yield_star(callback)) {
 throw new AsyncEffectInSyncRuneError(rune_name, slice(content, call), filename);
 ```
 
-Both are synchronous transform exceptions. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:169:14`.
+Both are synchronous transform exceptions. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="169" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L169"`.
 
 ## Why this is the case
 

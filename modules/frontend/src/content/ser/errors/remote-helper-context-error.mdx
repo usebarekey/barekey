@@ -11,9 +11,7 @@ SER recognizes the condition by message because SvelteKit does not expose a stab
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/server.ts:290:10`
-
-```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts" line="290" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/server.ts#L290"
 export function normalize_remote_helper_error(err: unknown, helper_name: string): Error {
 	if (is_sveltekit_remote_context_error(err)) {
 		return new RemoteHelperContextError(helper_name);
@@ -25,23 +23,23 @@ export function normalize_remote_helper_error(err: unknown, helper_name: string)
 
 Factory-level catches call this normalization at:
 
-- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:318:3` for `ts Query`.
-- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:355:3` for `ts Query.batch`.
-- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:409:3` for `ts Query.live`.
-- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:530:3` for `ts Command`.
-- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:595:3` for `ts Form`.
-- `icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:719:3` for `ts Prerender`.
+- `name="modules/svelte-effect-runtime/src/server/factories.ts" line="318" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L318"` for `ts Query`.
+- `name="modules/svelte-effect-runtime/src/server/factories.ts" line="355" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L355"` for `ts Query.batch`.
+- `name="modules/svelte-effect-runtime/src/server/factories.ts" line="409" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L409"` for `ts Query.live`.
+- `name="modules/svelte-effect-runtime/src/server/factories.ts" line="530" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L530"` for `ts Command`.
+- `name="modules/svelte-effect-runtime/src/server/factories.ts" line="595" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L595"` for `ts Form`.
+- `name="modules/svelte-effect-runtime/src/server/factories.ts" line="719" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L719"` for `ts Prerender`.
 
 Wrapper-level catches also normalize request capture and synchronous handler invocation:
 
-- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:54:4`
-- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:63:5`
-- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:87:4`
-- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:96:5`
-- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:120:4`
-- `icon="ts" modules/svelte-effect-runtime/src/server/wrappers.ts:135:5`
+- `name="modules/svelte-effect-runtime/src/server/wrappers.ts" line="54" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/wrappers.ts#L54"`
+- `name="modules/svelte-effect-runtime/src/server/wrappers.ts" line="63" char="5" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/wrappers.ts#L63"`
+- `name="modules/svelte-effect-runtime/src/server/wrappers.ts" line="87" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/wrappers.ts#L87"`
+- `name="modules/svelte-effect-runtime/src/server/wrappers.ts" line="96" char="5" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/wrappers.ts#L96"`
+- `name="modules/svelte-effect-runtime/src/server/wrappers.ts" line="120" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/wrappers.ts#L120"`
+- `name="modules/svelte-effect-runtime/src/server/wrappers.ts" line="135" char="5" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/wrappers.ts#L135"`
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:816:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="816" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L816"`.
 
 ## Why this is the case
 

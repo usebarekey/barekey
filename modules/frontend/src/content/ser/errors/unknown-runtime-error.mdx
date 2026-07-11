@@ -13,9 +13,7 @@ Current SER production code does not construct or throw this class. It remains e
 
 There is no internal production trigger. The class is declared here:
 
-`icon="ts" modules/svelte-effect-runtime/src/errors.ts:875:14`
-
-```ts name="modules/svelte-effect-runtime/src/errors.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/errors.ts" icon="ts" line="875" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L875"
 export class UnknownRuntimeError extends RuntimeError {
 	readonly value: unknown;
 
@@ -27,7 +25,7 @@ export class UnknownRuntimeError extends RuntimeError {
 }
 ```
 
-It is re-exported from `icon="ts" modules/svelte-effect-runtime/src/mod.ts:239:2`. Any observed instance must have been constructed by application or integration code against that public API.
+It is re-exported from `name="modules/svelte-effect-runtime/src/mod.ts" line="239" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/mod.ts#L239"`. Any observed instance must have been constructed by application or integration code against that public API.
 
 ## Why this is the case
 

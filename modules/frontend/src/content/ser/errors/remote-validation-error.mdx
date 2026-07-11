@@ -13,9 +13,7 @@ An already-tagged `ts RemoteValidationError` received through the general remote
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/form-transport.ts:181:9`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts" line="181" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L181"
 if (decoded.issues && decoded.issues.length > 0) {
 	throw create_remote_validation_error(decoded.issues, decoded, 400);
 }
@@ -23,9 +21,7 @@ if (decoded.issues && decoded.issues.length > 0) {
 
 The factory creates the tagged record here:
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/shared.ts:290:17`
-
-```ts name="modules/svelte-effect-runtime/src/remote/shared.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/shared.ts" icon="ts" line="290" char="17" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/shared.ts#L290"
 export function create_remote_validation_error(
 	issues?: readonly FormIssue[],
 	body?: unknown,

@@ -15,9 +15,7 @@ The current diagnostic message mentions an object with a `ts query` method. The 
 
 Non-callable client factory, thrown synchronously during adapter creation:
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/query.ts:147:9`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/query.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/query.ts" icon="ts" line="147" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/query.ts#L147"
 if (typeof native_factory !== "function") {
 	throw new InvalidLiveQueryFactoryError();
 }
@@ -25,9 +23,7 @@ if (typeof native_factory !== "function") {
 
 Factory result without a callable async iterator, thrown synchronously by the live resource validator:
 
-`icon="ts" modules/svelte-effect-runtime/src/live.ts:204:9`
-
-```ts name="modules/svelte-effect-runtime/src/live.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/live.ts" icon="ts" line="204" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/live.ts#L204"
 if (!is_async_iterable_resource(resource)) {
 	throw new InvalidLiveQueryFactoryError();
 }
@@ -35,9 +31,7 @@ if (!is_async_iterable_resource(resource)) {
 
 Missing reconnect metadata or method, returned as a lazy Effect failure:
 
-`icon="ts" modules/svelte-effect-runtime/src/live.ts:188:23`
-
-```ts name="modules/svelte-effect-runtime/src/live.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/live.ts" icon="ts" line="188" char="23" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/live.ts#L188"
 if (!metadata || typeof metadata.resource.reconnect !== "function") {
 	return Effect.fail(new InvalidLiveQueryFactoryError()) as unknown as Effect.Effect<
 		void,
@@ -46,7 +40,7 @@ if (!metadata || typeof metadata.resource.reconnect !== "function") {
 }
 ```
 
-The third path is not a synchronous throw. It becomes a typed failure only when the reconnect Effect runs. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:607:14`.
+The third path is not a synchronous throw. It becomes a typed failure only when the reconnect Effect runs. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="607" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L607"`.
 
 ## Why this is the case
 

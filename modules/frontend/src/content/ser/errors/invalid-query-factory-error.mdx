@@ -13,9 +13,7 @@ The current error message mentions objects exposing `ts query` or `ts load`. The
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/client/query.ts:90:9`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/query.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/query.ts" icon="ts" line="90" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/query.ts#L90"
 const load = has_method(native_factory, "load")
 	? native_factory.load.bind(native_factory)
 	: undefined;
@@ -26,9 +24,9 @@ if (!query && !load) {
 }
 ```
 
-`ts has_method` requires a non-null object and a callable property. The throw is synchronous and occurs before the wrapped Query Effect is returned. Generated code calls this adapter from `icon="ts" modules/svelte-effect-runtime/src/compiler/remote-client.ts:129:2`.
+`ts has_method` requires a non-null object and a callable property. The throw is synchronous and occurs before the wrapped Query Effect is returned. Generated code calls this adapter from `name="modules/svelte-effect-runtime/src/compiler/remote-client.ts" line="129" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/compiler/remote-client.ts#L129"`.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:587:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="587" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L587"`.
 
 ## Why this is the case
 

@@ -11,9 +11,7 @@ Omitted, `ts undefined`, `ts null`, `ts false`, `ts 0`, and an empty string trig
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:345:10`
-
-```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts" line="345" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L345"
 if (!maybe_handler) {
 	throw new BatchQueryHandlerMissingError();
 }
@@ -21,7 +19,7 @@ if (!maybe_handler) {
 
 This check runs before SER calls the native SvelteKit batch helper. The enclosing factory normalizes and rethrows the existing error unchanged, making it a synchronous declaration-time exception.
 
-The declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:401:14`.
+The declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="401" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L401"`.
 
 ## Why this is the case
 

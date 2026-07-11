@@ -11,9 +11,7 @@ The handler must return the Effect Stream directly. Native sources can be wrappe
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/server/effects.ts:87:9`
-
-```ts name="modules/svelte-effect-runtime/src/server/effects.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/server/effects.ts" icon="ts" line="87" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/effects.ts#L87"
 if (!is_live_source(source)) {
 	throw new InvalidLiveQueryReturnError();
 }
@@ -21,7 +19,7 @@ if (!is_live_source(source)) {
 
 The wrapper invokes the handler synchronously, passes its immediate return value into this validator, and catches the thrown class. Helper normalization returns existing `ts Error` instances unchanged, so the async remote wrapper's Promise rejects with `ts InvalidLiveQueryReturnError`.
 
-The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:501:14`.
+The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="501" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L501"`.
 
 ## Why this is the case
 

@@ -11,9 +11,7 @@ Examples include `ts throw "failed"`, `ts throw 42`, `ts throw null`, or `ts thr
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/remote/server.ts:293:38`
-
-```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts" line="293" char="38" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/server.ts#L293"
 if (is_sveltekit_remote_context_error(err)) {
 	return new RemoteHelperContextError(helper_name);
 }
@@ -21,7 +19,7 @@ if (is_sveltekit_remote_context_error(err)) {
 return err instanceof Error ? err : new RemoteHelperError(err);
 ```
 
-Every normalization call listed for `ts RemoteHelperContextError` can reach this branch. Factory catches live in `ts server/factories.ts`; wrapper catches live in `ts server/wrappers.ts`. The class declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:848:14`.
+Every normalization call listed for `ts RemoteHelperContextError` can reach this branch. Factory catches live in `ts server/factories.ts`; wrapper catches live in `ts server/wrappers.ts`. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="848" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L848"`.
 
 This class describes synchronous JavaScript values caught at those boundaries. A typed Effect failure produced after handler execution starts is encoded through the remote failure protocol and does not automatically become `ts RemoteHelperError`.
 

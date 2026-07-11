@@ -11,9 +11,7 @@ The guard catches omitted and other falsy values when static typing has been byp
 
 ## Exactly where it triggers
 
-`icon="ts" modules/svelte-effect-runtime/src/server/factories.ts:397:10`
-
-```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/server/factories.ts" icon="ts" line="397" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/factories.ts#L397"
 if (is_unchecked(validate_or_handler)) {
 	throw new UncheckedLiveQueryHandlerMissingError();
 }
@@ -21,7 +19,7 @@ if (is_unchecked(validate_or_handler)) {
 
 The surrounding `ts try`/`ts catch` rethrows this existing error unchanged after helper normalization. It is raised synchronously while the remote export is created, before any live request starts.
 
-The declaration is `icon="ts" modules/svelte-effect-runtime/src/errors.ts:421:14`.
+The declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="421" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L421"`.
 
 ## Why this is the case
 
