@@ -115,7 +115,8 @@
 
 <article
 	bind:this={card_element}
-	class="relative isolate min-w-0 rounded-full bg-background card"
+	class="relative isolate min-w-0 rounded-full bg-background card-color"
+	style:--card-color={contributor.dominant_color}
 >
 	<div
 		aria-hidden="true"
@@ -132,8 +133,8 @@
 			{contributor.name}
 		</p>
 		<Badge
-			variant="outline"
-			class="bg-background/55 font-mono text-[0.6875rem] text-muted-foreground backdrop-blur-md"
+			variant="secondary"
+			class="bg-secondary/50 font-mono text-[0.6875rem] backdrop-blur-md"
 		>
 			{contributor.commits.toLocaleString("en-US")}
 			{contributor.commits === 1 ? "commit" : "commits"}
