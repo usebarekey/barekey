@@ -1,0 +1,95 @@
+---
+title: "Changelog"
+description: "Follow new SER releases and the Barekey documentation that ships with them."
+---
+
+# Changelog
+
+SER and its Barekey documentation release together. This page records changes to the runtime, compiler, editor tooling, and the documentation that explains them.
+
+## 4.0.0
+
+> [!NOTE] Upcoming release
+> `4.0.0` has not been published yet. These notes follow the work currently assigned to the release and may be adjusted before the release tag is cut.
+
+### Query.live is stream-native
+
+`ts Query.live` now returns Effect's Stream data type directly. It no longer resolves to the old live-resource object with `current`, `loading`, `ready`, `connected`, and `reconnect` properties.
+
+```ts
+const clock = Clock();
+
+yield * clock.pipe(Stream.runForEach((time) => Effect.sync(() => update_clock(time))));
+```
+
+Live-query handlers must return a Stream as well. Native iterables and async generators remain usable, although they first need a Stream constructor such as `ts Stream.fromIterable(...)` or `ts Stream.fromAsyncIterable(...)`. Returning an ordinary value, Promise, iterable, or an Effect that later produces a Stream raises `InvalidLiveQueryReturnError`.
+
+Transport controls have moved to the new `ts Live` helpers:
+
+- `ts Live.status(stream)` returns a Stream of connection states.
+- `ts Live.reconnect(stream)` returns an Effect that requests a reconnect.
+
+Stream operators preserve SER's hidden transport metadata through `ts pipe(...)`, so a derived remote Stream can still be passed to both helpers. A direct `ser yield* stream` reads its first element; if the Stream completes before emitting, it fails with `EmptyStreamYieldError`.
+
+See [Query.live](/docs/ser/query#querylive) for the complete API and migration table.
+
+### Native SvelteKit handlers can run Effects
+
+The new `ts Handler(...)` adapter runs native SvelteKit server callbacks through `ServerRuntime`. This covers route handlers such as `GET` and `POST` while leaving method selection, request arguments, and response validation with SvelteKit.
+
+```ts name="+server.ts" icon="ts"
+import type { RequestHandler } from "./$types";
+import { Handler } from "svelte-effect-runtime";
+
+export const GET = Handler<RequestHandler>(function* ({ params }) {
+	const post = yield* Posts.Get(params.slug);
+
+	return Response.json(post);
+});
+```
+
+The active `RequestEvent` is available as an Effect service throughout the handler call. Native HTTP handlers do not expose a typed Effect error channel, however, so domain failures must be recovered or translated into SvelteKit control flow before returning.
+
+See [Handler](/docs/ser/handler) for request scope and error-boundary details.
+
+### Compiler entrypoint renamed
+
+The Vite plugin entrypoint moved from `svelte-effect-runtime/vite` to `svelte-effect-runtime/compiler`.
+
+```ts name="vite.config.ts" icon="vite" diff
+- import { effect } from "svelte-effect-runtime/vite";
++ import { effect } from "svelte-effect-runtime/compiler";
+```
+
+The root `svelte-effect-runtime` export remains available. Projects that import the compiler subpath directly must update that import when moving to `4.0.0`.
+
+### Compiler and markup changes
+
+Script, markup, diagnostics, and language-server transforms now share one bounded Svelte source scanner. Apart from removing duplicated parsing logic, this changes a few observable edges:
+
+- Event attributes follow Svelte's conventions instead of relying on a loose name check. Current `onclick` attributes and legacy `on:click` directives are both recognized at the AST boundary.
+- Script effects are split into independent runtime blocks, which keeps unrelated effect work from being coupled to one generated block.
+- Server import rewriting parses imports structurally, including supported server and remote module forms, instead of depending on textual matches.
+- Markup and editor diagnostics use the same source ranges as the compiler, reducing disagreements between the editor and the build.
+
+### Forms preserve array indices
+
+Nested array values now use indexed FormData paths such as `items[0]` and `items[1]`. Previously, repeated `items[]` paths lost the original index, which made nested validation paths ambiguous once an array contained structured values.
+
+### Runtime and error behavior
+
+`ClientRuntime.make(...)` and `ServerRuntime.make(...)` now reject a second initialization with `RuntimeAlreadyInitializedError`. Vite development SSR remains the exception: HMR disposes the previous server runtime before installing its replacement.
+
+SER's public errors now use one documented hierarchy for compiler, runtime, remote-handler, factory, and transport failures. Dead exports that could no longer be reached, including `UnknownRuntimeError` and `VitePreTransformPluginConflictError`, have been removed. The old in-package documentation module has also been removed; Barekey is now the release documentation for SER.
+
+### Barekey documentation
+
+The `4.0.0` release ships with a rewritten SER manual on Barekey:
+
+- New guides cover client effect computation, the Dispatcher, remote functions, `RequestEvent`, native handlers, and client/server runtimes.
+- `Query.live` has a stream-first guide with consumption, status, reconnection, and migration examples.
+- Every public SER failure has a dedicated technical reference page, grouped by subsystem and linked to the exact source line that raises it.
+- Code snippets carry filenames, source coordinates, GitHub links, copy feedback, and language-aware highlighting directly in their headers.
+- Documentation pages are available as Markdown through the `.md` URL or an `Accept: text/markdown` request.
+- The documentation sidebar supports collapsible groups and named error categories, while the table of contents follows deeply nested sections.
+- Barekey's landing and pricing pages now share the same visual system as the documentation.
