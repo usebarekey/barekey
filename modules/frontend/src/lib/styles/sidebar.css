@@ -335,6 +335,11 @@
 	border-color: transparent;
 }
 
+[data-slot="sidebar"][data-motion-phase="children-exiting"] .docs-sidebar-selected-caret,
+[data-slot="sidebar"][data-collapsible="icon"] .docs-sidebar-selected-caret {
+	opacity: 0;
+}
+
 .t-velocity-stretch {
 	transform: translate3d(0, 0, 0);
 	transform-origin: center;

@@ -40,3 +40,13 @@ test("sidebar shell collapse avoids layout-property transitions", () => {
 	expect(shell_motion).not.toMatch(/\b(width|height|max-width|inset-inline-(start|end))\b/);
 	expect(shell_motion).toContain("clip-path");
 });
+
+test("selected caret stays hidden throughout sidebar collapse", () => {
+	const css = readFileSync("src/lib/styles/sidebar.css", "utf8");
+	const caret_exit = css.match(
+		/\[data-motion-phase="children-exiting"\][\s\S]*?\.docs-sidebar-selected-caret[\s\S]*?\[data-collapsible="icon"\][\s\S]*?\.docs-sidebar-selected-caret \{[\s\S]*?\n\}/,
+	)?.[0];
+
+	expect(caret_exit).toBeDefined();
+	expect(caret_exit).toContain("opacity: 0");
+});
