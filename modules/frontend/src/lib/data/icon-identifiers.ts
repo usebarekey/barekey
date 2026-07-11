@@ -1,7 +1,3 @@
-/**
- * Icon identifiers supported by the docs code snippet renderer.
- * @since 0.0.1
- */
 export type FileIconIdentifier =
 	| "aube"
 	| "bun"
@@ -80,12 +76,6 @@ const get_file_extension = (filename: string) => {
 	return extension === filename ? undefined : extension;
 };
 
-/**
- * Resolves a filename to a supported icon identifier.
- * @param filename Filename to inspect.
- * @returns Matching icon identifier, or undefined when no icon matches.
- * @since 0.0.1
- */
 export const get_file_icon_identifier = (filename: string | undefined) => {
 	if (!filename) {
 		return;

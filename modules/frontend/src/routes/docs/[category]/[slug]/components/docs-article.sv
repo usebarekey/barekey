@@ -1,11 +1,15 @@
 <script lang="ts">
+	import type { Snippet } from "svelte";
+
 	let {
+		children,
 		description,
-		html,
+		heading_id,
 		title,
 	}: {
+		children: Snippet;
 		description: string | undefined;
-		html: string;
+		heading_id: string;
 		title: string;
 	} = $props();
 </script>
@@ -15,7 +19,9 @@
 	data-prose-media-scope
 >
 	<div class="flex max-w-[60ch] flex-col gap-2">
-		<h1 class="font-heading text-3xl font-semibold">{title}</h1>
+		<h1 id={heading_id} class="font-heading text-3xl font-semibold">
+			<a class="docs-heading-self-link" href={`#${heading_id}`}>{title}</a>
+		</h1>
 		{#if description}
 			<span class="font-medium text-muted-foreground">{description}</span>
 		{/if}
@@ -24,6 +30,6 @@
 	<div class="docs-prose-divider h-px bg-foreground/10"></div>
 
 	<div class="prose max-w-none font-medium">
-		{@html html}
+		{@render children()}
 	</div>
 </div>

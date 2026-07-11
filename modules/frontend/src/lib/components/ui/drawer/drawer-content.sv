@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Drawer as DrawerPrimitive } from "vaul-svelte";
-	import DrawerPortal from "./drawer-portal.sv";
-	import DrawerOverlay from "./drawer-overlay.sv";
+	import DrawerPortal from "$lib/components/ui/drawer/drawer-portal.sv";
+	import DrawerOverlay from "$lib/components/ui/drawer/drawer-overlay.sv";
 	import { cn } from "$lib/utils";
 	import type { ComponentProps } from "svelte";
 	import type { WithoutChildrenOrChild } from "$lib/utils";

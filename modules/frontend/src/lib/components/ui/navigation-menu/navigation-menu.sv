@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { NavigationMenu as NavigationMenuPrimitive } from "bits-ui";
 	import { cn } from "$lib/utils";
-	import NavigationMenuViewport from "./navigation-menu-viewport.sv";
+	import NavigationMenuViewport from "$lib/components/ui/navigation-menu/navigation-menu-viewport.sv";
 
 	let {
 		ref = $bindable(null),

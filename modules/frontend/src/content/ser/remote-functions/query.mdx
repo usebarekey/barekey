@@ -8,7 +8,7 @@ description: "Read data from the server without side-effects."
 > [!TIP]
 > SER cannot detect side effects inside a query handler. It is up to you to keep queries read-only. Use [Command](/docs/ser/command) or [Form](/docs/ser/form) for mutations.
 
-Define a query by passing an Effect (or an Effect-returning function) to `ts Query`:
+Define a query by passing an effect (or an effect-returning function) to `ts Query`:
 
 ```ts icon="ts" name="post.remote.ts"
 import { Effect } from "effect";
@@ -26,7 +26,7 @@ export const GetPosts = Query(
 );
 ```
 
-On the client you call the exported function and `ser yield*` the result inside an `ser effect` script. The call returns an Effect that resolves to your data:
+On the client you call the exported function and `ser yield*` the result inside an `ser effect` script. The call returns an effect that resolves to your data:
 
 ```ser icon="svelte" name="+page.svelte"
 <script effect>
@@ -103,14 +103,14 @@ export const GetPost = Query("unchecked", (slug: string) => Effect.succeed(slug)
 
 Calling a query function returns an object that is both:
 
-- An Effect you can `ser yield*` to obtain the data (`A`)
+- An effect you can `ser yield*` to obtain the data (`A`)
 - A resource with reactive fields and methods
 
 Available on every query call result:
 
 - `current` – last successful value (or `undefined`)
 - `loading`, `ready`, `error`
-- `ts refresh()` – returns an Effect that forces a refetch
+- `ts refresh()` – returns an effect that forces a refetch
 
 ```ser icon="svelte" name="+page.svelte"
 <script effect>
@@ -195,18 +195,18 @@ Batching only affects transport. Each caller still receives its own result.
 
 ## Query.live
 
-A normal `ts Query` asks the server for one value. `ts Query.live` sounds as though it might run that query over and over, although that is not what happens. It opens a remote source and gives the client an Effect Stream.
+A normal `ts Query` asks the server for one value. `ts Query.live` sounds as though it might run that query over and over, although that is not what happens. It opens a remote source and gives the client a Stream from Effect.
 
-The handler must return Effect's `ts Stream.Stream<A, E, R>` data type directly. A number such as `42`, an object, an array, or a Promise does not satisfy that contract. Neither does `ts Effect.succeed(42)` or `ts Effect.succeed(Stream.make(42))`: both are single Effects, and `ts Query.live` does not run an Effect merely to see whether a Stream is hiding inside it.
+The handler must return Effect's `ts Stream.Stream<A, E, R>` data type directly. A number such as `42`, an object, an array, or a Promise does not satisfy that contract. Neither does `ts Effect.succeed(42)` or `ts Effect.succeed(Stream.make(42))`: both are single effects, and `ts Query.live` does not run an effect merely to see whether a Stream is hiding inside it.
 
 The Stream itself may emit perfectly ordinary JavaScript values. A `ts Stream<number>` emits numbers, for instance, while a `ts Stream<User>` emits user objects. What matters at the handler boundary is the container: return the Stream, not one of the values it may eventually emit.
 
-|                                  | `ts Query`                                  | `ts Query.live`                               |
-| -------------------------------- | ------------------------------------------- | --------------------------------------------- |
-| Server handler returns           | An Effect that resolves to one value        | An Effect Stream that may emit many values    |
-| Calling it on the client returns | A query Effect/resource                     | `ts RemoteLiveStream<A, E>`                   |
-| A direct `ser yield*` reads      | The query result                            | Only the first emitted Stream element         |
-| Keeping it active                | SvelteKit retains the cached query resource | A Stream runner consumes it until interrupted |
+|                                  | `ts Query`                                  | `ts Query.live`                                |
+| -------------------------------- | ------------------------------------------- | ---------------------------------------------- |
+| Server handler returns           | An effect that resolves to one value        | A Stream from Effect that may emit many values |
+| Calling it on the client returns | A query effect/resource                     | `ts RemoteLiveStream<A, E>`                    |
+| A direct `ser yield*` reads      | The query result                            | Only the first emitted Stream element          |
+| Keeping it active                | SvelteKit retains the cached query resource | A Stream runner consumes it until interrupted  |
 
 This is the part that differs from most remote functions. Calling the export does not immediately hand you a user, count, date, or other application value. Instead, it gives you the Stream that will carry those values, which is why operators such as `ts Stream.map`, `ts Stream.filter`, and `ts Stream.runForEach` are the natural client API.
 
@@ -263,7 +263,7 @@ Calling `ts Clock()` returns a `RemoteLiveStream` immediately, before any clock 
 </button>
 ```
 
-A direct `ser yield* clock` asks the Stream for one value and waits for its first element. Once that element arrives, the yield is complete; it does not quietly leave a subscription running in the background. If the Stream finishes without emitting, the Effect fails with `EmptyStreamYieldError`.
+A direct `ser yield* clock` asks the Stream for one value and waits for its first element. Once that element arrives, the yield is complete; it does not quietly leave a subscription running in the background. If the Stream finishes without emitting, the effect fails with `EmptyStreamYieldError`.
 
 When later elements matter, use a Stream runner instead. `ts Stream.runForEach(...)` stays attached until the Stream ends, fails, or the surrounding script effect is interrupted. In the example above, each arriving element is copied into Svelte state.
 
@@ -277,7 +277,7 @@ const labels = Clock()
 	.pipe(Stream.filter((label) => label.length > 0));
 ```
 
-`ts Live.status(labels)` returns another stream whose states are `ts "Connecting"`, `ts "Open"`, `ts "Failed"`, and `ts "Closed"`. A manual reconnect, meanwhile, is an Effect returned by `ts Live.reconnect(labels)`, so it must be yielded or run. Derived live streams retain the hidden transport metadata both helpers need.
+`ts Live.status(labels)` returns another stream whose states are `ts "Connecting"`, `ts "Open"`, `ts "Failed"`, and `ts "Closed"`. A manual reconnect, meanwhile, is an effect returned by `ts Live.reconnect(labels)`, so it must be yielded or run. Derived live streams retain the hidden transport metadata both helpers need.
 
 Ordinary stream operators handle retry policies as well:
 
@@ -300,7 +300,7 @@ The 4.0.0 client is stream-native. These replacements cover the old resource API
 | `ts clock.ready`, `ts clock.loading`, or `ts clock.connected` | Consume `ts Live.status(clock)`                         |
 | `ser yield* clock.reconnect()`                                | `ser yield* Live.reconnect(clock)`                      |
 
-Async generators and native iterables are valid sources, albeit only after they have been wrapped as an Effect Stream:
+Async generators and native iterables are valid sources, albeit only after they have been wrapped as a Stream from Effect:
 
 ```ts icon="ts" name="counter.remote.ts"
 import { Stream } from "effect";

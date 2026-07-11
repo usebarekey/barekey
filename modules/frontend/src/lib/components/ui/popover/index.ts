@@ -1,11 +1,11 @@
-import Root from "./popover.sv";
-import Close from "./popover-close.sv";
-import Content from "./popover-content.sv";
-import Description from "./popover-description.sv";
-import Header from "./popover-header.sv";
-import Title from "./popover-title.sv";
-import Trigger from "./popover-trigger.sv";
-import Portal from "./popover-portal.sv";
+import Root from "$lib/components/ui/popover/popover.sv";
+import Close from "$lib/components/ui/popover/popover-close.sv";
+import Content from "$lib/components/ui/popover/popover-content.sv";
+import Description from "$lib/components/ui/popover/popover-description.sv";
+import Header from "$lib/components/ui/popover/popover-header.sv";
+import Title from "$lib/components/ui/popover/popover-title.sv";
+import Trigger from "$lib/components/ui/popover/popover-trigger.sv";
+import Portal from "$lib/components/ui/popover/popover-portal.sv";
 
 export {
 	Close,

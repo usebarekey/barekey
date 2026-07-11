@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { themes, type ChartConfig } from "./chart-utils.js";
+	import { themes, type ChartConfig } from "$lib/components/ui/chart/chart-utils.js";
 
 	let { id, config }: { id: string; config: ChartConfig } = $props();
 

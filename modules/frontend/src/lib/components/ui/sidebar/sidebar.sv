@@ -2,8 +2,8 @@
 	import * as Sheet from "$lib/components/ui/sheet/index.js";
 	import { cn, type WithElementRef } from "$lib/utils.js";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { sidebar_width_mobile } from "./constants.js";
-	import { use_sidebar } from "./context.svelte.js";
+	import { sidebar_width_mobile } from "$lib/components/ui/sidebar/constants.js";
+	import { use_sidebar } from "$lib/components/ui/sidebar/context.svelte.js";
 
 	let {
 		ref = $bindable(null),
@@ -65,6 +65,7 @@
 		class="text-foreground group peer hidden md:block"
 		data-state={sidebar.state}
 		data-collapsible={sidebar.state === "collapsed" ? collapsible : ""}
+		data-motion-phase={sidebar.motion_phase}
 		data-variant={variant}
 		data-side={side}
 		data-slot="sidebar"
@@ -72,7 +73,7 @@
 		<div
 			data-slot="sidebar-gap"
 			class={cn(
-				"t-resize relative w-(--sidebar-width) bg-transparent",
+				"relative w-(--sidebar-width) bg-transparent",
 				"group-data-[collapsible=offcanvas]:w-0",
 				"group-data-[side=right]:rotate-180",
 				variant === "floating" || variant === "inset"
@@ -84,12 +85,10 @@
 			data-slot="sidebar-container"
 			class={cn(
 				"t-sidebar-motion fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) md:flex",
-				side === "left"
-					? "start-0 group-data-[collapsible=offcanvas]:start-[calc(var(--sidebar-width)*-1)]"
-					: "end-0 group-data-[collapsible=offcanvas]:end-[calc(var(--sidebar-width)*-1)]",
+				side === "left" ? "start-0" : "end-0",
 				variant === "floating" || variant === "inset"
-					? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
-					: "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-e group-data-[side=right]:border-s",
+					? "p-2"
+					: "group-data-[side=left]:border-e group-data-[side=right]:border-s",
 				class_name
 			)}
 			{...rest_props}

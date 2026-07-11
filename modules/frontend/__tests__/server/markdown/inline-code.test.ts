@@ -106,6 +106,18 @@ test("highlights a bare SER yield expression as control flow", async () => {
 	expect(html).toContain("--shiki-dark:#F97583");
 });
 
+test("keeps inline SER event attributes in the markup grammar", async () => {
+	const html = await Effect.runPromise(
+		HighlightInlineCode({
+			code: "<button onclick={yield* SaveProfile()}>",
+			language: "ser",
+		}),
+	);
+
+	expect(html).toContain("--shiki-light:#22863A");
+	expect(html).toContain("--shiki-light:#D73A49");
+});
+
 test("compiles generic inline code without rendering escaped brackets", async () => {
 	const compiled = await compile("`ts Effect.Effect<A, E, R>`", {
 		...markdown_mdsvex_options,

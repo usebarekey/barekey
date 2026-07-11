@@ -1,14 +1,9 @@
 ---
 title: "Changelog"
-description: "Follow new SER releases and the Barekey documentation that ships with them."
+description: "Follow the changes included in each SER release."
 ---
 
-# Changelog
-
 ## 4.0.0
-
-> [!NOTE] Upcoming release
-> `4.0.0` has not been published yet. These notes follow the work currently assigned to the release and may be adjusted before the release tag is cut.
 
 ### Query.live is stream-native
 
@@ -20,18 +15,18 @@ const clock = Clock();
 yield * clock.pipe(Stream.runForEach((time) => Effect.sync(() => update_clock(time))));
 ```
 
-Live-query handlers must return a Stream as well. Native iterables and async generators remain usable, although they first need a Stream constructor such as `ts Stream.fromIterable(...)` or `ts Stream.fromAsyncIterable(...)`. Returning an ordinary value, Promise, iterable, or an Effect that later produces a Stream raises `InvalidLiveQueryReturnError`.
+Live-query handlers must return a Stream as well. Native iterables and async generators remain usable, although they first need a Stream constructor such as `ts Stream.fromIterable(...)` or `ts Stream.fromAsyncIterable(...)`. Returning an ordinary value, Promise, iterable, or an effect that later produces a Stream raises `InvalidLiveQueryReturnError`.
 
 Transport controls have moved to the new `ts Live` helpers:
 
 - `ts Live.status(stream)` returns a Stream of connection states.
-- `ts Live.reconnect(stream)` returns an Effect that requests a reconnect.
+- `ts Live.reconnect(stream)` returns an effect that requests a reconnect.
 
 Stream operators preserve SER's hidden transport metadata through `ts pipe(...)`, so a derived remote Stream can still be passed to both helpers. A direct `ser yield* stream` reads its first element; if the Stream completes before emitting, it fails with `EmptyStreamYieldError`.
 
 See [Query.live](/docs/ser/query#querylive) for the complete API and migration table.
 
-### Native SvelteKit handlers can run Effects
+### Native SvelteKit handlers can run effects
 
 The new `ts Handler(...)` adapter runs native SvelteKit server callbacks through `ServerRuntime`. This covers route handlers such as `GET` and `POST` while leaving method selection, request arguments, and response validation with SvelteKit.
 
@@ -46,7 +41,7 @@ export const GET = Handler<RequestHandler>(function* ({ params }) {
 });
 ```
 
-The active `RequestEvent` is available as an Effect service throughout the handler call. Native HTTP handlers do not expose a typed Effect error channel, however, so domain failures must be recovered or translated into SvelteKit control flow before returning.
+The active `RequestEvent` is available as an effect service throughout the handler call. Native HTTP handlers do not expose a typed effect error channel, however, so domain failures must be recovered or translated into SvelteKit control flow before returning.
 
 See [Handler](/docs/ser/handler) for request scope and error-boundary details.
 
@@ -54,9 +49,9 @@ See [Handler](/docs/ser/handler) for request scope and error-boundary details.
 
 The Vite plugin entrypoint moved from `svelte-effect-runtime/vite` to `svelte-effect-runtime/compiler`.
 
-```ts name="vite.config.ts" icon="vite" diff
-- import { effect } from "svelte-effect-runtime/vite";
-+ import { effect } from "svelte-effect-runtime/compiler";
+```ts diff name="vite.config.ts" icon="vite"
+-- import { effect } from "svelte-effect-runtime/vite";
+++ import { effect } from "svelte-effect-runtime/compiler";
 ```
 
 The root `svelte-effect-runtime` export remains available. Projects that import the compiler subpath directly must update that import when moving to `4.0.0`.
@@ -76,18 +71,10 @@ Nested array values now use indexed FormData paths such as `items[0]` and `items
 
 ### Runtime and error behavior
 
-`ClientRuntime.make(...)` and `ServerRuntime.make(...)` now reject a second initialization with `RuntimeAlreadyInitializedError`. Vite development SSR remains the exception: HMR disposes the previous server runtime before installing its replacement.
+`ts ClientRuntime.make(...)` and `ts ServerRuntime.make(...)` now reject a second initialization with `RuntimeAlreadyInitializedError`. Vite development SSR remains the exception: HMR disposes the previous server runtime before installing its replacement.
 
-SER's public errors now use one documented hierarchy for compiler, runtime, remote-handler, factory, and transport failures. Dead exports that could no longer be reached, including `UnknownRuntimeError` and `VitePreTransformPluginConflictError`, have been removed. The old in-package documentation module has also been removed; Barekey is now the release documentation for SER.
+SER's public errors now use one documented hierarchy for compiler, runtime, remote-handler, factory, and transport failures. Dead exports that could no longer be reached, including `UnknownRuntimeError` and `VitePreTransformPluginConflictError`, have been removed. The old in-package documentation module has also been removed.
 
-### Barekey documentation
+### Documentation
 
-The `4.0.0` release ships with a rewritten SER manual on Barekey:
-
-- New guides cover client effect computation, the Dispatcher, remote functions, `RequestEvent`, native handlers, and client/server runtimes.
-- `Query.live` has a stream-first guide with consumption, status, reconnection, and migration examples.
-- Every public SER failure has a dedicated technical reference page, grouped by subsystem and linked to the exact source line that raises it.
-- Code snippets carry filenames, source coordinates, GitHub links, copy feedback, and language-aware highlighting directly in their headers.
-- Documentation pages are available as Markdown through the `.md` URL or an `Accept: text/markdown` request.
-- The documentation sidebar supports collapsible groups and named error categories, while the table of contents follows deeply nested sections.
-- Barekey's landing and pricing pages now share the same visual system as the documentation.
+SER `4.0.0` ships with documentation redesigned from scratch.

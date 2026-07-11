@@ -118,7 +118,9 @@ export const parse_inline_code_language_spec = (
 
 export const parse_inline_code_icon_spec = (value: string): Option.Option<InlineCodeIconSpec> => {
 	const attributes_only = inline_code_attributes_only_pattern.test(value);
-	const prefixed_match = attributes_only ? null : inline_code_attribute_prefix_pattern.exec(value);
+	const prefixed_match = attributes_only
+		? null
+		: inline_code_attribute_prefix_pattern.exec(value);
 
 	if (!prefixed_match && !attributes_only) {
 		return Option.none();

@@ -2,8 +2,6 @@
 	import { tv, type VariantProps } from "tailwind-variants";
 	/**
  * Tailwind variants for input group addons.
- *
- * @since 0.0.1
  */
 	export const input_group_addon_variants = tv({
 		base: "text-muted-foreground **:data-[slot=kbd]:bg-muted-foreground/10 h-auto gap-2 py-2 text-sm font-medium group-data-[disabled=true]/input-group:opacity-50 **:data-[slot=kbd]:rounded-4xl **:data-[slot=kbd]:px-1.5 [&>svg:not([class*='size-'])]:size-4 flex cursor-text items-center justify-center select-none",
@@ -23,8 +21,6 @@
 
 	/**
  * Alignment values supported by input group addons.
- *
- * @since 0.0.1
  */
 	export type InputGroupAddonAlign = VariantProps<typeof input_group_addon_variants>["align"];
 </script>

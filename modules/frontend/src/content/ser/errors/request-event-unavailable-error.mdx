@@ -1,15 +1,15 @@
 ---
 title: "RequestEventUnavailableError"
-description: "Trace RequestEvent resolution outside a request-provided Effect context."
+description: "Trace RequestEvent resolution outside a request-provided effect context."
 ---
 
 ## What this error means and what can trigger it
 
-`RequestEventUnavailableError` means Effect tried to resolve SER's `ts RequestEvent` context reference while no request-specific service was present.
+`RequestEventUnavailableError` means effect tried to resolve SER's `ts RequestEvent` context reference while no request-specific service was present.
 
-This often happens when code yields the reference during module initialization, manually runs a request-dependent Effect without its handler context, or detaches work from the Effect that received the current event. Startup and process-wide runtime scopes cannot supply one either because no request owns those scopes.
+This often happens when code yields the reference during module initialization, manually runs a request-dependent effect without its handler context, or detaches work from the effect that received the current event. Startup and process-wide runtime scopes cannot supply one either because no request owns those scopes.
 
-Valid remote execution paths provide the service immediately before running handler work. Ordinary handlers do so in `server/effects.ts`, live handlers do so in their Stream execution path, and the `ts Handler` wrapper provides it around the user handler Effect.
+Valid remote execution paths provide the service immediately before running handler work. Ordinary handlers do so in `server/effects.ts`, live handlers do so in their Stream execution path, and the `ts Handler` wrapper provides it around the user handler effect.
 
 ## Exactly where it triggers
 
@@ -21,7 +21,7 @@ export const RequestEvent = Context.Reference<RequestEvent>("@ser/RequestEvent",
 });
 ```
 
-The default function executes only when Effect cannot find a provided value in the current context. It throws synchronously during context resolution, which occurs while the surrounding Effect is running.
+The default function executes only when an effect cannot find a provided value in the current context. It throws synchronously during context resolution, which occurs while the surrounding effect is running.
 
 Providing sites include `name="modules/svelte-effect-runtime/src/server/handler.ts" line="50" char="34" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/handler.ts#L50"`, `name="modules/svelte-effect-runtime/src/server/effects.ts" line="91" char="33" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/effects.ts#L91"`, and `name="modules/svelte-effect-runtime/src/server/effects.ts" line="165" char="33" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/effects.ts#L165"`. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="361" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L361"`.
 
@@ -29,4 +29,4 @@ Providing sites include `name="modules/svelte-effect-runtime/src/server/handler.
 
 A request event cannot safely be global. The server may execute several requests concurrently, each with its own cookies, locals, URL, platform values, and lifecycle. Falling back to shared state could therefore expose one request's data to another.
 
-The context reference makes request ownership part of Effect execution. Work retains access only while it runs inside the context provided for that specific handler invocation.
+The context reference makes request ownership part of effect execution. Work retains access only while it runs inside the context provided for that specific handler invocation.

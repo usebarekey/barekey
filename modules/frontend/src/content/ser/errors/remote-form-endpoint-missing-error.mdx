@@ -9,7 +9,7 @@ description: "Trace a remote Form whose generated endpoint metadata is incomplet
 
 The action identifier is read from the native form action URL, using the `/remote` or `remote` query parameter. The base URL is passed into the generated client adapter. A stale generated module, incompatible SvelteKit output, direct use of SER's internal adapter, or missing action metadata can leave one of them empty.
 
-Application Effects normally see the surrounding `RemoteTransportError`, with this more specific class retained as its `cause`.
+Application effects normally see the surrounding `RemoteTransportError`, with this more specific class retained as its `cause`.
 
 ## Exactly where it triggers
 
@@ -19,7 +19,7 @@ if (!action_id || remote_base.length === 0) {
 }
 ```
 
-That guard runs before `ts to_remote_form_url` and before any request is issued. It is a synchronous throw inside the asynchronous submission path, so the surrounding Promise rejects and the adapter exposes the resulting tagged `RemoteTransportError` through its Effect error channel.
+That guard runs before `ts to_remote_form_url` and before any request is issued. It is a synchronous throw inside the asynchronous submission path, so the surrounding Promise rejects and the adapter exposes the resulting tagged `RemoteTransportError` through its effect error channel.
 
 For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="647" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L647"`. No other production construction site exists.
 
@@ -27,4 +27,4 @@ For reference, the class itself is declared at `name="modules/svelte-effect-runt
 
 The fallback form transport cannot infer a route. An action identifier names the generated remote action, while the base URL says where that identifier must be sent. Guessing either value could submit data to the wrong route or produce a request that happens to succeed against an unrelated endpoint.
 
-SER classifies the failure as transport because no server response exists yet. The nested class records the exact local invariant that failed; the public wrapper keeps it within the stable remote-failure union used by client Effects.
+SER classifies the failure as transport because no server response exists yet. The nested class records the exact local invariant that failed; the public wrapper keeps it within the stable remote-failure union used by client effects.

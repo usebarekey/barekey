@@ -1,11 +1,11 @@
-import Description from "./form-description.sv";
-import Label from "./form-label.sv";
-import FieldErrors from "./form-field-errors.sv";
-import Field from "./form-field.sv";
-import Fieldset from "./form-fieldset.sv";
-import Legend from "./form-legend.sv";
-import ElementField from "./form-element-field.sv";
-import Button from "./form-button.sv";
+import Description from "$lib/components/ui/form/form-description.sv";
+import Label from "$lib/components/ui/form/form-label.sv";
+import FieldErrors from "$lib/components/ui/form/form-field-errors.sv";
+import Field from "$lib/components/ui/form/form-field.sv";
+import Fieldset from "$lib/components/ui/form/form-fieldset.sv";
+import Legend from "$lib/components/ui/form/form-legend.sv";
+import ElementField from "$lib/components/ui/form/form-element-field.sv";
+import Button from "$lib/components/ui/form/form-button.sv";
 
 export {
 	Button,

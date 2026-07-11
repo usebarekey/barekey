@@ -1,7 +1,7 @@
-import Root from "./hover-card.sv";
-import Content from "./hover-card-content.sv";
-import Trigger from "./hover-card-trigger.sv";
-import Portal from "./hover-card-portal.sv";
+import Root from "$lib/components/ui/hover-card/hover-card.sv";
+import Content from "$lib/components/ui/hover-card/hover-card-content.sv";
+import Trigger from "$lib/components/ui/hover-card/hover-card-trigger.sv";
+import Portal from "$lib/components/ui/hover-card/hover-card-portal.sv";
 
 export {
 	Content,

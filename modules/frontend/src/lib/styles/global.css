@@ -157,6 +157,14 @@
 		0 1px 6px -4px color-mix(in oklab, var(--card-color) 35%, #000);
 }
 
+@utility card-lg {
+	box-shadow:
+		0 -0.5px rgba(255, 255, 255, 0.12),
+		0 10px 24px -12px rgba(0, 0, 0, 0.32),
+		0 4px 12px -8px rgba(0, 0, 0, 0.2),
+		0 0 0 0.5px oklch(from var(--highlight) l c h / 12%);
+}
+
 @utility card-diff {
 	box-shadow:
 		0 -0.5px
@@ -179,11 +187,6 @@
 			),
 		0 1px 6px -4px
 			color-mix(in oklab, var(--shiki-diff-light) var(--diff-card-drop-opacity, 45%), #000);
-}
-
-@utility card-outline {
-	outline: 1px solid oklch(from var(--foreground) l c h / 12.5%);
-	outline-offset: 2px;
 }
 
 [data-slot="floating-feedback"][data-state="open"] {
@@ -227,13 +230,5 @@
 	html {
 		@apply font-sans;
 		font-synthesis-weight: none;
-	}
-	.squircle {
-		border-radius: var(--radius);
-	}
-	@supports (corner-shape: squircle) {
-		.squircle {
-			corner-shape: squircle;
-		}
 	}
 }

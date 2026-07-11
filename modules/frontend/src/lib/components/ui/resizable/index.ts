@@ -1,6 +1,6 @@
 import { Pane } from "paneforge";
-import Handle from "./resizable-handle.sv";
-import PaneGroup from "./resizable-pane-group.sv";
+import Handle from "$lib/components/ui/resizable/resizable-handle.sv";
+import PaneGroup from "$lib/components/ui/resizable/resizable-pane-group.sv";
 
 export {
 	Handle,

@@ -1,8 +1,8 @@
 @reference "../../tailwind-reference.css";
 
 .docs-copy-button {
-	@apply flex items-center justify-center rounded-full bg-linear-to-t
-    from-foreground/7.5 to-foreground/2.5 p-2 leading-none card card-outline;
+	@apply flex items-center justify-center rounded-full bg-linear-to-b
+    from-foreground/7.5 to-foreground/2.5 p-2 leading-none card-lg;
 }
 
 .docs-copy-button-icon-stack {

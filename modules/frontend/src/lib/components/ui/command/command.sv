@@ -4,8 +4,6 @@
 
 	/**
  * Bits UI command root API type.
- *
- * @since 0.0.1
  */
 	export type CommandRootApi = CommandPrimitive.Root;
 

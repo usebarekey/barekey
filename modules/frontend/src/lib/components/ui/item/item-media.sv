@@ -3,8 +3,6 @@
 
 	/**
  * Tailwind variants for item media containers.
- *
- * @since 0.0.1
  */
 	export const item_media_variants = tv({
 		base: "gap-2 group-has-data-[slot=item-description]/item:translate-y-0.5 group-has-data-[slot=item-description]/item:self-start flex shrink-0 items-center justify-center [&_svg]:pointer-events-none",
@@ -22,8 +20,6 @@
 
 	/**
  * Variant names supported by item media containers.
- *
- * @since 0.0.1
  */
 	export type ItemMediaVariant = VariantProps<typeof item_media_variants>["variant"];
 </script>

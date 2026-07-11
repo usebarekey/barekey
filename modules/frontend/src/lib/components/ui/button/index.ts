@@ -3,7 +3,7 @@ import Root, {
 	type ButtonProps,
 	type ButtonSize,
 	type ButtonVariant,
-} from "./button.sv";
+} from "$lib/components/ui/button/button.sv";
 
 export {
 	button_variants,

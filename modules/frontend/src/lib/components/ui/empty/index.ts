@@ -1,9 +1,9 @@
-import Root from "./empty.sv";
-import Header from "./empty-header.sv";
-import Media from "./empty-media.sv";
-import Title from "./empty-title.sv";
-import Description from "./empty-description.sv";
-import Content from "./empty-content.sv";
+import Root from "$lib/components/ui/empty/empty.sv";
+import Header from "$lib/components/ui/empty/empty-header.sv";
+import Media from "$lib/components/ui/empty/empty-media.sv";
+import Title from "$lib/components/ui/empty/empty-title.sv";
+import Description from "$lib/components/ui/empty/empty-description.sv";
+import Content from "$lib/components/ui/empty/empty-content.sv";
 
 export {
 	Content,

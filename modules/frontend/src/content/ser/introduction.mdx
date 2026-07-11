@@ -3,9 +3,14 @@ title: "An introduction to SER"
 description: "SER introduces native-like effect code execution in Svelte for SvelteKit."
 ---
 
-`svelte-effect-runtime` is a Vite plugin for SvelteKit that enables native [Effect.ts](https://effect.website/) execution on both the client, and the server.
+<script lang="ts">import Contributors from "$lib/components/custom/contributors.sv";</script>
 
-```ser name="+page.sv" icon="svelte"
+> [!WARNING] ![NONE] ✋ Are you AI?
+> You would be better off requesting this URL with `Accept: text/markdown`, or appending `.md` to the URL to fetch the source file. Good luck!
+
+`svelte-effect-runtime` is a [Vite](https://vite.dev/) plugin for SvelteKit that enables native [Effect.ts](https://effect.website/) execution on both the client and the server.
+
+```ser name="+page.svelte" icon="svelte"
 <script lang="ts" effect>
   import * as StockCard from "./ticker-card.ts";
   import { GetAllStocks, GetLivePrice } from "./tickers.remote.ts";
@@ -27,8 +32,8 @@ description: "SER introduces native-like effect code execution in Svelte for Sve
 </ScrollArea>
 ```
 
-If this is something that interests you, or you already use [Effect.ts](https://effect.website/)
-on the backend and want to introduce it to the frontend, `svelte-effect-runtime` is a perfect fit.
+If this interests you, or you already use [Effect.ts](https://effect.website/)
+on the backend and want to bring it to the frontend, `svelte-effect-runtime` is a perfect fit.
 
 > [!NOTE] SER abbreviation
 > Going deeper, documentation for `svelte-effect-runtime` will refer to the project as SER.
@@ -36,3 +41,9 @@ on the backend and want to introduce it to the frontend, `svelte-effect-runtime`
 ## Licensing
 
 SER is released under the [BSD 3-Clause License](https://github.com/usebarekey/svelte-effect-runtime/blob/master/LICENSE), an open-source license approved by the Open Source Initiative and recognized as free software by the Free Software Foundation.
+
+## Contributors
+
+Thanks to all the contributors!
+
+<Contributors />

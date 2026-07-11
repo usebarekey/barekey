@@ -3,8 +3,6 @@
 
 	/**
  * Tailwind variants for field components.
- *
- * @since 0.0.1
  */
 	export const field_variants = tv({
 		base: "data-[invalid=true]:text-destructive gap-3 group/field flex w-full",
@@ -24,8 +22,6 @@
 
 	/**
  * Orientation values supported by field components.
- *
- * @since 0.0.1
  */
 	export type FieldOrientation = VariantProps<typeof field_variants>["orientation"];
 </script>

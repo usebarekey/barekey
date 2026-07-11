@@ -5,7 +5,7 @@ description: "Trace an unchecked live Query with no Stream-producing handler."
 
 ## What this error means and what can trigger it
 
-`UncheckedLiveQueryHandlerMissingError` means `ts Query.live("unchecked", handler)` reached its server factory without a truthy second argument. The sentinel removes input decoding, although the handler must still create the live Effect Stream.
+`UncheckedLiveQueryHandlerMissingError` means `ts Query.live("unchecked", handler)` reached its server factory without a truthy second argument. The sentinel removes input decoding, although the handler must still create the live Stream from Effect.
 
 Once static typing has been bypassed, the guard catches omitted and other falsy values. A truthy value gets past this exact branch, albeit only for a non-callable value to fail later.
 

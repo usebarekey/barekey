@@ -5,7 +5,7 @@ description: "Trace Query.batch without the function that resolves collected inp
 
 ## What this error means and what can trigger it
 
-`BatchQueryHandlerMissingError` means `ts Query.batch` received no truthy batch handler. A batch declaration always needs a handler: it receives the collected, validated inputs and returns an Effect-like value containing the resolver used for each original caller.
+`BatchQueryHandlerMissingError` means `ts Query.batch` received no truthy batch handler. A batch declaration always needs a handler: it receives the collected, validated inputs and returns an effect-like value containing the resolver used for each original caller.
 
 If TypeScript is bypassed, an omitted handler, `undefined`, `null`, `false`, `0`, or an empty string reaches the runtime guard. A truthy non-function gets past this particular presence check, albeit only to fail elsewhere. Unlike an ordinary `ts Query`, the batch helper has no inputless one-argument handler overload.
 

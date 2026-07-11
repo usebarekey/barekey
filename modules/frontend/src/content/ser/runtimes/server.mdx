@@ -1,0 +1,104 @@
+---
+title: "Server runtime"
+description: "Provide server services and request context to remote handlers."
+---
+
+`ts ServerRuntime` executes the effect returned by every `ts Query`, `ts Command`, `ts Form`, and `ts Prerender` handler.
+
+Use it for long-lived server capabilities such as database pools, API clients, logging, queues, and configuration.
+
+## Register server services
+
+Put setup in `src/hooks.server.ts`:
+
+```ts name="src/hooks.server.ts" icon="ts"
+import { Layer } from "effect";
+import { ServerRuntime } from "svelte-effect-runtime";
+import { DatabaseLive } from "$lib/server/database";
+import { LoggerLive } from "$lib/server/logger";
+
+export const init = () => {
+	ServerRuntime.make(Layer.mergeAll(DatabaseLive, LoggerLive));
+};
+```
+
+The runtime is created once and shared by remote handlers. Services in its layer must be safe for concurrent requests.
+
+If no handler needs a custom service, omit this setup. SER creates an empty server runtime on first use.
+
+## Yield a server service
+
+Remote handlers use normal effect service access:
+
+```ts name="projects.remote.ts" icon="ts"
+import { Effect } from "effect";
+import { Query } from "svelte-effect-runtime";
+import { Database } from "$lib/server/database";
+
+export const get_projects = Query(() =>
+	Effect.gen(function* () {
+		const database = yield* Database;
+
+		return yield* database.projects.list();
+	}),
+);
+```
+
+Keep dependency construction in layers. Remote handlers should describe the request work instead of opening a new database connection or rebuilding clients on every call.
+
+## Read RequestEvent
+
+SER provides the current SvelteKit request as an effect service:
+
+```ts name="session.remote.ts" icon="ts"
+import { Effect } from "effect";
+import { Query, RequestEvent } from "svelte-effect-runtime";
+
+export const get_session = Query(() =>
+	Effect.gen(function* () {
+		const event = yield* RequestEvent;
+
+		return {
+			session_id: event.cookies.get("session") ?? null,
+			pathname: event.url.pathname,
+		};
+	}),
+);
+```
+
+`ts RequestEvent` exposes cookies, locals, params, platform, request, route, URL, and `ts getClientAddress`. It is only available while SER runs a remote handler.
+
+Do not cache the event or copy request-specific values into the global runtime. Read them inside the handler that owns the request.
+
+## HTTP errors and redirects
+
+SER exposes effect versions of SvelteKit's control-flow helpers:
+
+```ts name="posts.remote.ts" icon="ts"
+import { Effect, Schema } from "effect";
+import { Error, Query, Redirect } from "svelte-effect-runtime";
+
+export const get_post = Query(Schema.String, (slug) =>
+	Effect.gen(function* () {
+		const post = yield* PostRepository.find(slug);
+
+		if (!post) {
+			return yield* Error("NotFound", "Post not found");
+		}
+
+		if (post.redirect_to) {
+			return yield* Redirect("TemporaryRedirect", post.redirect_to);
+		}
+
+		return post;
+	}),
+);
+```
+
+Use typed effect failures for expected domain cases the client can recover from. Use `ts Error` and `ts Redirect` when SvelteKit should take over HTTP control flow.
+
+## Prerender and development
+
+`ts Prerender` uses the same server runtime during build-time evaluation. Its services must be available in the build environment.
+
+Calling `ts ServerRuntime.make` twice normally throws `ts RuntimeAlreadyInitializedError`. During Vite development SSR reloads, SER disposes the previous runtime so an edited `hooks.server.ts` can initialize again.

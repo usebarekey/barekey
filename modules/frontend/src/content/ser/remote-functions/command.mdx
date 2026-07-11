@@ -1,0 +1,106 @@
+---
+title: "Command"
+description: "Run server mutations from effectful client actions."
+---
+
+`ts Command` wraps SvelteKit's `ts command()`. Use it for explicit mutations such as saving settings, deleting a record, sending an invitation, or starting a job.
+
+Use [Form](/docs/ser/form) when the action begins with an HTML form and needs progressive enhancement or field-level validation.
+
+## Define a command
+
+Validate input at the server boundary, then return an effect from the handler:
+
+```ts name="projects.remote.ts" icon="ts"
+import { Effect, Schema } from "effect";
+import { Command } from "svelte-effect-runtime";
+
+const ArchiveProjectInput = Schema.Struct({
+	project_id: Schema.String,
+});
+
+export const archive_project = Command(ArchiveProjectInput, ({ project_id }) =>
+	Effect.gen(function* () {
+		yield* ProjectRepository.archive(project_id);
+
+		return { project_id, archived: true };
+	}),
+);
+```
+
+Commands may also take a no-argument effect or use a Standard Schema validator. `ts "unchecked"` skips runtime validation and should be reserved for trusted inputs.
+
+## Call a command
+
+Use a direct yield-first event attribute:
+
+```ser name="project-row.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { archive_project } from "./projects.remote";
+
+	let { project_id }: { project_id: string } = $props();
+</script>
+
+<button
+	disabled={archive_project.pending > 0}
+	onclick={yield* archive_project({ project_id })}
+>
+	{archive_project.pending > 0 ? "Archiving..." : "Archive"}
+</button>
+```
+
+`ts pending` is the number of in-flight calls for that command. A count is more useful than a boolean when several controls can start the same command.
+
+> [!IMPORTANT] Yield the call
+> Calling a command creates an effect. Yield it from SER syntax or run it through an effect runtime. A discarded effect does not execute the mutation.
+
+## Handle expected failures
+
+Model recoverable server failures in the effect error channel, then handle them in the component:
+
+```ser name="project-row.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { Effect } from "effect";
+	import { archive_project } from "./projects.remote";
+
+	let message = $state("");
+
+	const archive = (project_id: string) =>
+		archive_project({ project_id }).pipe(
+			Effect.tap(() =>
+				Effect.sync(() => {
+					message = "Archived";
+				}),
+			),
+			Effect.catchAll(() =>
+				Effect.sync(() => {
+					message = "Could not archive this project";
+				}),
+			),
+		);
+</script>
+
+<button onclick={yield* archive("p_123")}>Archive</button>
+<p>{message}</p>
+```
+
+Keep expected domain errors distinct from validation and transport errors so the UI can choose a useful recovery path.
+
+## Read request data
+
+Commands run in the server runtime and receive the current `ts RequestEvent` service:
+
+```ts name="session.remote.ts" icon="ts"
+import { Effect } from "effect";
+import { Command, RequestEvent } from "svelte-effect-runtime";
+
+export const sign_out = Command(() =>
+	Effect.gen(function* () {
+		const event = yield* RequestEvent;
+
+		event.cookies.delete("session", { path: "/" });
+	}),
+);
+```
+
+Keep request values inside the handler. Do not store cookies, locals, or the current user in the global server runtime.

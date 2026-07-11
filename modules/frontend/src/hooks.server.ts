@@ -9,11 +9,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 	return markdown_response ?? resolve(event);
 };
 
-/**
- * Initializes the server-side Effect runtime with the Node filesystem layer.
- * @returns Nothing.
- * @since 0.0.1
- */
 export const init: ServerInit = () => {
 	ServerRuntime.make(NodeFileSystem.layer);
 };

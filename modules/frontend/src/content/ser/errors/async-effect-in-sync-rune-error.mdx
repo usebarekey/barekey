@@ -1,13 +1,13 @@
 ---
 title: "AsyncEffectInSyncRuneError"
-description: "Trace Effect work found in a Svelte rune position with a synchronous contract."
+description: "Trace effect work found in a Svelte rune position with a synchronous contract."
 ---
 
 ## What this error means and what can trigger it
 
 `AsyncEffectInSyncRuneError` means SER found `ts yield*` inside a Svelte rune position that it cannot turn into dispatcher work without changing the rune's semantics. The error records the rune name, complete expression text, and source filename.
 
-There are two ways to reach it. One is to place Effect work in a rune outside SER's small set of async-expression-compatible runes. At present, that set contains `ts $derived`, `ts $state`, `ts $state.raw`, `ts $state.snapshot`, and `ts $bindable`; calls such as `ts $props(yield* Load())`, `ts $effect.pending(yield* Load())`, or `ts $inspect(yield* Load())` therefore fail the general check.
+There are two ways to reach it. One is to place effect work in a rune outside SER's small set of async-expression-compatible runes. At present, that set contains `ts $derived`, `ts $state`, `ts $state.raw`, `ts $state.snapshot`, and `ts $bindable`; calls such as `ts $props(yield* Load())`, `ts $effect.pending(yield* Load())`, or `ts $inspect(yield* Load())` therefore fail the general check.
 
 The other route goes through the first callback passed to `ts $derived.by`, `ts $effect`, `ts $effect.pre`, or `ts $effect.root`. Although the general detector stops at that callback's function boundary, SER opens it separately and rejects a direct `ts yield*` inside.
 

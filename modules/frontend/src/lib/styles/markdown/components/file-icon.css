@@ -4,10 +4,24 @@
 	@apply size-4 shrink-0;
 }
 
-.docs-file-icon-inverted {
-	@apply invert;
+.docs-file-icon-brand {
+	@apply block;
+}
+
+.docs-file-icon-brand svg {
+	@apply block size-full;
 }
 
 .docs-file-icon-fallback {
 	@apply text-muted-foreground;
+}
+
+.docs-file-icon-label {
+	@apply inline-flex items-center justify-center rounded-[0.25rem] bg-linear-to-t from-background/30 to-foreground/5 px-1 font-mono text-[0.55rem] font-semibold leading-none text-muted-foreground card;
+	min-width: 1rem;
+}
+
+.dark .docs-file-icon-brand[data-file-icon="deno"],
+.dark .docs-file-icon-brand[data-file-icon="vlt"] {
+	@apply invert;
 }

@@ -1,14 +1,14 @@
-import Root from "./select.sv";
-import Group from "./select-group.sv";
-import Label from "./select-label.sv";
-import Item from "./select-item.sv";
-import Content from "./select-content.sv";
-import Trigger from "./select-trigger.sv";
-import Separator from "./select-separator.sv";
-import ScrollDownButton from "./select-scroll-down-button.sv";
-import ScrollUpButton from "./select-scroll-up-button.sv";
-import GroupHeading from "./select-group-heading.sv";
-import Portal from "./select-portal.sv";
+import Root from "$lib/components/ui/select/select.sv";
+import Group from "$lib/components/ui/select/select-group.sv";
+import Label from "$lib/components/ui/select/select-label.sv";
+import Item from "$lib/components/ui/select/select-item.sv";
+import Content from "$lib/components/ui/select/select-content.sv";
+import Trigger from "$lib/components/ui/select/select-trigger.sv";
+import Separator from "$lib/components/ui/select/select-separator.sv";
+import ScrollDownButton from "$lib/components/ui/select/select-scroll-down-button.sv";
+import ScrollUpButton from "$lib/components/ui/select/select-scroll-up-button.sv";
+import GroupHeading from "$lib/components/ui/select/select-group-heading.sv";
+import Portal from "$lib/components/ui/select/select-portal.sv";
 
 export {
 	Content,

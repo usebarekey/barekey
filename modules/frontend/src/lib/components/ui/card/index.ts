@@ -1,10 +1,10 @@
-import Root from "./card.sv";
-import Content from "./card-content.sv";
-import Description from "./card-description.sv";
-import Footer from "./card-footer.sv";
-import Header from "./card-header.sv";
-import Title from "./card-title.sv";
-import Action from "./card-action.sv";
+import Root from "$lib/components/ui/card/card.sv";
+import Content from "$lib/components/ui/card/card-content.sv";
+import Description from "$lib/components/ui/card/card-description.sv";
+import Footer from "$lib/components/ui/card/card-footer.sv";
+import Header from "$lib/components/ui/card/card-header.sv";
+import Title from "$lib/components/ui/card/card-title.sv";
+import Action from "$lib/components/ui/card/card-action.sv";
 
 export {
 	Action,

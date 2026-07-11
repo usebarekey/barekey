@@ -9,9 +9,6 @@ import {
 
 /**
  * Creates a reactive TanStack table object for Svelte.
- * @param options Table options to create the table with.
- * @returns A reactive table object.
- * @since 0.0.1
  */
 export function create_svelte_table<TData extends RowData>(options: TableOptions<TData>) {
 	const resolved_options: TableOptionsResolved<TData> = merge_objects(
@@ -67,10 +64,6 @@ type Intersection<T extends readonly unknown[]> = T extends [infer H, ...infer R
  * getter semantics from every source.
  *
  * Proxy-based to avoid known WebKit recursion issue.
- *
- * @param sources Objects or thunks to merge from left to right.
- * @returns A proxy that reads values from the last source containing each key.
- * @since 0.0.1
  */
 export function merge_objects<Sources extends readonly MaybeThunk<object>[]>(
 	...sources: Sources

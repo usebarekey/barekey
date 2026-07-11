@@ -9,7 +9,7 @@ description: "Trace a marked SER failure envelope whose encoded value cannot be 
 
 When the adapter supplies a custom payload decoder, SER uses it; otherwise, it falls back to devalue's `ts parse`. A thrown decoder exception or invalid result produces the internal invalid state, while the original wire value remains available in `raw`.
 
-Client Effects see `RemoteTransportError`. Its `cause` is this class and its `body` is the same raw value.
+Client effects see `RemoteTransportError`. Its `cause` is this class and its `body` is the same raw value.
 
 ## Exactly where it triggers
 
@@ -37,6 +37,6 @@ For reference, the class itself is declared at `name="modules/svelte-effect-runt
 
 ## Why this is the case
 
-The marker says the server intended to preserve a typed Effect failure across the remote boundary. Returning the encoded value as ordinary data would silently turn a failed Effect into a successful one, while treating it as an unknown domain failure would invent a tag the client never decoded.
+The marker says the server intended to preserve a typed effect failure across the remote boundary. Returning the encoded value as ordinary data would silently turn a failed effect into a successful one, while treating it as an unknown domain failure would invent a tag the client never decoded.
 
 The transport wrapper reports that the representation failed before application meaning could be restored. Keeping `raw` makes codec and version mismatches inspectable without allowing the malformed payload into the typed failure union.

@@ -1,13 +1,13 @@
-import Field from "./field.sv";
-import Set from "./field-set.sv";
-import Legend from "./field-legend.sv";
-import Group from "./field-group.sv";
-import Content from "./field-content.sv";
-import Label from "./field-label.sv";
-import Title from "./field-title.sv";
-import Description from "./field-description.sv";
-import Separator from "./field-separator.sv";
-import Error from "./field-error.sv";
+import Field from "$lib/components/ui/field/field.sv";
+import Set from "$lib/components/ui/field/field-set.sv";
+import Legend from "$lib/components/ui/field/field-legend.sv";
+import Group from "$lib/components/ui/field/field-group.sv";
+import Content from "$lib/components/ui/field/field-content.sv";
+import Label from "$lib/components/ui/field/field-label.sv";
+import Title from "$lib/components/ui/field/field-title.sv";
+import Description from "$lib/components/ui/field/field-description.sv";
+import Separator from "$lib/components/ui/field/field-separator.sv";
+import Error from "$lib/components/ui/field/field-error.sv";
 
 export {
 	Content,

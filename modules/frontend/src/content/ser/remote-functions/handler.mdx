@@ -1,6 +1,6 @@
 ---
 title: "Handler"
-description: "Run native SvelteKit HTTP handlers through the Effect runtime."
+description: "Run native SvelteKit HTTP handlers through the effect runtime."
 ---
 
 Not every request enters your application through a remote function. Some arrive directly at a `+server.ts` endpoint, where SvelteKit expects an ordinary HTTP handler.
@@ -23,7 +23,7 @@ export const GET = Handler<RequestHandler>(function* ({ params }) {
 });
 ```
 
-The route-local `RequestHandler` type keeps the event argument accurate and requires the effect to succeed with a `Response`. The generator form is often the easiest to read, although a callback may return an Effect directly as well:
+The route-local `RequestHandler` type keeps the event argument accurate and requires the effect to succeed with a `Response`. The generator form is often the easiest to read, although a callback may return an effect directly as well:
 
 ```ts name="+server.ts" icon="ts"
 import type { RequestHandler } from "./$types";
@@ -58,14 +58,14 @@ export const POST = Handler<RequestHandler>(function* () {
 });
 ```
 
-SER captures the request before the callback starts. Effects called by the handler then inherit that same request, even while the shared server runtime is serving other requests concurrently.
+SER captures the request before the callback starts. The effects called by the handler then inherit that same request, even while the shared server runtime is serving other requests concurrently.
 
 ## HTTP failures at the boundary
 
 > [!WARNING]
-> `Handler` is an adapter for native HTTP endpoints, not SER's page-data transport. Native HTTP handlers have no typed Effect error channel, so the callback's error type must be `never`. Remote functions are different: `Query`, `Command`, `Form`, and `Prerender` preserve typed domain failures for their callers. For page data, call a [Query](/docs/ser/query) from an `effect` script instead of wrapping a SvelteKit `load` function with `Handler`.
+> `Handler` is an adapter for native HTTP endpoints, not SER's page-data transport. Native HTTP handlers have no typed effect error channel, so the callback's error type must be `never`. Remote functions are different: `Query`, `Command`, `Form`, and `Prerender` preserve typed domain failures for their callers. For page data, call a [Query](/docs/ser/query) from an `effect` script instead of wrapping a SvelteKit `load` function with `Handler`.
 
-Because the native handler cannot expose a typed Effect error channel, recover domain failures inside the effect or translate them into SvelteKit control flow before the callback returns.
+Because the native handler cannot expose a typed effect error channel, recover domain failures inside the effect or translate them into SvelteKit control flow before the callback returns.
 
 ```ts name="+server.ts" icon="ts"
 import type { RequestHandler } from "./$types";

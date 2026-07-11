@@ -21,7 +21,7 @@ return err instanceof Error ? err : new RemoteHelperError(err);
 
 Every normalization call listed for `RemoteHelperContextError` can reach this branch. Factory catches live in `server/factories.ts`; wrapper catches live in `server/wrappers.ts`. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="848" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L848"`.
 
-This class describes synchronous JavaScript values caught at those boundaries. A typed Effect failure produced after handler execution starts is encoded through the remote failure protocol and does not automatically become `RemoteHelperError`.
+This class describes synchronous JavaScript values caught at those boundaries. A typed effect failure produced after handler execution starts is encoded through the remote failure protocol and does not automatically become `RemoteHelperError`.
 
 ## Why this is the case
 

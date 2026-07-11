@@ -1,10 +1,6 @@
 import { Data, Effect, Fiber } from "effect";
 import { play } from "cuelume";
 
-/**
- * Error raised when browser clipboard APIs cannot copy the requested text.
- * @since 0.0.1
- */
 export class ClipboardWriteError extends Data.TaggedError("ClipboardWriteError")<{
 	cause?: unknown;
 	message: string;
@@ -28,10 +24,6 @@ const copied_hold_ms = 1400;
 const copy_button_selector =
 	"button.docs-copy-button, button.docs-code-snippet-copy, button.docs-heading-copy";
 const command_snippet_selector = "[data-command-snippet]";
-const command_content_selector = "[data-command-content]";
-const command_item_selector = "[data-command-item]";
-const command_select_selector = "[data-command-select]";
-const command_trigger_selector = "[data-command-trigger]";
 
 const states = new WeakMap<HTMLButtonElement, CopyButtonState>();
 
@@ -327,40 +319,9 @@ const handle_click = (event: MouseEvent) => {
 		return;
 	}
 
-	const command_item = target.closest<HTMLElement>(command_item_selector);
-
-	if (command_item) {
-		const snippet = command_item.closest<HTMLElement>(command_snippet_selector);
-		const value = command_item.dataset.commandItem;
-
-		if (snippet && value) {
-			Effect.runSync(
-				set_command_value(snippet, value).pipe(
-					Effect.andThen(set_command_select_open(snippet, false)),
-				),
-			);
-		}
-
-		return;
-	}
-
-	const command_trigger = target.closest<HTMLElement>(command_trigger_selector);
-
-	if (command_trigger) {
-		const snippet = command_trigger.closest<HTMLElement>(command_snippet_selector);
-		const is_open = command_trigger.getAttribute("aria-expanded") === "true";
-
-		if (snippet) {
-			Effect.runSync(set_command_select_open(snippet, !is_open));
-		}
-
-		return;
-	}
-
 	const button = target.closest<HTMLButtonElement>(copy_button_selector);
 
 	if (!button) {
-		close_open_command_selects(target);
 		return;
 	}
 
@@ -372,63 +333,6 @@ const handle_click = (event: MouseEvent) => {
 	}
 
 	dequeue_copy(button, state);
-};
-
-const set_command_value = (snippet: HTMLElement, value: string) =>
-	Effect.sync(() => {
-		snippet.dataset.commandValue = value;
-
-		for (const option of snippet.querySelectorAll<HTMLElement>("[data-command-option]")) {
-			option.hidden = option.dataset.commandOption !== value;
-		}
-
-		for (const selected_option of snippet.querySelectorAll<HTMLElement>(
-			"[data-command-selected-option]",
-		)) {
-			selected_option.hidden = selected_option.dataset.commandSelectedOption !== value;
-		}
-
-		for (const item of snippet.querySelectorAll<HTMLElement>(command_item_selector)) {
-			const selected = item.dataset.commandItem === value;
-			item.setAttribute("aria-selected", selected ? "true" : "false");
-
-			const check = item.querySelector<HTMLElement>(
-				".docs-command-snippet-select-check-wrap",
-			);
-
-			if (check) {
-				check.hidden = !selected;
-			}
-		}
-	});
-
-const set_command_select_open = (snippet: HTMLElement, open: boolean) =>
-	Effect.sync(() => {
-		const trigger = snippet.querySelector<HTMLElement>(command_trigger_selector);
-		const content = snippet.querySelector<HTMLElement>(command_content_selector);
-
-		if (!trigger || !content) {
-			return;
-		}
-
-		trigger.setAttribute("aria-expanded", open ? "true" : "false");
-		trigger.dataset.state = open ? "open" : "closed";
-		content.hidden = !open;
-		content.dataset.state = open ? "open" : "closed";
-	});
-
-const close_open_command_selects = (target: Element) => {
-	if (target.closest(command_select_selector)) {
-		return;
-	}
-
-	Effect.runSync(
-		Effect.forEach(
-			document.querySelectorAll<HTMLElement>(command_snippet_selector),
-			(snippet) => set_command_select_open(snippet, false),
-			{ discard: true },
-		),
-	);
 };
 
 if (typeof document !== "undefined" && !globalThis.__barekey_copy_button) {

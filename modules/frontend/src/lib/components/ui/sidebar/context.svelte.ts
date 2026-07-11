@@ -1,13 +1,14 @@
 import { IsMobile } from "$lib/hooks/is-mobile.svelte.ts";
+import { play } from "cuelume";
 import { getContext, setContext } from "svelte";
-import { sidebar_keyboard_shortcut } from "./constants.ts";
+import { sidebar_keyboard_shortcut } from "$lib/components/ui/sidebar/constants.ts";
 
 type Getter<T> = () => T;
 
+export type SidebarMotionPhase = "idle" | "children-exiting";
+
 /**
  * Props used to create shared sidebar state.
- *
- * @since 0.0.1
  */
 export type SidebarStateProps = {
 	/**
@@ -27,6 +28,7 @@ export type SidebarStateProps = {
 
 class SidebarState {
 	readonly props: SidebarStateProps;
+	motion_phase = $state<SidebarMotionPhase>("idle");
 	open = $derived.by(() => this.props.open());
 	open_mobile = $state(false);
 	set_open: SidebarStateProps["set_open"];
@@ -60,7 +62,13 @@ class SidebarState {
 		this.open_mobile = value;
 	};
 
+	set_motion_phase = (phase: SidebarMotionPhase) => {
+		this.motion_phase = phase;
+	};
+
 	toggle = () => {
+		play("toggle");
+
 		return this.#is_mobile.current
 			? (this.open_mobile = !this.open_mobile)
 			: this.set_open(!this.open);
@@ -71,10 +79,6 @@ const symbol_key = "scn-sidebar";
 
 /**
  * Instantiates a new `SidebarState` instance and sets it in the context.
- *
- * @param props The constructor props for the `SidebarState` class.
- * @returns The `SidebarState` instance.
- * @since 0.0.1
  */
 export function set_sidebar(props: SidebarStateProps): SidebarState {
 	return setContext(Symbol.for(symbol_key), new SidebarState(props));
@@ -83,8 +87,6 @@ export function set_sidebar(props: SidebarStateProps): SidebarState {
 /**
  * Retrieves the `SidebarState` instance from the context. This is a class instance,
  * so you cannot destructure it.
- * @returns The `SidebarState` instance.
- * @since 0.0.1
  */
 export function use_sidebar(): SidebarState {
 	return getContext(Symbol.for(symbol_key));

@@ -20,15 +20,42 @@
     [--tw-prose-td-borders:var(--border)];
 }
 
+.docs-prose-media-scope {
+	--docs-prose-max-inline-size: 74ch;
+	--docs-prose-media-inline-size: min(
+		100%,
+		max(var(--docs-prose-media-width, 0px), var(--docs-prose-max-inline-size))
+	);
+}
+
 .prose.prose :where(p, li, blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
 	text-wrap: pretty;
+}
+
+.prose.prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+	@apply text-muted-foreground font-normal not-italic;
+}
+
+.prose.prose
+	:where(blockquote p:first-of-type):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	)::before,
+.prose.prose
+	:where(blockquote p:last-of-type):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	)::after {
+	content: none;
+}
+
+.prose.prose :where(blockquote cite):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+	@apply text-muted-foreground mt-4 block text-base/7 font-normal not-italic;
 }
 
 .prose.prose
 	> :where(:not(.docs-code-snippet, .docs-command-snippet, .docs-note-group)):not(
 		:where([class~="not-prose"], [class~="not-prose"] *)
 	) {
-	@apply max-w-[74ch];
+	max-width: var(--docs-prose-max-inline-size, 74ch);
 }
 
 .prose.prose
@@ -40,5 +67,5 @@
 
 .docs-prose-media-scope .docs-prose-divider {
 	@apply max-w-full;
-	width: var(--docs-prose-media-width, 100%);
+	width: var(--docs-prose-media-inline-size, min(100%, 74ch));
 }

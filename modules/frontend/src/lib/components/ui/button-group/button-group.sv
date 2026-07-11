@@ -3,8 +3,6 @@
 
 	/**
  * Tailwind variants for button group components.
- *
- * @since 0.0.1
  */
 	export const button_group_variants = tv({
 		base: "has-[>[data-slot=button-group]]:gap-2 has-[select[aria-hidden=true]:last-child]:[&>[data-slot=select-trigger]:last-of-type]:rounded-r-4xl flex w-fit items-stretch [&>*]:focus-visible:relative [&>*]:focus-visible:z-10 [&>[data-slot=select-trigger]:not([class*='w-'])]:w-fit [&>input]:flex-1",
@@ -23,8 +21,6 @@
 
 	/**
  * Orientation values supported by button groups.
- *
- * @since 0.0.1
  */
 	export type ButtonGroupOrientation = VariantProps<typeof button_group_variants>["orientation"];
 </script>

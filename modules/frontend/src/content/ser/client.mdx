@@ -1,0 +1,180 @@
+---
+title: "Client"
+description: "Run client-side effects where your Svelte component needs their values."
+---
+
+Add `effect` to a component's script tag: `ser <script lang="ts" effect>`. It is a small addition, albeit one that lets the component run effect code directly while the rest remains ordinary Svelte.
+
+From there, place `ser yield*` wherever the component needs an effect's result. A script expression might load a profile into local state, while markup can wait for a value before it renders.
+
+Events join in with the same syntax. `ser <button onclick={yield* SaveProfile()}>`, for example, waits for a click before it runs. Although loading and saving happen at different times, both pieces of code remain in the component that uses them.
+
+## How the effect runs
+
+Vite takes care of the bookkeeping. During the transform, SER replaces each supported `ser yield*` expression with a Dispatcher operation that carries its source position and reactive inputs.
+
+The Dispatcher gives that operation a managed fiber. When a reactive input changes, it interrupts the old fiber and starts again with the latest values, so stale work cannot wander back in later.
+
+Events follow a slightly different rhythm. Script and markup operations return their values to Svelte, whereas each event starts a fresh fiber when it fires.
+
+[Follow the generated operation through the Dispatcher](/docs/ser/dispatcher) to see how it handles cache identity and cleanup.
+
+## Script
+
+`svelte ProfileCard` begins by loading the profile into component state. The script can wait for that value before the markup reads it.
+
+### ✅ Supported
+
+At the top level, `ser yield*` can appear in declarations, assignments, destructuring, control flow, and supported rune initializers.
+
+```ser name="profile-card.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { LoadProfile } from "./profile.remote";
+
+	let user_id = $state("42");
+	let profile = $state(yield* LoadProfile({ user_id }));
+
+	profile = yield* LoadProfile({ user_id });
+</script>
+
+<h2>{profile.name}</h2>
+```
+
+Here, `ts user_id` is a reactive input. If it changes, SER interrupts the previous `ser LoadProfile()` fiber before starting the next one.
+
+### ❌ Unsupported
+
+Nested functions remain ordinary JavaScript. Synchronous rune callbacks and class fields cannot use a direct `ser yield*` either.
+
+```svelte
+<script lang="ts" effect>
+	/** Invalid: these callbacks must stay synchronous. */
+	$effect(() => yield* Save());
+	const value = $derived.by(() => yield* Compute());
+</script>
+```
+
+An effectful helper may return an effect. Yield that effect later from a supported SER position.
+
+## Markup
+
+The profile has arrived, although rendering may still depend on effectful values. A permission check can choose a branch, and a project query can supply an `svelte {#each ...}` block.
+
+### ✅ Supported
+
+Interpolation can yield where the result should appear:
+
+```ser
+<p>{yield* LoadStatus()}</p>
+```
+
+Svelte blocks accept the yielded value in their usual expression position:
+
+```ser
+{#if yield* HasAccess(user_id)}
+	<Dashboard />
+{/if}
+
+{#each yield* ListProjects() as project}
+	<ProjectCard {project} />
+{/each}
+
+{#await yield* LoadReport(report_id)}
+	<p>Loading report...</p>
+{:then report}
+	<Report {report} />
+{/await}
+
+{#key yield* ActiveWorkspace()}
+	<Workspace />
+{/key}
+```
+
+An ordinary prop cannot yield directly. Resolve the value in a declaration tag first:
+
+```ser
+{const price = yield* LoadPrice(symbol)}
+<Price value={price} />
+```
+
+> [!NOTE] Legacy declaration syntax
+> SER still understands Svelte's legacy `svelte {@const ...}` syntax, so existing components do not need a rushed migration. For new code, however, prefer declaration tags such as `ser {const ...}`.
+
+Render and HTML tags also accept a direct `ser yield*`:
+
+```ser
+{@render yield* LoadSnippet()}
+{@html yield* RenderMarkup()}
+```
+
+### ❌ Unsupported
+
+SER leaves `svelte {@debug ...}` untouched. Give the effect result a name before inspecting it.
+
+```svelte
+<!-- Invalid -->
+{@debug yield* InspectState()}
+```
+
+```ser
+{const debug_state = yield* InspectState()}
+{@debug debug_state}
+```
+
+## Attributes
+
+The profile is visible now. Saving begins only after the user clicks the button, so the effect belongs in its event attribute.
+
+SER follows Svelte's event attribute conventions. A direct `ser yield*` tells SER to run the effect when the event fires, and the generated handler provides the DOM `ts event`.
+
+Keep `ser yield*` in the attribute expression itself. Inside a callback, it belongs to ordinary JavaScript and sits beyond SER's event boundary.
+
+### ✅ Supported
+
+Use the direct form with modern Svelte event attributes:
+
+```ser
+<button onclick={yield* Save(project_id)}>Save</button>
+
+<input
+	oninput={yield* Validate(event.currentTarget.value)}
+/>
+```
+
+Legacy event directives still work, although new code should follow Svelte's event attribute syntax:
+
+```ser
+<button on:click={yield* Save(project_id)}>Save</button>
+```
+
+Without `ser yield*`, the attribute remains an ordinary Svelte event handler.
+
+### ❌ Unsupported
+
+SER rejects `ser yield*` inside a callback because JavaScript already owns that boundary.
+
+```svelte
+<!-- Invalid -->
+<button onclick={() => yield* Save(project_id)}>Save</button>
+```
+
+Ordinary attributes are not effect sites. A `ser value` prop cannot contain `ser yield*` directly.
+
+```svelte
+<!-- Invalid -->
+<Widget value={yield* LoadValue()} />
+```
+
+Resolve the effect in markup, then pass the value as a normal prop:
+
+```ser
+{const value = yield* LoadValue()}
+<Widget {value} />
+```
+
+A callback without `ser yield*` remains ordinary JavaScript. This callback returns an effect value without running it:
+
+```svelte
+<!-- Not transformed by SER -->
+<button onclick={() => Save(project_id)}>Save</button>
+```

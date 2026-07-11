@@ -1,6 +1,6 @@
-import Root from "./collapsible.sv";
-import Trigger from "./collapsible-trigger.sv";
-import Content from "./collapsible-content.sv";
+import Root from "$lib/components/ui/collapsible/collapsible.sv";
+import Trigger from "$lib/components/ui/collapsible/collapsible-trigger.sv";
+import Content from "$lib/components/ui/collapsible/collapsible-content.sv";
 
 export {
 	Content,

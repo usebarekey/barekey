@@ -1,13 +1,13 @@
-import Root from "./item.sv";
-import Group from "./item-group.sv";
-import Separator from "./item-separator.sv";
-import Header from "./item-header.sv";
-import Footer from "./item-footer.sv";
-import Content from "./item-content.sv";
-import Title from "./item-title.sv";
-import Description from "./item-description.sv";
-import Actions from "./item-actions.sv";
-import Media from "./item-media.sv";
+import Root from "$lib/components/ui/item/item.sv";
+import Group from "$lib/components/ui/item/item-group.sv";
+import Separator from "$lib/components/ui/item/item-separator.sv";
+import Header from "$lib/components/ui/item/item-header.sv";
+import Footer from "$lib/components/ui/item/item-footer.sv";
+import Content from "$lib/components/ui/item/item-content.sv";
+import Title from "$lib/components/ui/item/item-title.sv";
+import Description from "$lib/components/ui/item/item-description.sv";
+import Actions from "$lib/components/ui/item/item-actions.sv";
+import Media from "$lib/components/ui/item/item-media.sv";
 
 export {
 	Actions,

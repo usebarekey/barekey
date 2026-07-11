@@ -1,9 +1,9 @@
-import Root from "./input-group.sv";
-import Addon from "./input-group-addon.sv";
-import Button from "./input-group-button.sv";
-import Input from "./input-group-input.sv";
-import Text from "./input-group-text.sv";
-import Textarea from "./input-group-textarea.sv";
+import Root from "$lib/components/ui/input-group/input-group.sv";
+import Addon from "$lib/components/ui/input-group/input-group-addon.sv";
+import Button from "$lib/components/ui/input-group/input-group-button.sv";
+import Input from "$lib/components/ui/input-group/input-group-input.sv";
+import Text from "$lib/components/ui/input-group/input-group-text.sv";
+import Textarea from "$lib/components/ui/input-group/input-group-textarea.sv";
 
 export {
 	Addon,

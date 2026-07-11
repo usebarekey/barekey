@@ -31,4 +31,4 @@ The accepted boundary form leaves callback creation to SER:
 
 SER generates an event callback whose body submits generator work to the component dispatcher. A source arrow function creates another JavaScript function boundary around the `ts yield*`. Ordinary arrows and non-generator functions cannot own generator delegation syntax, and preserving the wrapper would keep the work outside SER's generated generator.
 
-Removing the wrapper also gives the dispatcher ownership of interruption and component teardown for that event execution. SER can generate that lifecycle only when the Effect expression sits directly at the attribute boundary.
+Removing the wrapper also gives the dispatcher ownership of interruption and component teardown for that event execution. SER can generate that lifecycle only when the effect expression sits directly at the attribute boundary.

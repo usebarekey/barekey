@@ -1,8 +1,6 @@
 <script lang="ts" module>
 	/**
  * Sheet side placement names.
- *
- * @since 0.0.1
  */
 	export type Side = "top" | "right" | "bottom" | "left";
 </script>
@@ -10,8 +8,8 @@
 <script lang="ts">
 	import { Dialog as SheetPrimitive } from "bits-ui";
 	import type { Snippet } from "svelte";
-	import SheetPortal from "./sheet-portal.sv";
-	import SheetOverlay from "./sheet-overlay.sv";
+	import SheetPortal from "$lib/components/ui/sheet/sheet-portal.sv";
+	import SheetOverlay from "$lib/components/ui/sheet/sheet-overlay.sv";
 	import { Button } from "$lib/components/ui/button";
 	import { IconX } from "@tabler/icons-svelte";
 	import { cn, type WithoutChildrenOrChild } from "$lib/utils";

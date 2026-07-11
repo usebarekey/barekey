@@ -7,7 +7,7 @@ description: "Trace a scanned markup expression for which SER has no lowering ru
 
 `UnsupportedMarkupEffectPositionError` means SER found `ts yield*` inside a braced markup expression, but the Svelte AST placed it somewhere SER does not yet know how to lower safely.
 
-Supported positions include expression tags; `ts if`, `ts each`, `ts await`, and `ts key` block expressions; render and HTML tags; declaration tags; and event attributes that follow Svelte's current or legacy conventions. Ordinary component and element attributes are not implicit Effect boundaries, however. A prop such as `ser <Widget value={yield* Load()} />` therefore triggers this error, as does an unsupported tag position such as `ser {@debug yield* Inspect()}`.
+Supported positions include expression tags; `ts if`, `ts each`, `ts await`, and `ts key` block expressions; render and HTML tags; declaration tags; and event attributes that follow Svelte's current or legacy conventions. Ordinary component and element attributes are not implicit effect boundaries, however. A prop such as `ser <Widget value={yield* Load()} />` therefore triggers this error, as does an unsupported tag position such as `ser {@debug yield* Inspect()}`.
 
 ## Exactly where it triggers
 

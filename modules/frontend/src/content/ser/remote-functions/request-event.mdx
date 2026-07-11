@@ -1,0 +1,82 @@
+---
+title: "RequestEvent"
+description: "Read SvelteKit request context from a SER remote handler."
+---
+
+A remote function begins with decoded input, although the request often carries context of its own. A session cookie may identify the caller, while `ts locals` may contain data prepared by a server hook.
+
+SER exposes the current SvelteKit request as the `ts RequestEvent` effect service. Yield it inside a remote handler to read the request that triggered that call.
+
+## Read the current request
+
+`ts RequestEvent` includes `ts cookies`, `ts getClientAddress`, `ts locals`, `ts params`, `ts platform`, `ts request`, `ts route`, and `ts url`.
+
+```ts name="session.remote.ts" icon="ts"
+import { Effect } from "effect";
+import { Query, RequestEvent } from "svelte-effect-runtime";
+
+export const GetSession = Query(
+	Effect.gen(function* () {
+		const event = yield* RequestEvent;
+		const session_id = event.cookies.get("session") ?? null;
+
+		return {
+			session_id,
+			path: event.url.pathname,
+		};
+	}),
+);
+```
+
+The value is the request for this invocation of `ts GetSession()`. Another request receives another service value, even though both handlers run through the same server runtime.
+
+## Change a cookie
+
+The cookie API is SvelteKit's own. A command can delete the session cookie before it returns:
+
+```ts name="session.remote.ts" icon="ts"
+import { Effect } from "effect";
+import { Command, RequestEvent } from "svelte-effect-runtime";
+
+export const SignOut = Command(
+	Effect.gen(function* () {
+		const event = yield* RequestEvent;
+
+		event.cookies.delete("session", { path: "/" });
+	}),
+);
+```
+
+SvelteKit still applies its usual cookie rules, including an explicit `ts path` when deleting a cookie.
+
+## Read it from a helper
+
+An effect called by the handler inherits the same request context. This keeps request access inside the effect graph without threading the event through every function argument.
+
+```ts name="session.ts" icon="ts"
+import { Effect } from "effect";
+import { RequestEvent } from "svelte-effect-runtime";
+
+export const ReadSessionId = Effect.gen(function* () {
+	const event = yield* RequestEvent;
+
+	return event.cookies.get("session") ?? null;
+});
+```
+
+```ts name="session.remote.ts" icon="ts"
+import { ReadSessionId } from "$lib/server/session";
+import { Query } from "svelte-effect-runtime";
+
+export const GetSessionId = Query(ReadSessionId);
+```
+
+## Request scope
+
+SER installs the current `ts RequestEvent` value around each remote handler effect. Concurrent calls can share one `ts ServerRuntime`, yet each handler reads cookies and locals from its own request.
+
+## Outside a remote handler
+
+Yielding `ts RequestEvent` during module initialization, runtime startup, or another effect without a remote request throws `ts RequestEventUnavailableError`.
+
+That error means the effect was evaluated before SER installed request context. Move the `ts yield* RequestEvent` into the remote handler or an effect reached from that handler.

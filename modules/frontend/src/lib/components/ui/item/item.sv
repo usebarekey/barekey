@@ -3,8 +3,6 @@
 
 	/**
  * Tailwind variants for item components.
- *
- * @since 0.0.1
  */
 	export const item_variants = tv({
 		base: "[a]:hover:bg-muted rounded-2xl border text-sm group/item focus-visible:border-ring focus-visible:ring-ring/50 flex w-full flex-wrap items-center transition-colors duration-100 outline-none focus-visible:ring-[3px] [a]:transition-colors",
@@ -28,14 +26,10 @@
 
 	/**
  * Size names supported by item components.
- *
- * @since 0.0.1
  */
 	export type ItemSize = VariantProps<typeof item_variants>["size"];
 	/**
  * Variant names supported by item components.
- *
- * @since 0.0.1
  */
 	export type ItemVariant = VariantProps<typeof item_variants>["variant"];
 </script>

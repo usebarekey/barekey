@@ -1,0 +1,200 @@
+---
+title: "Tooling"
+description: "Tooling for SER."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+Because of the nature of what SER does, we've had to create a few tools to help with the development process.
+
+## Software around SER
+
+### better-svelte-check
+
+`better-svelte-check` loads your Vite config before it runs [svelte-check](https://svelte.dev/docs/cli/sv-check).
+That gives SER a chance to lower its extended syntax, so the checker sees ordinary Svelte and TypeScript.
+
+It is available for download via the npm registry.
+
+<CommandPicker.Root
+	id="install-better-svelte-check"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add npm:better-svelte-check"
+	/>
+	<CommandPicker.Item value="bun" label="Bun" icon="bun" command="bun add better-svelte-check" />
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add better-svelte-check"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install better-svelte-check"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add better-svelte-check"
+	/>
+	<CommandPicker.Item value="nub" label="Nub" icon="nub" command="nub add better-svelte-check" />
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add better-svelte-check"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install better-svelte-check"
+	/>
+</CommandPicker.Root>
+
+### svelte-plugin-composer
+
+`svelte-plugin-composer` is a plugin for Vite that composes your plugins in the order you want them to run,
+escaping plugins that use `ts enforce: "pre"` or `ts transform.order = "pre"`.
+
+It is available for download via the npm registry.
+
+<CommandPicker.Root
+	id="install-composer"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add npm:svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install svelte-plugin-composer"
+	/>
+</CommandPicker.Root>
+
+## IDEs
+
+For VS Code and its forks, there is an extension available for both
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Barekey.svelte-effect-runtime-vscode)
+and the [OpenVSX Registry](https://open-vsx.org/extension/barekey/svelte-effect-runtime-vscode) to enable IntelliSense for types and the extended grammar.
+
+Both are available from the extensions tab in your code editor.
+
+> [!TIP] About the registries
+> Cursor and several other VS Code forks use [OpenVSX Registry](https://open-vsx.org) instead of Microsoft's [Visual Studio Marketplace](https://marketplace.visualstudio.com/).
+> The extension works the same from either registry.
+
+## Skills
+
+If you use AI, we provide a skill file that teaches your agent how to use SER and how to understand its syntax.
+
+Install it with the [Skills CLI](https://www.skills.sh/).
+
+<CommandPicker.Root
+	id="install-ser-skill"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno run -A npm:skills add barekey/svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bunx skills add barekey/svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm dlx skills add barekey/svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npx skills add barekey/svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn dlx skills add barekey/svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub dlx skills add barekey/svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube dlx skills add barekey/svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt exec skills add barekey/svelte-effect-runtime"
+	/>
+</CommandPicker.Root>

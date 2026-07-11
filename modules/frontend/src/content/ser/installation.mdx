@@ -1,104 +1,171 @@
 ---
 title: "Installation"
-description: "Installation of SER, quirks around Vite and some tips for the future."
+description: "Install SER in SvelteKit with svelte-plugin-composer."
 ---
 
-Installation should be easy enough. Just run the following command and update your `vite.config.ts` with the two lines under and you should be finished.
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+SER only needs one package, but we recommend installing both of these:
+
+- `svelte-effect-runtime`
+- `svelte-plugin-composer`
+
+Install both, then wire `ts effect()` through composer in `icon="vite" vite.config.ts`.
 
 ## Installing
 
-To install SER, use your package manager and install the package.
+Install the packages with your package manager.
 
-:::command-snippet id="install-ser" default="deno" select="Package manager"
+<CommandPicker.Root
+	id="install-ser"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add npm:svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add svelte-effect-runtime"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install svelte-effect-runtime"
+	/>
+</CommandPicker.Root>
 
-```sh value="deno" label="Deno" icon="deno"
-deno add npm:svelte-effect-runtime
-```
+<CommandPicker.Root
+	id="install-composer"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add npm:svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add --dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add -D svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install --save-dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add --dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install --save-dev svelte-plugin-composer"
+	/>
+</CommandPicker.Root>
 
-```sh value="bun" label="Bun" icon="bun"
-bun add svelte-effect-runtime
-```
+> [!NOTE] Why composer?
+> While SER can run without `svelte-plugin-composer`, composer is the recommended way to use SER.
+>
+> It makes plugins in your Vite config run in the position you gave them instead of skipping the queue with `ts enforce: "pre"` or `ts transform.order = "pre"`. It also handles useful Svelte config work like deduping config contributions.
 
-```sh value="pnpm" label="pnpm"
-pnpm add svelte-effect-runtime
-```
+## Configure Vite
 
-```sh value="npm" label="npm"
-npm install svelte-effect-runtime
-```
+Update your `icon="vite" vite.config.ts` with the following code:
 
-```sh value="yarn" label="Yarn"
-yarn add svelte-effect-runtime
-```
-
-```sh value="nub" label="Nub"
-nub add svelte-effect-runtime
-```
-
-```sh value="aube" label="Aube"
-aube add svelte-effect-runtime
-```
-
-```sh value="vlt" label="vlt"
-vlt install svelte-effect-runtime
-```
-
-:::
-
-## Adding it to your project
-
-Update your `vite.config.ts` to import `ts effect()` and add it to the `ts plugins[]` array.
+> [!IMPORTANT] Order matters
+> Put `ts effect()` first in your plugin array. It transforms what other plugins might see as invalid syntax into valid syntax.
 
 ```ts diff name="vite.config.ts" icon="vite"
-import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
+import { sveltekit } from "@sveltejs/kit/vite";
 ++ import { effect } from "svelte-effect-runtime";
-
-import tailwindcss from "@tailwindcss/vite";
-import adapter from "@sveltejs/adapter-auto";
+++ import { compose } from "svelte-plugin-composer";
 
 export default defineConfig({
-  plugins: [
-++  effect(),
-    tailwindcss(),
-    sveltekit({
-
-      compilerOptions: {
-        /**
-         * Force runes mode for the project, except for libraries.
-         * Can be removed in Svelte 6.
-         */
-        runes: ({ filename }) =>
-            filename.split(/[/\\]/).includes("node_modules") ? undefined : true,
-            experimental: {
-            async: true,
-            },
-      },
-
-      experimental: {
-        remoteFunctions: true,
-      },
-    }),
-  ],
+++	plugins: compose([
+++		effect(),
+		sveltekit({
+++			compilerOptions: {
+++				experimental: {
+++					async: true,
+++				},
+				runes: ({ filename }) =>
+					filename.split(/[/\\]/).includes("node_modules") ? undefined : true,
+			},
+++			experimental: {
+++				remoteFunctions: true,
+++			},
+		}),
+++	]),
 });
 ```
 
-## Order matters
+You should now have added `ts compose()`, `ts effect()` and enabled both experiments for remote functions and async rendering in Svelte.
 
-### SER needs to come first
-
-SER must run before plugins that read or transform Svelte
-files. It lowers SER syntax into ordinary Svelte syntax that the rest of your
-tooling can parse, if not -- its probably going to crash your app in every way you can imagine!
-
-### Plugins that force their way first
-
-A lot Vite and SvelteKit plugins for some reason use `ts enforce: "pre"` or
-`ts transform.order = "pre"` to skip the order in `ts plugins[]` and go first.
-
-While most plugins work fine, theres some bad eggs that can really cause a struggle here. SER needs to see
-the file early _(way more early then others!)_, and SER does not use the same hack either to move itself out of the queue.
-
-> [!TIP] We can not help you
-> If a plugin causes problem and you have deemed it 100% incompatible with SER because of this -- open an issue at their end -- or remove it and
-> find an alternative.
+> [!TIP] Remote functions is technically optional
+> If you are not planning on using remote functions, you can safely disable them.

@@ -15,7 +15,6 @@ import type { Component, Snippet } from "svelte";
  *   <Component {...props} />
  * {/if}
  * ```
- * @since 0.0.1
  */
 export class RenderComponentConfig<
 	Props extends Record<string, unknown>,
@@ -43,7 +42,6 @@ export class RenderComponentConfig<
  *   {@render snippet(params)}
  * {/if}
  * ```
- * @since 0.0.1
  */
 export class RenderSnippetConfig<TProps> {
 	snippet: Snippet<[TProps]>;
@@ -59,9 +57,6 @@ export class RenderSnippetConfig<TProps> {
  *
  * This is only to be used with Svelte Components - use `render_snippet` for Svelte Snippets.
  *
- * @param component A Svelte component
- * @param props The props to pass to `component`
- * @returns A `RenderComponentConfig` object that helps svelte-table know how to render the header/cell component.
  * @example
  * ```ts
  * const defaultColumns = [
@@ -74,7 +69,6 @@ export class RenderSnippetConfig<TProps> {
  * ]
  * ```
  * @see {@link https://tanstack.com/table/latest/docs/guide/column-defs}
- * @since 0.0.1
  */
 export function render_component<Props extends Record<string, unknown>, T extends Component<Props>>(
 	component: T,
@@ -90,9 +84,6 @@ export function render_component<Props extends Record<string, unknown>, T extend
  *
  * This is only to be used with Snippets - use `render_component` for Svelte Components.
  *
- * @param snippet
- * @param params
- * @returns - A `RenderSnippetConfig` object that helps svelte-table know how to render the header/cell snippet.
  * @example
  * ```ts
  * const defaultColumns = [
@@ -105,7 +96,6 @@ export function render_component<Props extends Record<string, unknown>, T extend
  * ]
  * ```
  * @see {@link https://tanstack.com/table/latest/docs/guide/column-defs}
- * @since 0.0.1
  */
 export function render_snippet<TProps>(snippet: Snippet<[TProps]>, params: TProps = {} as TProps) {
 	return new RenderSnippetConfig(snippet, params);

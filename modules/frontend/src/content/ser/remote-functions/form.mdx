@@ -1,0 +1,120 @@
+---
+title: "Form"
+description: "Build progressive forms with effect handlers and field validation."
+---
+
+`ts Form` wraps SvelteKit's `ts form()`. It keeps native form behavior on the client while the server handler runs inside an effect.
+
+Use it for sign-in, settings, profile editing, and creation flows. Use [Command](/docs/ser/command) for mutations that do not have a natural HTML form.
+
+## Define a form
+
+Pass a schema and an effect-returning handler:
+
+```ts name="profile.remote.ts" icon="ts"
+import { Effect, Schema } from "effect";
+import { Form } from "svelte-effect-runtime";
+
+const ProfileInput = Schema.Struct({
+	name: Schema.String,
+	email: Schema.String,
+});
+
+export const update_profile = Form(ProfileInput, ({ data }) =>
+	Effect.gen(function* () {
+		yield* ProfileRepository.update(data);
+
+		return { saved: true };
+	}),
+);
+```
+
+The browser submits the schema's encoded input. The handler receives decoded data in `ts data`.
+
+## Render the form
+
+The exported value keeps SvelteKit's native form attributes:
+
+```ser name="profile-form.svelte" icon="svelte"
+<script lang="ts">
+	import { update_profile } from "./profile.remote";
+</script>
+
+<form {...update_profile}>
+	<label>
+		Name
+		<input name="name" autocomplete="name" />
+	</label>
+
+	<label>
+		Email
+		<input name="email" type="email" autocomplete="email" />
+	</label>
+
+	<button>Save profile</button>
+</form>
+```
+
+This remains an HTML form. The server handler must be correct without client JavaScript, even when you add enhancement later.
+
+## Return field errors
+
+The handler receives a `ts invalid` proxy whose shape follows the input. Yield a field path to return a validation issue:
+
+```ts name="profile.remote.ts" icon="ts"
+export const update_profile = Form(ProfileInput, ({ data, invalid }) =>
+	Effect.gen(function* () {
+		if (data.name.trim().length === 0) {
+			return yield* invalid.name("Name is required");
+		}
+
+		if (!data.email.includes("@")) {
+			return yield* invalid.email("Enter a valid email address");
+		}
+
+		return yield* ProfileRepository.update({
+			name: data.name.trim(),
+			email: data.email,
+		});
+	}),
+);
+```
+
+For nested objects and arrays, continue through the proxy, such as `ts invalid.address.city(...)` or `ts invalid.items[0].name(...)`.
+
+Schema validation runs before the handler. Use `ts invalid` for checks that depend on business rules or several fields together.
+
+## Submit from effect code
+
+The form is also callable and exposes `ts submit` as an effect-returning helper:
+
+```ser name="quick-profile.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { update_profile } from "./profile.remote";
+
+	let name = $state("Ada");
+	let email = $state("ada@example.com");
+</script>
+
+<button onclick={yield* update_profile.submit({ name, email })}>
+	Save
+</button>
+```
+
+Use the HTML form surface for normal form flows. Programmatic submission is useful when the same mutation also runs from a custom control or a larger effect pipeline.
+
+## Validation and enhancement
+
+SER preserves SvelteKit form helpers and adapts effectful operations:
+
+- `ts validate()` returns an effect.
+- `ts submit()` returns an effect.
+- `ts preflight(schema)` returns another SER-aware form.
+- `ts enhance(callback)` accepts callbacks that may return an effect.
+- `ts for(id)` scopes the form to a stable instance.
+
+Enhancement should improve feedback, not become the only path that can submit the data.
+
+## Request context
+
+Yield `ts RequestEvent` inside the handler for cookies, locals, or request metadata. Keep long-lived dependencies such as repositories in the [server runtime](/docs/ser/server-runtime).

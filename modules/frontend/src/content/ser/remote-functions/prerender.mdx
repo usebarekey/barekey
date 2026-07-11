@@ -1,0 +1,73 @@
+---
+title: "Prerender"
+description: "Resolve static remote data through the server effect runtime."
+---
+
+`ts Prerender` wraps SvelteKit's `ts prerender()`. Use it for data that can be resolved while building static output, such as documentation indexes, catalogs, and public content that changes with a deployment.
+
+Use [Query](/docs/ser/query) for request-time reads. Do not prerender account data, cookies, permissions, or rapidly changing records.
+
+## Define a prerender function
+
+The basic form looks like a query but returns a plain remote effect instead of a query resource:
+
+```ts name="docs.remote.ts" icon="ts"
+import { Effect, Schema } from "effect";
+import { Prerender } from "svelte-effect-runtime";
+
+export const get_docs_index = Prerender(
+	Schema.String,
+	(section) =>
+		Effect.succeed([
+			{ section, title: "Installation" },
+			{ section, title: "Client syntax" },
+		]),
+	{
+		inputs: () => ["ser", "effect"],
+	},
+);
+```
+
+`ts inputs` tells SvelteKit which arguments to resolve during the build. Each input must match the caller-side schema type.
+
+Call the function from a component like any other remote effect:
+
+```ser name="+page.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { get_docs_index } from "./docs.remote";
+
+	const pages = yield* get_docs_index("ser");
+</script>
+
+{#each pages as page}
+	<p>{page.title}</p>
+{/each}
+```
+
+## Dynamic fallback
+
+Set `ts dynamic: true` when an input may be absent from the build list and is still safe to resolve on demand:
+
+```ts name="products.remote.ts" icon="ts"
+export const get_product = Prerender(Schema.String, (slug) => ProductRepository.find_public(slug), {
+	inputs: () => ["starter", "team"],
+	dynamic: true,
+});
+```
+
+Do not enable dynamic fallback just to hide request-time behavior. A normal query states that intent more clearly and provides query caching and refresh helpers.
+
+## Runtime services
+
+Prerender handlers use the server runtime, so they can yield services from layers installed with `ts ServerRuntime.make(...)`.
+
+Those services must be available in the build environment. Missing secrets, network access, or unavailable infrastructure can fail the build.
+
+## Build-time boundaries
+
+- Keep prerendered output public and independent of the current user.
+- Avoid request-scoped cookies, locals, and headers.
+- Keep inputs finite when `ts dynamic` is false.
+- Treat handler failure as a deployment failure unless the effect recovers explicitly.
+
+`ts Prerender` is a read operation. Use `ts Command` or `ts Form` for writes, even if a mutation helps prepare static data elsewhere in your deployment process.

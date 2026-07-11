@@ -7,7 +7,7 @@ description: "Trace failures that prevent SER from recovering application or HTT
 
 `RemoteTransportError` means the client could not complete or interpret the remote protocol. It is tagged data with optional `cause` and `body` fields. It deliberately has no `status`, because this category includes failures for which SER cannot prove that a usable HTTP response existed.
 
-The tag covers failures such as missing endpoint metadata, malformed form envelopes, payload-schema mismatches, and native Promise rejections without a numeric status. More specific SER classes, including `RemoteFormEndpointMissingError`, `InvalidRemoteFormResponseError`, `UnsupportedRemoteFormResponseError`, and `RemoteErrorDecodeError`, normally sit in `cause` rather than appearing directly on the public Effect error channel.
+The tag covers failures such as missing endpoint metadata, malformed form envelopes, payload-schema mismatches, and native Promise rejections without a numeric status. More specific SER classes, including `RemoteFormEndpointMissingError`, `InvalidRemoteFormResponseError`, `UnsupportedRemoteFormResponseError`, and `RemoteErrorDecodeError`, normally sit in `cause` rather than appearing directly on the public effect error channel.
 
 ## Exactly where it triggers
 

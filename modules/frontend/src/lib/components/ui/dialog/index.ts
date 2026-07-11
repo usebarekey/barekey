@@ -1,13 +1,13 @@
-import Root from "./dialog.sv";
-import Portal from "./dialog-portal.sv";
-import Title from "./dialog-title.sv";
-import Footer from "./dialog-footer.sv";
-import Header from "./dialog-header.sv";
-import Overlay from "./dialog-overlay.sv";
-import Content from "./dialog-content.sv";
-import Description from "./dialog-description.sv";
-import Trigger from "./dialog-trigger.sv";
-import Close from "./dialog-close.sv";
+import Root from "$lib/components/ui/dialog/dialog.sv";
+import Portal from "$lib/components/ui/dialog/dialog-portal.sv";
+import Title from "$lib/components/ui/dialog/dialog-title.sv";
+import Footer from "$lib/components/ui/dialog/dialog-footer.sv";
+import Header from "$lib/components/ui/dialog/dialog-header.sv";
+import Overlay from "$lib/components/ui/dialog/dialog-overlay.sv";
+import Content from "$lib/components/ui/dialog/dialog-content.sv";
+import Description from "$lib/components/ui/dialog/dialog-description.sv";
+import Trigger from "$lib/components/ui/dialog/dialog-trigger.sv";
+import Close from "$lib/components/ui/dialog/dialog-close.sv";
 
 export {
 	Close,

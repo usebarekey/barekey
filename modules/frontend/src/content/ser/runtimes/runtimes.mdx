@@ -1,0 +1,76 @@
+---
+title: "What are runtimes?"
+description: "Understand how SER provides effect services in the browser and on the server."
+---
+
+An effect describes its work and the services it needs. A runtime supplies those services and executes the program. SER keeps separate runtimes for browser components and server handlers.
+
+> [!NOTE] SER runtimes
+> This page focuses on how SER runs effect programs in Svelte. For a deeper look at declaring, using, and providing services, read Effect's [Managing Services](https://effect.website/docs/requirements-management/services/) guide.
+
+## Two runtime boundaries
+
+The client runtime executes component effects in the browser. It may provide browser storage, analytics, feature flags, or client-only APIs.
+
+The server runtime executes `ts Query`, `ts Command`, `ts Form`, and `ts Prerender` handlers. It may provide database pools, server API clients, configuration, or logging.
+
+```text
+Svelte component -> ClientRuntime -> browser services
+Remote handler   -> ServerRuntime -> server services
+```
+
+Do not put a server service in the client runtime. Anything provided to browser code may enter the client bundle.
+
+## Default runtimes
+
+Both runtimes are optional to configure. SER creates an empty runtime lazily when the first effect has no custom service requirements.
+
+This component needs no runtime setup:
+
+```ser
+<script lang="ts" effect>
+	import { Effect } from "effect";
+
+	const greeting = yield* Effect.succeed("Hello");
+</script>
+
+<p>{greeting}</p>
+```
+
+Add runtime configuration when an effect starts yielding a custom service.
+
+## Configure once
+
+Create the client runtime in `src/hooks.client.ts`:
+
+```ts name="src/hooks.client.ts" icon="ts"
+import { ClientRuntime } from "svelte-effect-runtime";
+import { BrowserServicesLive } from "$lib/client/services";
+
+export const init = () => {
+	ClientRuntime.make(BrowserServicesLive);
+};
+```
+
+Create the server runtime in `src/hooks.server.ts`:
+
+```ts name="src/hooks.server.ts" icon="ts"
+import { ServerRuntime } from "svelte-effect-runtime";
+import { ServerServicesLive } from "$lib/server/services";
+
+export const init = () => {
+	ServerRuntime.make(ServerServicesLive);
+};
+```
+
+There is a small irony here: creating an effect runtime is itself a side effect. `ts make(...)` installs the singleton that later effects will use. That is intentional. SvelteKit's `ts init` hook is the right place for startup side effects, and SER only registers the managed runtime there. It does not hold `ts init()` open while the layer starts its services, so the rest of your initialization can carry on.
+
+Calling either `ts make` more than once throws `ts RuntimeAlreadyInitializedError`. Configure each runtime during startup, before components or remote handlers need it.
+
+## Global and request-scoped data
+
+Runtime layers are long-lived. Server services must be safe to share across concurrent requests.
+
+Cookies, locals, route params, and the current user belong to one request. Read them from `ts RequestEvent` inside a remote handler instead of storing them in a runtime service.
+
+Continue with [Client runtime](/docs/ser/client-runtime) or [Server runtime](/docs/ser/server-runtime) for complete setup examples.

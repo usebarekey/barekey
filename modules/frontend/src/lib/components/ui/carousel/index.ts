@@ -1,8 +1,8 @@
-import Root from "./carousel.sv";
-import Content from "./carousel-content.sv";
-import Item from "./carousel-item.sv";
-import Previous from "./carousel-previous.sv";
-import Next from "./carousel-next.sv";
+import Root from "$lib/components/ui/carousel/carousel.sv";
+import Content from "$lib/components/ui/carousel/carousel-content.sv";
+import Item from "$lib/components/ui/carousel/carousel-item.sv";
+import Previous from "$lib/components/ui/carousel/carousel-previous.sv";
+import Next from "$lib/components/ui/carousel/carousel-next.sv";
 
 export {
 	Content,

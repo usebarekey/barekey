@@ -1,11 +1,11 @@
-import Root from "./table.sv";
-import Body from "./table-body.sv";
-import Caption from "./table-caption.sv";
-import Cell from "./table-cell.sv";
-import Footer from "./table-footer.sv";
-import Head from "./table-head.sv";
-import Header from "./table-header.sv";
-import Row from "./table-row.sv";
+import Root from "$lib/components/ui/table/table.sv";
+import Body from "$lib/components/ui/table/table-body.sv";
+import Caption from "$lib/components/ui/table/table-caption.sv";
+import Cell from "$lib/components/ui/table/table-cell.sv";
+import Footer from "$lib/components/ui/table/table-footer.sv";
+import Head from "$lib/components/ui/table/table-head.sv";
+import Header from "$lib/components/ui/table/table-header.sv";
+import Row from "$lib/components/ui/table/table-row.sv";
 
 export {
 	Body,

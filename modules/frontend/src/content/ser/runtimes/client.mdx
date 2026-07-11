@@ -1,0 +1,87 @@
+---
+title: "Client runtime"
+description: "Provide browser services to component effects."
+---
+
+`ts ClientRuntime` executes effect programs started by SER components in the browser. Configure it when those effects need browser-specific services.
+
+## When to configure it
+
+The lazy empty runtime is enough for pure effects and remote calls that need no client service.
+
+Call `ts ClientRuntime.make(...)` for browser storage, analytics, a client logger, feature flags, or another capability shared by component effects.
+
+## Register a layer
+
+Put setup in `src/hooks.client.ts`:
+
+```ts name="src/hooks.client.ts" icon="ts"
+import { ClientRuntime } from "svelte-effect-runtime";
+import { BrowserStorageLive } from "$lib/client/browser-storage";
+
+export const init = () => {
+	ClientRuntime.make(BrowserStorageLive);
+};
+```
+
+SER reuses this runtime for component script effects, markup effects, and effectful event handlers.
+
+## Define a browser service
+
+Model the capability with an effect service and provide a live layer:
+
+```ts name="src/lib/client/browser-storage.ts" icon="ts"
+import { Context, Effect, Layer } from "effect";
+
+export class BrowserStorage extends Context.Tag("BrowserStorage")<
+	BrowserStorage,
+	{
+		readonly get: (key: string) => Effect.Effect<string | null>;
+		readonly set: (key: string, value: string) => Effect.Effect<void>;
+	}
+>() {}
+
+export const BrowserStorageLive = Layer.succeed(BrowserStorage, {
+	get: (key) => Effect.sync(() => localStorage.getItem(key)),
+	set: (key, value) => Effect.sync(() => localStorage.setItem(key, value)),
+});
+```
+
+Yield the service from a component:
+
+```ser name="theme-picker.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { BrowserStorage } from "$lib/client/browser-storage";
+
+	const storage = yield* BrowserStorage;
+	let theme = $state((yield* storage.get("theme")) ?? "system");
+
+	const save_theme = (next: string) => storage.set("theme", next);
+</script>
+
+<button onclick={yield* save_theme("dark")}>Use dark theme</button>
+<p>Current theme: {theme}</p>
+```
+
+## Combine client layers
+
+Use `ts Layer.mergeAll` when the runtime needs several independent services:
+
+```ts name="src/hooks.client.ts" icon="ts"
+import { Layer } from "effect";
+import { ClientRuntime } from "svelte-effect-runtime";
+import { AnalyticsLive } from "$lib/client/analytics";
+import { BrowserStorageLive } from "$lib/client/browser-storage";
+
+export const init = () => {
+	ClientRuntime.make(Layer.mergeAll(AnalyticsLive, BrowserStorageLive));
+};
+```
+
+Never import a server-only layer into this hook. Keep secrets, database clients, and privileged APIs behind remote functions.
+
+## Runtime lifecycle
+
+Create the runtime once. Do not call `ts ClientRuntime.make` inside a component or after component work has begun.
+
+SER interrupts component fibers when their owners are destroyed. Services that acquire resources should express acquisition and cleanup through scoped effects and layers.

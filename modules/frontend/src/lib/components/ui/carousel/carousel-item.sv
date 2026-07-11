@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { HTMLAttributes } from "svelte/elements";
-	import { get_embla_context } from "./context.js";
+	import { get_embla_context } from "$lib/components/ui/carousel/context.js";
 	import { cn, type WithElementRef } from "$lib/utils.js";
 
 	let {

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { ComponentProps } from "svelte";
-	import type Calendar from "./calendar.sv";
-	import CalendarMonthSelect from "./calendar-month-select.sv";
-	import CalendarYearSelect from "./calendar-year-select.sv";
+	import type Calendar from "$lib/components/ui/calendar/calendar.sv";
+	import CalendarMonthSelect from "$lib/components/ui/calendar/calendar-month-select.sv";
+	import CalendarYearSelect from "$lib/components/ui/calendar/calendar-year-select.sv";
 	import { DateFormatter, getLocalTimeZone, type DateValue } from "@internationalized/date";
 
 	let {

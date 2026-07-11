@@ -1,3 +1,3 @@
-import Root from "./separator.sv";
+import Root from "$lib/components/ui/separator/separator.sv";
 
 export { Root, Root as Separator };

@@ -2,12 +2,12 @@
 
 .prose .docs-note {
 	@apply my-6 max-w-full;
-	width: var(--docs-prose-media-width, fit-content);
+	width: var(--docs-prose-media-inline-size, min(100%, 74ch));
 }
 
 .prose .docs-note-group {
 	@apply flex max-w-full flex-col gap-8;
-	width: var(--docs-prose-media-width, fit-content);
+	width: var(--docs-prose-media-inline-size, min(100%, 74ch));
 }
 
 .prose .docs-note-group .docs-note {
@@ -15,8 +15,8 @@
 }
 
 .docs-note {
-	@apply flex flex-col gap-4 rounded-3xl bg-linear-to-t from-background/30
-    to-foreground/5 p-4 card card-outline;
+	@apply flex flex-col gap-2 rounded-3xl bg-linear-to-t from-background/30
+    to-foreground/5 p-4 card-lg;
 }
 
 .docs-note-header {
@@ -70,8 +70,8 @@
 .docs-note-header code,
 .docs-note-body code {
 	@apply inline align-baseline rounded-full bg-linear-to-t from-background/30
-    to-foreground/5 px-2 py-0.5 font-mono text-[0.88em] font-normal
-    leading-none text-foreground card;
+		to-foreground/5 px-2 py-0.5 font-mono text-[0.88em] font-normal
+		leading-none text-foreground card;
 	white-space: pre;
 }
 

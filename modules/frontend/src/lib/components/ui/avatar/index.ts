@@ -1,9 +1,9 @@
-import Root from "./avatar.sv";
-import Image from "./avatar-image.sv";
-import Fallback from "./avatar-fallback.sv";
-import Badge from "./avatar-badge.sv";
-import Group from "./avatar-group.sv";
-import GroupCount from "./avatar-group-count.sv";
+import Root from "$lib/components/ui/avatar/avatar.sv";
+import Image from "$lib/components/ui/avatar/avatar-image.sv";
+import Fallback from "$lib/components/ui/avatar/avatar-fallback.sv";
+import Badge from "$lib/components/ui/avatar/avatar-badge.sv";
+import Group from "$lib/components/ui/avatar/avatar-group.sv";
+import GroupCount from "$lib/components/ui/avatar/avatar-group-count.sv";
 
 export {
 	Badge,

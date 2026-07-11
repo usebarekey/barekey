@@ -1,0 +1,92 @@
+---
+title: "Dispatcher"
+description: "See how SER runs component effects and returns their results to Svelte."
+---
+
+`ser LoadProfile({ user_id })` may still be running when `ts user_id` changes. The first result is stale before it arrives, yet Svelte still needs a value it can render or track.
+
+The Dispatcher receives the generated operation and starts it on the active effect runtime. It keeps the fiber until completion or interruption, then publishes through the channel expected by the Svelte expression.
+
+The Vite transform writes these Dispatcher calls. Component source remains a direct `ser yield*` expression.
+
+## From source to fiber
+
+Start with the profile component:
+
+```ser name="profile-card.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { LoadProfile } from "./profile.remote";
+
+	let user_id = $state("42");
+	let profile = $state(yield* LoadProfile({ user_id }));
+</script>
+
+<h2>{profile.name}</h2>
+```
+
+SER gives the source position a stable identity and records `ts user_id` as an input. The expression becomes a factory, ready for the Dispatcher to run through the effect runtime.
+
+```text
+yield* in the component
+        |
+        v
+SER's Vite transform
+        |
+        v
+Dispatcher
+        |
+        v
+managed effect runtime
+        |
+        v
+value, promise, or event completion for Svelte
+```
+
+If `ts user_id` changes from `ts "42"` to `ts "43"`, the cache identity changes with it. The Dispatcher interrupts the fiber for `ts "42"` before starting the replacement.
+
+## Script effects
+
+A top-level script effect runs inside a generated Svelte `svelte $effect`. Svelte tracks the values read by the block, while the Dispatcher forks the effect program into a fiber.
+
+When one changes, Svelte runs the block's cleanup before trying again. That cleanup interrupts the old fiber. Component destruction and hot module replacement trigger the same cleanup.
+
+## Reactive markup
+
+During rendering, `ser {yield* LoadStatus()}` needs a synchronous value even though the effect may still be running. The Dispatcher supplies a fallback for that first pass.
+
+Once the fiber succeeds, the Dispatcher caches the answer and notifies Svelte. The same source position with the same inputs reuses that value.
+
+A changed input produces another cache key. Any pending fiber for the old key is interrupted before work begins for the new one.
+
+## Await blocks
+
+An `ser {#await yield* ...}` block expects a promise. The Dispatcher creates one for the effect and reuses it while the source position and inputs stay the same.
+
+Svelte keeps its usual pending and resolved branches. If an input changes before completion, the old fiber is interrupted and the block receives another promise.
+
+## Event effects
+
+Event effects have no cached value to recover. Each click or input asks the runtime to execute a new effect.
+
+The returned promise follows that execution. A failure rejects it and reaches Svelte, whereas a pure interruption is treated as cleanup.
+
+## Dispatcher and ClientRuntime
+
+`ts ClientRuntime.make(...)` installs the managed effect runtime used by the Dispatcher. Its Layer setup is covered under [Client runtime](/docs/ser/client-runtime). Without configuration, SER creates an empty runtime lazily.
+
+```ts name="src/hooks.client.ts" icon="ts"
+import { ClientRuntime } from "svelte-effect-runtime";
+import { BrowserServicesLive } from "$lib/client/services";
+
+export const init = () => {
+	ClientRuntime.make(BrowserServicesLive);
+};
+```
+
+Call it once, before component effects begin. Later calls throw `ts RuntimeAlreadyInitializedError`.
+
+## During server rendering
+
+During SSR, generated component code uses the server Dispatcher. The browser Dispatcher does not start during that render.
+
+Reactive markup receives its server fallback. An await block either remains pending or receives an SSR fallback, depending on the generated context. After hydration, client effect sites use the client Dispatcher.

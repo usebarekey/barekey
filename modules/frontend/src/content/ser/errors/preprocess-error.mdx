@@ -7,7 +7,7 @@ description: "Trace SER's transform base error and its direct class-member trigg
 
 `PreprocessError` is the common base for synchronous failures raised while SER lowers component script or markup. It extends `RuntimeError` with a `filename`, which lets Vite and other tooling retain source context without having to parse the diagnostic text.
 
-Most failures use a concrete subclass. The base class itself has one production trigger, albeit an unusual one: a class field initializer contains a top-level `ts yield*`. For example, `ts class Store { value = yield* LoadValue() }` places Effect work inside object construction rather than component-level script work.
+Most failures use a concrete subclass. The base class itself has one production trigger, albeit an unusual one: a class field initializer contains a top-level `ts yield*`. For example, `ts class Store { value = yield* LoadValue() }` places effect work inside object construction rather than component-level script work.
 
 The detector stops at nested function boundaries. A `ts yield*` inside an arrow, method, accessor, or other nested function is not treated as top-level work belonging to the field initializer.
 
@@ -32,7 +32,7 @@ throw new PreprocessError(
 );
 ```
 
-The compiler raises this synchronously during the Vite/SER transform, before the component module can evaluate and before any Effect runtime exists.
+The compiler raises this synchronously during the Vite/SER transform, before the component module can evaluate and before any effect runtime exists.
 
 For reference, the base class is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="55" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L55"`.
 

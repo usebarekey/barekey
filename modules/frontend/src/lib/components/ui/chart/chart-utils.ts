@@ -3,15 +3,11 @@ import { type Component, getContext, setContext, type Snippet } from "svelte";
 
 /**
  * CSS selector prefixes for chart color theme scopes.
- *
- * @since 0.0.1
  */
 export const themes = { light: "", dark: ".dark" } as const;
 
 /**
  * Per-series chart display configuration.
- *
- * @since 0.0.1
  */
 export type ChartConfig = {
 	[k in string]: {
@@ -25,27 +21,16 @@ export type ChartConfig = {
 
 /**
  * Extracts the parameter object accepted by a Svelte snippet.
- *
- * @since 0.0.1
  */
 export type ExtractSnippetParams<T> = T extends Snippet<[infer P]> ? P : never;
 
 /**
  * LayerChart tooltip series payload.
- *
- * @since 0.0.1
  */
 export type TooltipPayload = Tooltip.TooltipSeries;
 
 /**
  * Finds chart item configuration using payload, key, and raw datum labels.
- *
- * @param config Chart configuration keyed by series name.
- * @param payload Tooltip series payload.
- * @param key Preferred lookup key.
- * @param data Optional raw datum for fallback label lookup.
- * @returns Matching chart item configuration when present.
- * @since 0.0.1
  */
 export function get_payload_config_from_payload(
 	config: ChartConfig,
@@ -91,10 +76,6 @@ const chart_context_key = Symbol("chart-context");
 
 /**
  * Stores chart configuration in Svelte context.
- *
- * @param value Chart context value.
- * @returns The stored chart context value.
- * @since 0.0.1
  */
 export function set_chart_context(value: ChartContextValue) {
 	return setContext(chart_context_key, value);
@@ -102,9 +83,6 @@ export function set_chart_context(value: ChartContextValue) {
 
 /**
  * Reads chart configuration from Svelte context.
- *
- * @returns Chart context value from the nearest provider.
- * @since 0.0.1
  */
 export function use_chart() {
 	return getContext<ChartContextValue>(chart_context_key);

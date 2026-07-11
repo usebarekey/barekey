@@ -3,8 +3,6 @@
 
 	/**
  * Tailwind variants for empty-state media containers.
- *
- * @since 0.0.1
  */
 	export const empty_media_variants = tv({
 		base: "mb-2 flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0",
@@ -21,8 +19,6 @@
 
 	/**
  * Variant names supported by empty-state media containers.
- *
- * @since 0.0.1
  */
 	export type EmptyMediaVariant = VariantProps<typeof empty_media_variants>["variant"];
 </script>

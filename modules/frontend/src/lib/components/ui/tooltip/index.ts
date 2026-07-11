@@ -1,8 +1,8 @@
-import Root from "./tooltip.sv";
-import Trigger from "./tooltip-trigger.sv";
-import Content from "./tooltip-content.sv";
-import Provider from "./tooltip-provider.sv";
-import Portal from "./tooltip-portal.sv";
+import Root from "$lib/components/ui/tooltip/tooltip.sv";
+import Trigger from "$lib/components/ui/tooltip/tooltip-trigger.sv";
+import Content from "$lib/components/ui/tooltip/tooltip-content.sv";
+import Provider from "$lib/components/ui/tooltip/tooltip-provider.sv";
+import Portal from "$lib/components/ui/tooltip/tooltip-portal.sv";
 
 export {
 	Content,

@@ -1,20 +1,47 @@
-<script lang="ts" effect>
+<script lang="ts">
 	import type { PageProps } from "./$types";
-	import { GetPost } from "$/docs/[category]/[slug]/page.remote";
 	import content_meta from "$content/meta.json";
 	import DocsContent from "$/docs/[category]/[slug]/components/docs-content.sv";
 	import DocsSidebar from "$/docs/[category]/[slug]/components/docs-sidebar.sv";
 	import DocsPageFrame from "$/docs/[category]/[slug]/components/docs-page-frame.sv";
 	import DocsTableOfContents from "$/docs/[category]/[slug]/components/docs-table-of-contents.sv";
 
-	let { params }: PageProps = $props();
+	let { data }: PageProps = $props();
 
-	const route = $derived({
-		category: params.category,
-		slug: params.slug,
+	const route = $derived(data.route);
+	const metadata = $derived(data.metadata);
+	const canonical_url = $derived(`${data.origin}/docs/${route.category}/${route.slug}`);
+	const og_image_url = $derived(`${data.origin}/og/docs/${route.category}/${route.slug}.png`);
+	const image_alt = $derived(`${metadata.title} | Barekey`);
+	const has_og_image = $derived(data.has_frontmatter);
+	const article_heading = $derived({
+		id: "docs-page-heading",
+		title: data.title,
 	});
-	const post = $derived(yield* GetPost(route));
 </script>
+
+<svelte:head>
+	<title>{metadata.title} | Barekey</title>
+	<link rel="canonical" href={canonical_url} />
+	<meta name="description" content={metadata.description} />
+	<meta property="og:type" content="article" />
+	<meta property="og:site_name" content="Barekey" />
+	<meta property="og:title" content={metadata.title} />
+	<meta property="og:description" content={metadata.description} />
+	<meta property="og:url" content={canonical_url} />
+	<meta name="twitter:title" content={metadata.title} />
+	<meta name="twitter:description" content={metadata.description} />
+	{#if has_og_image}
+		<meta property="og:image" content={og_image_url} />
+		<meta property="og:image:type" content="image/png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={image_alt} />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:image" content={og_image_url} />
+		<meta name="twitter:image:alt" content={image_alt} />
+	{/if}
+</svelte:head>
 
 <DocsPageFrame>
 	{#snippet sidebar()}
@@ -22,10 +49,10 @@
 	{/snippet}
 
 	{#snippet article()}
-		<DocsContent {content_meta} {post} {route} />
+		<DocsContent heading_id={article_heading.id} post={data} />
 	{/snippet}
 
 	{#snippet table_of_contents(article_viewport: HTMLElement | null)}
-		<DocsTableOfContents entries={post.toc} {article_viewport} />
+		<DocsTableOfContents entries={data.toc} header={article_heading} {article_viewport} />
 	{/snippet}
 </DocsPageFrame>

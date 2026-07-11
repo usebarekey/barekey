@@ -9,6 +9,11 @@ type DocsTocEntry = {
 	depth: number;
 };
 
+type DocsTocHeader = {
+	id: string;
+	title: string;
+};
+
 type TocTrackingState = {
 	article_viewport: HTMLElement | null;
 	entries: DocsTocEntry[];
@@ -17,14 +22,17 @@ type TocTrackingState = {
 let {
 	article_viewport,
 	entries,
+	header,
 }: {
 	article_viewport: HTMLElement | null;
 	entries: DocsTocEntry[];
+	header: DocsTocHeader;
 } = $props();
 let active_toc_id = $state("");
 let toc_progress = $state("0%");
 
-const toc_tracking = $derived({ article_viewport, entries });
+const toc_entries = $derived([{ ...header, depth: 1 }, ...entries]);
+const toc_tracking = $derived({ article_viewport, entries: toc_entries });
 
 const set_active_toc_id = (id: string) => {
 	active_toc_id = id;
@@ -39,8 +47,8 @@ const toc_line_inset_y = 6;
 const toc_line_turn_y = 12;
 
 const get_toc_line_offset = (depth: number) => {
-	if (depth <= 2) return toc_line_base;
-	if (depth === 3) return toc_line_base + 12;
+	if (depth <= 1) return toc_line_base;
+	if (depth === 2) return toc_line_base + 12;
 
 	return toc_line_base + 24;
 };
@@ -50,25 +58,36 @@ const get_toc_item_style = (depth: number) =>
 
 const get_toc_line_context = (index: number, depth: number) => {
 	const current = get_toc_line_offset(depth);
-	const previous_entry = entries[index - 1];
+	const previous_entry = toc_entries[index - 1];
 	const previous = previous_entry
 		? get_toc_line_offset(previous_entry.depth)
 		: current;
+	const next_entry = toc_entries[index + 1];
+	const next = next_entry ? get_toc_line_offset(next_entry.depth) : current;
 	const is_first = index === 0;
-	const is_last = index === entries.length - 1;
+	const is_last = index === toc_entries.length - 1;
 	const clip_top = is_first ? toc_line_inset_y : 0;
-	const clip_bottom = is_last ? toc_line_inset_y : 0;
+	const clip_bottom = is_last
+		? toc_line_inset_y
+		: current > next
+			? toc_line_turn_y
+			: 0;
 
 	return {
 		current,
+		next,
 		previous,
-		line_start: previous === current ? "0" : toc_line_turn_y,
+		line_start: previous < current ? toc_line_turn_y : "0",
 		line_end: "100%",
 		turn_y: toc_line_turn_y,
 		svg_style: [
 			`width: ${(Math.max(previous, current) + 9).toString()}px`,
 			"height: 100%",
 			`clip-path: inset(${clip_top}px 0 ${clip_bottom}px 0)`,
+		].join("; "),
+		turn_out_style: [
+			`width: ${(Math.max(current, next) + 9).toString()}px`,
+			`height: ${toc_line_turn_y.toString()}px`,
 		].join("; "),
 	};
 };
@@ -253,7 +272,7 @@ const ScrollToHeading = (
     </span>
   </div>
 
-  {#if entries.length}
+  {#if toc_entries.length}
     <nav aria-label="On this page" use:track_active_toc={toc_tracking}>
       <div
         class="relative flex flex-col text-sm"
@@ -263,7 +282,7 @@ const ScrollToHeading = (
           aria-hidden="true"
           class="docs-toc-progress-mask pointer-events-none absolute inset-0 z-20 flex flex-col overflow-hidden text-foreground"
         >
-          {#each entries as entry, index (entry.id)}
+          {#each toc_entries as entry, index (entry.id)}
             {const line = get_toc_line_context(index, entry.depth)}
             <div
               class="relative block break-words py-1.5 font-medium leading-snug"
@@ -274,7 +293,7 @@ const ScrollToHeading = (
                 class="pointer-events-none absolute left-0 top-0 z-0 overflow-visible"
                 style={line.svg_style}
               >
-                {#if line.previous !== line.current}
+                {#if line.previous < line.current}
                   <path
                     d={`M ${line.previous + 0.5} 0 L ${line.current + 0.5} ${line.turn_y}`}
                     stroke="currentColor"
@@ -295,12 +314,28 @@ const ScrollToHeading = (
                   vector-effect="non-scaling-stroke"
                 />
               </svg>
+              {#if line.current > line.next}
+                <svg
+                  aria-hidden="true"
+                  class="pointer-events-none absolute bottom-0 left-0 z-0 overflow-visible"
+                  style={line.turn_out_style}
+                >
+                  <path
+                    d={`M ${line.current + 0.5} 0 L ${line.next + 0.5} ${line.turn_y}`}
+                    stroke="currentColor"
+                    stroke-width="1"
+                    stroke-linecap="butt"
+                    fill="none"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </svg>
+              {/if}
               <span class="text-transparent">{entry.title}</span>
             </div>
           {/each}
         </div>
 
-        {#each entries as entry, index (entry.id)}
+        {#each toc_entries as entry, index (entry.id)}
           {const line = get_toc_line_context(index, entry.depth)}
           <a
             href={`#${entry.id}`}
@@ -319,7 +354,7 @@ const ScrollToHeading = (
               style={line.svg_style}
             >
               <g class="text-muted-foreground/35">
-                {#if line.previous !== line.current}
+                {#if line.previous < line.current}
                   <path
                     d={`M ${line.previous + 0.5} 0 L ${line.current + 0.5} ${line.turn_y}`}
                     stroke="currentColor"
@@ -341,6 +376,24 @@ const ScrollToHeading = (
                 />
               </g>
             </svg>
+            {#if line.current > line.next}
+              <svg
+                aria-hidden="true"
+                class="pointer-events-none absolute bottom-0 left-0 z-0 overflow-visible"
+                style={line.turn_out_style}
+              >
+                <g class="text-muted-foreground/35">
+                  <path
+                    d={`M ${line.current + 0.5} 0 L ${line.next + 0.5} ${line.turn_y}`}
+                    stroke="currentColor"
+                    stroke-width="1"
+                    stroke-linecap="butt"
+                    fill="none"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </g>
+              </svg>
+            {/if}
             <span class="relative z-10">{entry.title}</span>
           </a>
         {/each}

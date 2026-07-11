@@ -1,11 +1,11 @@
 ---
 title: "AwaitInEffectWorkError"
-description: "Trace one lowered statement that mixes native await with Effect sequencing."
+description: "Trace one lowered statement that mixes native await with effect sequencing."
 ---
 
 ## What this error means and what can trigger it
 
-`AwaitInEffectWorkError` means one script statement belongs to both JavaScript's Promise continuation model and SER's Effect generator model. The statement contains a top-level `ts yield*`, SER successfully lowered at least one Effect block from it, and the same statement also contains a top-level `ts await`.
+`AwaitInEffectWorkError` means one script statement belongs to both JavaScript's Promise continuation model and SER's effect generator model. The statement contains a top-level `ts yield*`, SER successfully lowered at least one effect block from it, and the same statement also contains a top-level `ts await`.
 
 Here, top-level is relative to the statement SER is inspecting; the detectors do not descend through nested function boundaries. An ordinary statement such as `ts const response = await fetch(url)` is left alone because it contains no SER work, whereas `ts record(await transform(yield* Load()))` mixes both execution models in one expression and is rejected.
 
@@ -27,12 +27,12 @@ if (lowered.effect_blocks.length > 0 && contains_top_level_await(stmt)) {
 }
 ```
 
-All three predicates are relevant: a top-level `ts yield*` must exist, lowering must have produced an Effect block, and a top-level `ts await` must remain in that statement. The exception is synchronous and stops preprocessing.
+All three predicates are relevant: a top-level `ts yield*` must exist, lowering must have produced an effect block, and a top-level `ts await` must remain in that statement. The exception is synchronous and stops preprocessing.
 
 For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="126" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L126"`.
 
 ## Why this is the case
 
-The lowered statement runs inside generator-based Effect sequencing, where `ts yield*` controls suspension, interruption, scope, and the typed error channel. Native `ts await` suspends an async JavaScript function around a Promise. SER would have to invent how Promise cancellation, rejection, and continuation order interact with the dispatcher-owned Effect fiber.
+The lowered statement runs inside generator-based effect sequencing, where `ts yield*` controls suspension, interruption, scope, and the typed error channel. Native `ts await` suspends an async JavaScript function around a Promise. SER would have to invent how Promise cancellation, rejection, and continuation order interact with the dispatcher-owned effect fiber.
 
 By rejecting the mixed statement, SER keeps the two execution models explicit. Ordinary Svelte top-level await remains untouched in statements that SER does not lower.

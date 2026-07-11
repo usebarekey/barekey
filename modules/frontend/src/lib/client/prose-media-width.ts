@@ -7,6 +7,7 @@ declare global {
 const prose_selector = ".prose";
 const media_scope_selector = "[data-prose-media-scope]";
 const width_source_selector = ".docs-code-snippet";
+const code_snippet_body_selector = ".docs-code-snippet-body";
 const media_width_property = "--docs-prose-media-width";
 
 const observed_media_scopes = new WeakSet<HTMLElement>();
@@ -14,10 +15,24 @@ const observed_prose = new WeakSet<HTMLElement>();
 let sync_frame: number | undefined;
 let resize_observer: ResizeObserver | undefined;
 
+const get_code_snippet_width = (code_snippet: HTMLElement) => {
+	const code_snippet_width = code_snippet.getBoundingClientRect().width;
+	const body = code_snippet.querySelector<HTMLElement>(code_snippet_body_selector);
+
+	if (!body) {
+		return Math.ceil(code_snippet_width);
+	}
+
+	const body_border_width = body.getBoundingClientRect().width - body.clientWidth;
+	const body_content_width = body.scrollWidth + body_border_width;
+
+	return Math.ceil(Math.max(code_snippet_width, body_content_width));
+};
+
 const get_largest_code_snippet_width = (prose: HTMLElement) => {
 	const widths = Array.from(
 		prose.querySelectorAll<HTMLElement>(width_source_selector),
-		(element) => Math.ceil(element.getBoundingClientRect().width),
+		get_code_snippet_width,
 	);
 
 	return Math.max(0, ...widths);
@@ -42,15 +57,17 @@ const observe_prose_containers = () => {
 const sync_prose_media_widths = Effect.sync(() => {
 	observe_prose_containers();
 
-	for (const prose of document.querySelectorAll<HTMLElement>(prose_selector)) {
-		const media_scope = prose.closest<HTMLElement>(media_scope_selector) ?? prose;
+	const measurements = Array.from(
+		document.querySelectorAll<HTMLElement>(prose_selector),
+		(prose) => ({
+			media_scope: prose.closest<HTMLElement>(media_scope_selector) ?? prose,
+			width: get_largest_code_snippet_width(prose),
+		}),
+	);
 
-		prose.style.removeProperty(media_width_property);
-		media_scope.style.removeProperty(media_width_property);
-
-		const width = get_largest_code_snippet_width(prose);
-
+	for (const { media_scope, width } of measurements) {
 		if (width <= 0) {
+			media_scope.style.removeProperty(media_width_property);
 			continue;
 		}
 

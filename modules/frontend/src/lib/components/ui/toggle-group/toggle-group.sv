@@ -12,10 +12,6 @@
 
 	/**
 	 * Stores toggle group variant context for child items.
-	 *
-	 * @param props Toggle group variant context.
-	 * @returns Nothing.
-	 * @since 0.0.1
 	 */
 	export function set_toggle_group_ctx(props: ToggleGroupContext) {
 		setContext("toggleGroup", props);
@@ -23,9 +19,6 @@
 
 	/**
 	 * Reads toggle group variant context for child items.
-	 *
-	 * @returns Toggle group variant context.
-	 * @since 0.0.1
 	 */
 	export function get_toggle_group_ctx() {
 		return getContext<Required<ToggleGroupContext>>("toggleGroup");

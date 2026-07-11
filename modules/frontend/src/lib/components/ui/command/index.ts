@@ -1,14 +1,14 @@
-import Root from "./command.sv";
-import Loading from "./command-loading.sv";
-import Dialog from "./command-dialog.sv";
-import Empty from "./command-empty.sv";
-import Group from "./command-group.sv";
-import Item from "./command-item.sv";
-import Input from "./command-input.sv";
-import List from "./command-list.sv";
-import Separator from "./command-separator.sv";
-import Shortcut from "./command-shortcut.sv";
-import LinkItem from "./command-link-item.sv";
+import Root from "$lib/components/ui/command/command.sv";
+import Loading from "$lib/components/ui/command/command-loading.sv";
+import Dialog from "$lib/components/ui/command/command-dialog.sv";
+import Empty from "$lib/components/ui/command/command-empty.sv";
+import Group from "$lib/components/ui/command/command-group.sv";
+import Item from "$lib/components/ui/command/command-item.sv";
+import Input from "$lib/components/ui/command/command-input.sv";
+import List from "$lib/components/ui/command/command-list.sv";
+import Separator from "$lib/components/ui/command/command-separator.sv";
+import Shortcut from "$lib/components/ui/command/command-shortcut.sv";
+import LinkItem from "$lib/components/ui/command/command-link-item.sv";
 
 export {
 	Dialog,

@@ -29,7 +29,7 @@ if (!is_async_iterable_resource(resource)) {
 }
 ```
 
-Missing reconnect metadata or method, returned as a lazy Effect failure:
+Missing reconnect metadata or method, returned as a lazy effect failure:
 
 ```ts name="modules/svelte-effect-runtime/src/live.ts" icon="ts" line="188" char="23" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/live.ts#L188"
 if (!metadata || typeof metadata.resource.reconnect !== "function") {
@@ -40,10 +40,10 @@ if (!metadata || typeof metadata.resource.reconnect !== "function") {
 }
 ```
 
-The third path behaves differently: it is not a synchronous throw. It becomes a typed failure only when the reconnect Effect runs. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="607" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L607"`.
+The third path behaves differently: it is not a synchronous throw. It becomes a typed failure only when the reconnect effect runs. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="607" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L607"`.
 
 ## Why this is the case
 
-An Effect Stream can be built from a native async iterable only when that protocol is actually present. The explicit validator protects `ts Stream.fromAsyncIterable` from receiving a lookalike resource with unrelated methods.
+A Stream from Effect can be built from a native async iterable only when that protocol is actually present. The explicit validator protects `ts Stream.fromAsyncIterable` from receiving a lookalike resource with unrelated methods.
 
 Reconnect is stricter still. SER attaches hidden metadata only when it creates a remote live Stream, preserving the native resource needed for reconnection. A plain Stream cast to the remote type has no such resource, and a native resource without `ts reconnect` cannot perform the requested operation.

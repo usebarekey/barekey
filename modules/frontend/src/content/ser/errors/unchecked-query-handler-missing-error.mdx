@@ -17,7 +17,7 @@ if (is_unchecked(validate_or_handler)) {
 }
 ```
 
-From there, the enclosing factory catches the exception, passes it through `ts normalize_remote_helper_error`, and rethrows it. Existing `Error` instances are returned unchanged, so the class, message, and stack survive. This is a synchronous factory exception, not an Effect failure from the query handler.
+From there, the enclosing factory catches the exception, passes it through `ts normalize_remote_helper_error`, and rethrows it. Existing `Error` instances are returned unchanged, so the class, message, and stack survive. This is a synchronous factory exception, not an effect failure from the query handler.
 
 For reference, the class is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="381" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L381"`.
 

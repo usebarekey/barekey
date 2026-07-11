@@ -23,6 +23,6 @@ For reference, the class is declared at `name="modules/svelte-effect-runtime/src
 
 ## Why this is the case
 
-Form has a one-argument path for an inputless Effect-like handler. Without the sentinel guard, `ts "unchecked"` could be treated as that program and fail later with a less precise invocation error.
+Form has a one-argument path for an inputless effect-like handler. Without the sentinel guard, `ts "unchecked"` could be treated as that program and fail later with a less precise invocation error.
 
 Validation policy and submission behavior are separate inputs to the factory. Disabling the former never supplies the latter.

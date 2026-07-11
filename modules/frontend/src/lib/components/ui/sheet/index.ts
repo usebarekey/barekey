@@ -1,13 +1,13 @@
-import Root from "./sheet.sv";
-import Portal from "./sheet-portal.sv";
-import Trigger from "./sheet-trigger.sv";
-import Close from "./sheet-close.sv";
-import Overlay from "./sheet-overlay.sv";
-import Content from "./sheet-content.sv";
-import Header from "./sheet-header.sv";
-import Footer from "./sheet-footer.sv";
-import Title from "./sheet-title.sv";
-import Description from "./sheet-description.sv";
+import Root from "$lib/components/ui/sheet/sheet.sv";
+import Portal from "$lib/components/ui/sheet/sheet-portal.sv";
+import Trigger from "$lib/components/ui/sheet/sheet-trigger.sv";
+import Close from "$lib/components/ui/sheet/sheet-close.sv";
+import Overlay from "$lib/components/ui/sheet/sheet-overlay.sv";
+import Content from "$lib/components/ui/sheet/sheet-content.sv";
+import Header from "$lib/components/ui/sheet/sheet-header.sv";
+import Footer from "$lib/components/ui/sheet/sheet-footer.sv";
+import Title from "$lib/components/ui/sheet/sheet-title.sv";
+import Description from "$lib/components/ui/sheet/sheet-description.sv";
 
 export {
 	Close,

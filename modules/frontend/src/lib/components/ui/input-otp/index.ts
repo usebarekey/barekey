@@ -1,7 +1,7 @@
-import Root from "./input-otp.sv";
-import Group from "./input-otp-group.sv";
-import Slot from "./input-otp-slot.sv";
-import Separator from "./input-otp-separator.sv";
+import Root from "$lib/components/ui/input-otp/input-otp.sv";
+import Group from "$lib/components/ui/input-otp/input-otp-group.sv";
+import Slot from "$lib/components/ui/input-otp/input-otp-slot.sv";
+import Separator from "$lib/components/ui/input-otp/input-otp-separator.sv";
 
 export {
 	Group,

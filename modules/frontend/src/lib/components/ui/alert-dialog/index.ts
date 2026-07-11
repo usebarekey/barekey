@@ -1,15 +1,15 @@
-import Root from "./alert-dialog.sv";
-import Portal from "./alert-dialog-portal.sv";
-import Trigger from "./alert-dialog-trigger.sv";
-import Title from "./alert-dialog-title.sv";
-import Action from "./alert-dialog-action.sv";
-import Cancel from "./alert-dialog-cancel.sv";
-import Footer from "./alert-dialog-footer.sv";
-import Header from "./alert-dialog-header.sv";
-import Overlay from "./alert-dialog-overlay.sv";
-import Content from "./alert-dialog-content.sv";
-import Description from "./alert-dialog-description.sv";
-import Media from "./alert-dialog-media.sv";
+import Root from "$lib/components/ui/alert-dialog/alert-dialog.sv";
+import Portal from "$lib/components/ui/alert-dialog/alert-dialog-portal.sv";
+import Trigger from "$lib/components/ui/alert-dialog/alert-dialog-trigger.sv";
+import Title from "$lib/components/ui/alert-dialog/alert-dialog-title.sv";
+import Action from "$lib/components/ui/alert-dialog/alert-dialog-action.sv";
+import Cancel from "$lib/components/ui/alert-dialog/alert-dialog-cancel.sv";
+import Footer from "$lib/components/ui/alert-dialog/alert-dialog-footer.sv";
+import Header from "$lib/components/ui/alert-dialog/alert-dialog-header.sv";
+import Overlay from "$lib/components/ui/alert-dialog/alert-dialog-overlay.sv";
+import Content from "$lib/components/ui/alert-dialog/alert-dialog-content.sv";
+import Description from "$lib/components/ui/alert-dialog/alert-dialog-description.sv";
+import Media from "$lib/components/ui/alert-dialog/alert-dialog-media.sv";
 
 export {
 	Action,

@@ -1,0 +1,61 @@
+---
+title: "Your first server function"
+description: "Define an effect-backed SvelteKit query and call it from a component."
+---
+
+SER wraps SvelteKit remote functions so their server handlers return effects and their client call sites are yieldable.
+
+## Define a query
+
+Create a `.remote.ts` file next to your page:
+
+```ts name="src/routes/profile.remote.ts" icon="ts"
+import { Effect, Schema } from "effect";
+import { Query } from "svelte-effect-runtime";
+
+const ProfileInput = Schema.Struct({
+	user_id: Schema.String,
+});
+
+export const get_profile = Query(ProfileInput, ({ user_id }) =>
+	Effect.succeed({
+		user_id,
+		name: "Ada Lovelace",
+	}),
+);
+```
+
+The schema validates input at the server boundary. The handler receives the decoded value and may return any effect accepted by the server runtime.
+
+## Call it from Svelte
+
+Import the query into an effect component:
+
+```ser name="src/routes/+page.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { get_profile } from "./profile.remote";
+
+	const profile = get_profile({ user_id: "42" });
+</script>
+
+{#await yield* profile}
+	<p>Loading profile...</p>
+{:then user}
+	<h1>{user.name}</h1>
+{:catch failure}
+	<p>Could not load the profile.</p>
+{/await}
+```
+
+Calling `ts get_profile` starts with a query resource. It is also an effect, so `ser yield* profile` resolves to the server result while preserving query state and cache helpers.
+
+## Choose the right remote function
+
+- Start with `ts Query` whenever the operation only reads data.
+- When you need to send data and receive a result, prefer `ts Form`. It follows the browser's natural path, works without JavaScript, and can still be progressively enhanced.
+- Reach for `ts Command` only when the action does not fit a form. Most data submissions should remain forms rather than becoming JavaScript-only button actions.
+- Use `ts Prerender` for data SvelteKit can resolve while building static output.
+
+Remote handlers can use services from the [server runtime](/docs/ser/server-runtime). Request data such as cookies and locals comes from `ts RequestEvent`, not from a global service.
+
+Continue with [Query](/docs/ser/query) for caching, refresh, batch, and live reads.

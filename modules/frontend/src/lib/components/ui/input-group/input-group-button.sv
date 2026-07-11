@@ -18,8 +18,6 @@
 
 	/**
  * Size names supported by input group buttons.
- *
- * @since 0.0.1
  */
 	export type InputGroupButtonSize = VariantProps<typeof input_group_button_variants>["size"];
 </script>

@@ -3,8 +3,6 @@
 
 	/**
  * Tailwind variants for tab list components.
- *
- * @since 0.0.1
  */
 	export const tabs_list_variants = tv({
 		base: "rounded-4xl p-[3px] group-data-horizontal/tabs:h-9 group-data-vertical/tabs:rounded-2xl data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col",
@@ -21,8 +19,6 @@
 
 	/**
  * Variant names supported by tab lists.
- *
- * @since 0.0.1
  */
 	export type TabsListVariant = VariantProps<typeof tabs_list_variants>["variant"];
 </script>

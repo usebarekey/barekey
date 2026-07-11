@@ -1,73 +1,29 @@
 <script lang="ts">
+	import type { Component } from "svelte";
 	import DocsArticle from "$/docs/[category]/[slug]/components/docs-article.sv";
 
-	type DocsRoute = {
-		category: string;
-		slug: string;
-	};
-
-	type DocsNavEntry = {
-		displayName?: string;
-		path: string;
-	};
-
-	type DocsNavEntryGroup = Record<string, DocsNavEntry | undefined>;
-
-	type DocsContentMeta = Record<
-		string,
-		{
-			title: string;
-			entries: DocsNavEntryGroup[];
-		}
-	>;
-
 	type DocsPost = {
-		html: string;
-		frontmatter: {
+		Content: Component;
+		metadata: {
 			title: string;
 			description: string;
-		} | null;
-	};
-
-	const fallback_display_name = (slug: string) =>
-		slug
-			.split("-")
-			.filter(Boolean)
-			.map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-			.join(" ");
-
-	const get_page_title = (
-		meta: DocsContentMeta,
-		{ category, slug }: DocsRoute,
-		current_post: DocsPost,
-	) => {
-		const nav_entry = meta[category]?.entries
-			.flatMap((entry_group) =>
-				Object.entries(entry_group).filter(
-					(entry): entry is [string, DocsNavEntry] => entry[1] !== undefined,
-				)
-			)
-			.find(([entry_slug]) => entry_slug === slug)?.[1];
-
-		return (
-			nav_entry?.displayName ??
-			current_post.frontmatter?.title ??
-			fallback_display_name(slug)
-		);
+		};
+		title: string;
 	};
 
 	let {
-		content_meta,
+		heading_id,
 		post,
-		route,
 	}: {
-		content_meta: DocsContentMeta;
+		heading_id: string;
 		post: DocsPost;
-		route: DocsRoute;
 	} = $props();
 
-	const title = $derived(get_page_title(content_meta, route, post));
-	const description = $derived(post.frontmatter?.description);
+	const title = $derived(post.title);
+	const description = $derived(post.metadata.description);
+	const Content = $derived(post.Content);
 </script>
 
-<DocsArticle {description} html={post.html} {title} />
+<DocsArticle {description} {heading_id} {title}>
+	<Content />
+</DocsArticle>

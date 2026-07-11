@@ -9,7 +9,7 @@ description: "Understand the nominal base shared by SER-authored JavaScript erro
 
 Production code does not construct `RuntimeError` directly, so there is no standalone runtime trigger to find. You encounter the base through subclasses such as `PreprocessError`, `DispatcherDisposedError`, and `RuntimeAlreadyInitializedError`.
 
-The base adds no `cause`, error code, tagged-data protocol, or Effect failure behavior. A subclass may be thrown synchronously, placed in a Promise rejection, or supplied to `ts Effect.fail`; inheritance alone says nothing about how the error reaches you.
+The base adds no `cause`, error code, tagged-data protocol, or effect failure behavior. A subclass may be thrown synchronously, placed in a Promise rejection, or supplied to `ts Effect.fail`; inheritance alone says nothing about how the error reaches you.
 
 ## Exactly where it triggers
 

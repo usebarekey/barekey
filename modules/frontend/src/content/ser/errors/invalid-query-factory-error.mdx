@@ -24,7 +24,7 @@ if (!query && !load) {
 }
 ```
 
-`ts has_method` requires a non-null object and a callable property. The throw is synchronous and occurs before the wrapped Query Effect is returned. Generated code calls this adapter from `name="modules/svelte-effect-runtime/src/compiler/remote-client.ts" line="129" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/compiler/remote-client.ts#L129"`.
+`ts has_method` requires a non-null object and a callable property. The throw is synchronous and occurs before the wrapped Query effect is returned. Generated code calls this adapter from `name="modules/svelte-effect-runtime/src/compiler/remote-client.ts" line="129" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/compiler/remote-client.ts#L129"`.
 
 For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="587" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L587"`.
 
@@ -32,4 +32,4 @@ For reference, the class itself is declared at `name="modules/svelte-effect-runt
 
 Every later Query execution must choose one concrete operation: call the factory with the input, or call its bound `ts load` method. A value satisfying neither branch cannot initiate a request.
 
-Checking during adapter construction turns a deterministic integration mismatch into a module-level diagnostic. Deferring it until the Query Effect runs would make the failure dependent on user interaction and obscure which generated boundary supplied the malformed value.
+Checking during adapter construction turns a deterministic integration mismatch into a module-level diagnostic. Deferring it until the Query effect runs would make the failure dependent on user interaction and obscure which generated boundary supplied the malformed value.

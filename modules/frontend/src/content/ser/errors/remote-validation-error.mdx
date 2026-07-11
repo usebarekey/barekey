@@ -31,7 +31,7 @@ export function create_remote_validation_error(
 }
 ```
 
-The throw occurs inside the Promise used by the remote adapter. `ts MakeEffectFromPromise` catches the rejected Promise and turns the tagged value into the Effect's error channel, where `ts Effect.catchTag("RemoteValidationError", ...)` can recover from it.
+The throw occurs inside the Promise used by the remote adapter. `ts MakeEffectFromPromise` catches the rejected Promise and turns the tagged value into the effect's error channel, where `ts Effect.catchTag("RemoteValidationError", ...)` can recover from it.
 
 ## Why this is the case
 

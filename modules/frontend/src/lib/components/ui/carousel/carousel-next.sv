@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { WithoutChildren } from "bits-ui";
-	import { get_embla_context } from "./context.js";
+	import { get_embla_context } from "$lib/components/ui/carousel/context.js";
 	import { cn } from "$lib/utils.js";
 	import { Button, type Props } from "$lib/components/ui/button/index.js";
 	import { IconChevronRight } from '@tabler/icons-svelte';

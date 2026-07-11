@@ -3,38 +3,368 @@
 		"title": "svelte-effect-runtime",
 		"entries": [
 			{
-				"introduction": {
-					"displayName": "Introduction",
-					"path": "ser/introduction.mdx"
-				}
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "ser/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "ser/installation.mdx"
+						}
+					},
+					{
+						"tooling": {
+							"name": "Tooling",
+							"path": "ser/tooling.mdx"
+						}
+					},
+					{
+						"changelog": {
+							"name": "Changelog",
+							"path": "ser/changelog.mdx"
+						}
+					}
+				]
 			},
 			{
-				"installation": {
-					"displayName": "Installation",
-					"path": "ser/installation.mdx"
-				}
-			}
-		]
-	},
-	"barekey": {
-		"title": "Barekey",
-		"entries": [
+				"name": "Your first...",
+				"entries": [
+					{
+						"your-first-client-component": {
+							"name": "Client component",
+							"path": "ser/your-first/your-first-client-component.mdx"
+						}
+					},
+					{
+						"your-first-server-function": {
+							"name": "Server function",
+							"path": "ser/your-first/your-first-server-function.mdx"
+						}
+					}
+				]
+			},
 			{
-				"introduction": {
-					"displayName": "Introduction",
-					"path": "barekey/introduction.mdx"
-				}
-			}
-		]
-	},
-	"test": {
-		"title": "A testing ground",
-		"entries": [
+				"entries": [
+					{
+						"client": {
+							"name": "Client",
+							"path": "ser/client.mdx"
+						}
+					},
+					{
+						"dispatcher": {
+							"name": "Dispatcher",
+							"path": "ser/dispatcher.mdx"
+						}
+					}
+				]
+			},
 			{
-				"really-nested-page": {
-					"displayName": "Really nested page",
-					"path": "test/really-nested-page.mdx"
-				}
+				"name": "Remote Functions",
+				"entries": [
+					{
+						"query": {
+							"name": "Query",
+							"path": "ser/remote-functions/query.mdx"
+						}
+					},
+					{
+						"command": {
+							"name": "Command",
+							"path": "ser/remote-functions/command.mdx"
+						}
+					},
+					{
+						"form": {
+							"name": "Form",
+							"path": "ser/remote-functions/form.mdx"
+						}
+					},
+					{
+						"prerender": {
+							"name": "Prerender",
+							"path": "ser/remote-functions/prerender.mdx"
+						}
+					},
+					{
+						"request-event": {
+							"name": "RequestEvent",
+							"path": "ser/remote-functions/request-event.mdx"
+						}
+					}
+				]
+			},
+			{
+				"entries": [
+					{
+						"handler": {
+							"name": "Handler",
+							"path": "ser/remote-functions/handler.mdx"
+						}
+					}
+				]
+			},
+			{
+				"name": "Runtimes",
+				"entries": [
+					{
+						"runtimes": {
+							"name": "What are runtimes?",
+							"path": "ser/runtimes/runtimes.mdx"
+						}
+					},
+					{
+						"client-runtime": {
+							"name": "Client Runtime",
+							"path": "ser/runtimes/client.mdx"
+						}
+					},
+					{
+						"server-runtime": {
+							"name": "Server Runtime",
+							"path": "ser/runtimes/server.mdx"
+						}
+					}
+				]
+			},
+			{
+				"name": "Errors",
+				"category": "Remote failures",
+				"collapsible": true,
+				"entries": [
+					{
+						"form-error": {
+							"name": "FormError",
+							"path": "ser/errors/form-error.mdx"
+						}
+					},
+					{
+						"remote-validation-error": {
+							"name": "RemoteValidationError",
+							"path": "ser/errors/remote-validation-error.mdx"
+						}
+					},
+					{
+						"remote-http-error": {
+							"name": "RemoteHttpError",
+							"path": "ser/errors/remote-http-error.mdx"
+						}
+					},
+					{
+						"remote-transport-error": {
+							"name": "RemoteTransportError",
+							"path": "ser/errors/remote-transport-error.mdx"
+						}
+					}
+				]
+			},
+			{
+				"category": "Compiler and markup",
+				"entries": [
+					{
+						"runtime-error": {
+							"name": "RuntimeError",
+							"path": "ser/errors/runtime-error.mdx"
+						}
+					},
+					{
+						"preprocess-error": {
+							"name": "PreprocessError",
+							"path": "ser/errors/preprocess-error.mdx"
+						}
+					},
+					{
+						"await-in-effect-work-error": {
+							"name": "AwaitInEffectWorkError",
+							"path": "ser/errors/await-in-effect-work-error.mdx"
+						}
+					},
+					{
+						"async-effect-in-sync-rune-error": {
+							"name": "AsyncEffectInSyncRuneError",
+							"path": "ser/errors/async-effect-in-sync-rune-error.mdx"
+						}
+					},
+					{
+						"async-effect-in-event-callback-error": {
+							"name": "AsyncEffectInEventCallbackError",
+							"path": "ser/errors/async-effect-in-event-callback-error.mdx"
+						}
+					},
+					{
+						"yield-star-in-event-callback-error": {
+							"name": "YieldStarInEventCallbackError",
+							"path": "ser/errors/yield-star-in-event-callback-error.mdx"
+						}
+					},
+					{
+						"unsupported-markup-effect-position-error": {
+							"name": "UnsupportedMarkupEffectPositionError",
+							"path": "ser/errors/unsupported-markup-effect-position-error.mdx"
+						}
+					}
+				]
+			},
+			{
+				"category": "Remote handlers",
+				"entries": [
+					{
+						"request-event-unavailable-error": {
+							"name": "RequestEventUnavailableError",
+							"path": "ser/errors/request-event-unavailable-error.mdx"
+						}
+					},
+					{
+						"unchecked-query-handler-missing-error": {
+							"name": "UncheckedQueryHandlerMissingError",
+							"path": "ser/errors/unchecked-query-handler-missing-error.mdx"
+						}
+					},
+					{
+						"batch-query-handler-missing-error": {
+							"name": "BatchQueryHandlerMissingError",
+							"path": "ser/errors/batch-query-handler-missing-error.mdx"
+						}
+					},
+					{
+						"unchecked-live-query-handler-missing-error": {
+							"name": "UncheckedLiveQueryHandlerMissingError",
+							"path": "ser/errors/unchecked-live-query-handler-missing-error.mdx"
+						}
+					},
+					{
+						"unchecked-command-handler-missing-error": {
+							"name": "UncheckedCommandHandlerMissingError",
+							"path": "ser/errors/unchecked-command-handler-missing-error.mdx"
+						}
+					},
+					{
+						"unchecked-form-handler-missing-error": {
+							"name": "UncheckedFormHandlerMissingError",
+							"path": "ser/errors/unchecked-form-handler-missing-error.mdx"
+						}
+					},
+					{
+						"unchecked-prerender-handler-missing-error": {
+							"name": "UncheckedPrerenderHandlerMissingError",
+							"path": "ser/errors/unchecked-prerender-handler-missing-error.mdx"
+						}
+					},
+					{
+						"invalid-live-query-return-error": {
+							"name": "InvalidLiveQueryReturnError",
+							"path": "ser/errors/invalid-live-query-return-error.mdx"
+						}
+					},
+					{
+						"empty-stream-yield-error": {
+							"name": "EmptyStreamYieldError",
+							"path": "ser/errors/empty-stream-yield-error.mdx"
+						}
+					}
+				]
+			},
+			{
+				"category": "Runtime lifecycle",
+				"entries": [
+					{
+						"dispatcher-disposed-error": {
+							"name": "DispatcherDisposedError",
+							"path": "ser/errors/dispatcher-disposed-error.mdx"
+						}
+					},
+					{
+						"runtime-already-initialized-error": {
+							"name": "RuntimeAlreadyInitializedError",
+							"path": "ser/errors/runtime-already-initialized-error.mdx"
+						}
+					}
+				]
+			},
+			{
+				"category": "Factory calls",
+				"entries": [
+					{
+						"invalid-query-factory-error": {
+							"name": "InvalidQueryFactoryError",
+							"path": "ser/errors/invalid-query-factory-error.mdx"
+						}
+					},
+					{
+						"invalid-live-query-factory-error": {
+							"name": "InvalidLiveQueryFactoryError",
+							"path": "ser/errors/invalid-live-query-factory-error.mdx"
+						}
+					},
+					{
+						"invalid-command-factory-error": {
+							"name": "InvalidCommandFactoryError",
+							"path": "ser/errors/invalid-command-factory-error.mdx"
+						}
+					}
+				]
+			},
+			{
+				"category": "Form transport",
+				"entries": [
+					{
+						"remote-form-endpoint-missing-error": {
+							"name": "RemoteFormEndpointMissingError",
+							"path": "ser/errors/remote-form-endpoint-missing-error.mdx"
+						}
+					},
+					{
+						"invalid-remote-form-response-error": {
+							"name": "InvalidRemoteFormResponseError",
+							"path": "ser/errors/invalid-remote-form-response-error.mdx"
+						}
+					},
+					{
+						"unsupported-remote-form-response-error": {
+							"name": "UnsupportedRemoteFormResponseError",
+							"path": "ser/errors/unsupported-remote-form-response-error.mdx"
+						}
+					},
+					{
+						"remote-error-decode-error": {
+							"name": "RemoteErrorDecodeError",
+							"path": "ser/errors/remote-error-decode-error.mdx"
+						}
+					}
+				]
+			},
+			{
+				"category": "Integration",
+				"entries": [
+					{
+						"server-only-import-error": {
+							"name": "ServerOnlyImportError",
+							"path": "ser/errors/server-only-import-error.mdx"
+						}
+					},
+					{
+						"sveltekit-server-export-unavailable-error": {
+							"name": "SvelteKitServerExportUnavailableError",
+							"path": "ser/errors/sveltekit-server-export-unavailable-error.mdx"
+						}
+					},
+					{
+						"remote-helper-context-error": {
+							"name": "RemoteHelperContextError",
+							"path": "ser/errors/remote-helper-context-error.mdx"
+						}
+					},
+					{
+						"remote-helper-error": {
+							"name": "RemoteHelperError",
+							"path": "ser/errors/remote-helper-error.mdx"
+						}
+					}
+				]
 			}
 		]
 	}

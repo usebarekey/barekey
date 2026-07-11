@@ -1,0 +1,73 @@
+---
+title: "Your first client component"
+description: "Run an effect from a Svelte component with script and markup yield syntax."
+---
+
+SER components are ordinary Svelte components with one extra opt-in: add `ser effect` to the script tag. The Vite plugin can then lower top-level and markup `ser yield*` expressions.
+
+## Create the component
+
+Add this page to a configured SvelteKit app:
+
+```ser name="src/routes/+page.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { Effect } from "effect";
+
+	let count = $state(0);
+
+	const label = yield* Effect.succeed("Effect is running");
+	const increment = () =>
+		Effect.sync(() => {
+			count += 1;
+		});
+</script>
+
+<h1>{label}</h1>
+<p>Count: {count}</p>
+
+<button onclick={yield* increment()}>
+	Increment
+</button>
+```
+
+The first `ser yield*` runs as component work. SER ties that work to the component lifecycle and interrupts its fiber when the component is destroyed.
+
+The button uses yield-first event syntax. SER creates the event handler and runs the returned effect when the click occurs.
+
+## Yield from markup
+
+Markup can yield an effect when rendering depends on its result:
+
+```ser name="src/routes/+page.svelte" icon="svelte"
+<script lang="ts" effect>
+	import { Effect } from "effect";
+
+	const get_message = Effect.succeed("Loaded from markup");
+</script>
+
+<p>{yield* get_message}</p>
+```
+
+SER also supports `ser yield*` in `svelte {#if ...}`, `svelte {#each ...}`, `svelte {#await ...}`, and `svelte {#key ...}` blocks, plus declaration and render tags. Use a declaration first when an ordinary component prop needs an effectful value.
+
+```ser
+{const value = yield* load_value()}
+<ResultCard {value} />
+```
+
+## Avoid callback syntax
+
+Effectful event attributes use a direct `ser yield*` expression:
+
+```ser
+<button onclick={yield* save()}>Save</button>
+```
+
+Do not put `ser yield*` inside a normal callback. JavaScript callbacks are synchronous unless you explicitly build and run an effect inside them.
+
+```svelte
+<!-- Invalid SER event syntax -->
+<button onclick={() => yield* save()}>Save</button>
+```
+
+Next, add a [server function](/docs/ser/your-first-server-function) and call it from the component. The [Client](/docs/ser/client) page covers every supported syntax position.

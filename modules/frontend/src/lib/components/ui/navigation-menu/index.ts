@@ -1,11 +1,11 @@
-import Root from "./navigation-menu.sv";
-import Content from "./navigation-menu-content.sv";
-import Indicator from "./navigation-menu-indicator.sv";
-import Item from "./navigation-menu-item.sv";
-import Link from "./navigation-menu-link.sv";
-import List from "./navigation-menu-list.sv";
-import Trigger from "./navigation-menu-trigger.sv";
-import Viewport from "./navigation-menu-viewport.sv";
+import Root from "$lib/components/ui/navigation-menu/navigation-menu.sv";
+import Content from "$lib/components/ui/navigation-menu/navigation-menu-content.sv";
+import Indicator from "$lib/components/ui/navigation-menu/navigation-menu-indicator.sv";
+import Item from "$lib/components/ui/navigation-menu/navigation-menu-item.sv";
+import Link from "$lib/components/ui/navigation-menu/navigation-menu-link.sv";
+import List from "$lib/components/ui/navigation-menu/navigation-menu-list.sv";
+import Trigger from "$lib/components/ui/navigation-menu/navigation-menu-trigger.sv";
+import Viewport from "$lib/components/ui/navigation-menu/navigation-menu-viewport.sv";
 
 export {
 	Content,

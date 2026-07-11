@@ -2,12 +2,17 @@
 
 .prose .docs-command-snippet {
 	@apply my-6 max-w-full;
-	width: var(--docs-prose-media-width, fit-content);
+	width: var(--docs-prose-media-inline-size, min(100%, 74ch));
 }
 
 .docs-command-snippet {
-	@apply rounded-3xl bg-linear-to-t from-background/30 to-foreground/5
-    card card-outline;
+	@apply relative rounded-3xl bg-linear-to-t from-background/30 to-foreground/5
+    card-lg;
+	z-index: 0;
+}
+
+.docs-command-snippet[data-open="true"] {
+	z-index: 20;
 }
 
 .docs-command-snippet-body {
@@ -52,8 +57,9 @@
 .docs-command-snippet-trigger {
 	@apply inline-flex h-9 w-fit min-w-30 items-center justify-between gap-1.5
     whitespace-nowrap rounded-4xl bg-linear-to-t from-background/30
-    to-foreground/5 px-3 py-2 text-sm transition-colors outline-none card
-    card-outline focus-visible:ring-[3px] focus-visible:ring-ring/50;
+    to-foreground/5 px-3 py-2 text-sm text-muted-foreground transition-colors
+    outline-none card-lg hover:text-foreground focus-visible:text-foreground
+    focus-visible:ring-[3px] focus-visible:ring-ring/50;
 }
 
 .docs-command-snippet-selector-icon {
@@ -69,27 +75,94 @@
 }
 
 .docs-command-snippet-content {
-	@apply absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-36
-    overflow-x-hidden overflow-y-auto rounded-2xl bg-popover
-    text-popover-foreground shadow-2xl ring-1 ring-foreground/5;
+	@apply fixed z-50 min-w-36 overflow-hidden rounded-2xl bg-linear-to-t
+    from-background/30 to-foreground/5 text-muted-foreground backdrop-blur-3xl
+    card-lg;
+	-webkit-backdrop-filter: blur(64px);
+	backdrop-filter: blur(64px);
+	left: var(--docs-command-content-left, 0);
+	max-height: var(--docs-command-content-max-height, none);
+	opacity: 0;
+	pointer-events: none;
+	top: var(--docs-command-content-top, 0);
+	transform: translateY(var(--docs-command-content-enter-y, 0)) scale(var(--scale-medium, 0.97));
+	will-change: transform, opacity;
+}
+
+.docs-command-snippet-content[data-side="bottom"] {
+	--docs-command-content-enter-y: calc(var(--distance-micro, 4px) * -1);
+	transform-origin: top right;
+}
+
+.docs-command-snippet-content[data-side="top"] {
+	--docs-command-content-enter-y: var(--distance-micro, 4px);
+	transform-origin: bottom right;
+}
+
+.docs-command-snippet-content[data-ready="true"] {
+	opacity: 1;
+	pointer-events: auto;
+	transform: translateY(0) scale(1);
+	transition:
+		transform var(--duration-fast) var(--ease-smooth-out),
+		opacity var(--duration-fast) var(--ease-smooth-out);
 }
 
 .docs-command-snippet-viewport {
-	@apply h-full w-full min-w-full p-1;
+	@apply relative z-10 w-full min-w-full overflow-x-hidden overflow-y-auto p-1;
+	isolation: isolate;
+	max-height: inherit;
+}
+
+.docs-command-snippet-hover-highlight {
+	@apply pointer-events-none absolute left-1 right-1 top-0;
+	background-image: linear-gradient(
+		to bottom,
+		oklch(from var(--foreground) l c h / 7.5%),
+		oklch(from var(--foreground) l c h / 2.5%)
+	);
+	border-radius: var(--radius-xl);
+	box-shadow: inset 0 0 0 0.5px oklch(from var(--foreground) l c h / 7%);
+	height: var(--docs-command-hover-height, 0);
+	opacity: 0;
+	transform: translate3d(0, var(--docs-command-hover-y, 0), 0);
+	will-change: transform, height;
+	z-index: 0;
+}
+
+.docs-command-snippet-hover-highlight[data-active="true"] {
+	opacity: 1;
+}
+
+.docs-command-snippet-hover-highlight[data-animate="true"] {
+	transition:
+		transform var(--duration-fast) var(--ease-smooth-out),
+		height var(--duration-fast) var(--ease-smooth-out);
 }
 
 .docs-command-snippet-item {
-	@apply relative flex w-full cursor-default items-center gap-2.5 rounded-xl
-    py-2 pr-8 pl-3 text-left text-sm outline-hidden select-none
-    focus:bg-accent focus:text-accent-foreground;
+	@apply relative flex w-full cursor-default items-center gap-2 rounded-xl
+    py-1.5 pr-7 pl-2.5 text-left text-sm text-muted-foreground outline-hidden
+    select-none transition-colors;
+	z-index: 1;
+}
+
+.docs-command-snippet-item:hover,
+.docs-command-snippet-item:focus-visible {
+	@apply text-foreground;
+}
+
+.docs-command-snippet-item:hover .docs-file-icon-label,
+.docs-command-snippet-item:focus-visible .docs-file-icon-label {
+	@apply text-foreground;
 }
 
 .docs-command-snippet-select-check-wrap {
-	@apply absolute end-2 flex size-3.5 items-center justify-center;
+	@apply absolute end-2 flex size-4 items-center justify-center;
 }
 
 .docs-command-snippet-select-check {
-	@apply size-4 shrink-0;
+	@apply size-4 shrink-0 text-blue-600 dark:text-blue-400;
 }
 
 .docs-command-snippet-select-check-wrap[hidden],
@@ -97,4 +170,11 @@
 .docs-command-snippet-selected-option[hidden],
 .docs-command-snippet-content[hidden] {
 	@apply hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.docs-command-snippet-content,
+	.docs-command-snippet-hover-highlight {
+		transition: none !important;
+	}
 }
