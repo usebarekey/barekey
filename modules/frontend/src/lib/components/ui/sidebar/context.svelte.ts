@@ -11,6 +11,8 @@ export type SidebarMotionPhase = "idle" | "children-exiting";
  * Props used to create shared sidebar state.
  */
 export type SidebarStateProps = {
+	mobile_breakpoint?: Getter<number | undefined>;
+
 	/**
 	 * A getter function that returns the current open state of the sidebar.
 	 * We use a getter function here to support `bind:open` on the `Sidebar.Provider`
@@ -37,7 +39,7 @@ class SidebarState {
 
 	constructor(props: SidebarStateProps) {
 		this.set_open = props.set_open;
-		this.#is_mobile = new IsMobile();
+		this.#is_mobile = new IsMobile(props.mobile_breakpoint?.());
 		this.props = props;
 	}
 

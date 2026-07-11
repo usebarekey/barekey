@@ -7,6 +7,6 @@ const default_mobile_breakpoint = 768;
  */
 export class IsMobile extends MediaQuery {
 	constructor(breakpoint: number = default_mobile_breakpoint) {
-		super(`max-width: ${breakpoint - 1}px`);
+		super(`(max-width: ${breakpoint - 1}px)`);
 	}
 }

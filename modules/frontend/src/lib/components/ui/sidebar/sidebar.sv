@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Sheet from "$lib/components/ui/sheet/index.js";
 	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { play } from "cuelume";
 	import type { HTMLAttributes } from "svelte/elements";
 	import { sidebar_width_mobile } from "$lib/components/ui/sidebar/constants.js";
 	import { use_sidebar } from "$lib/components/ui/sidebar/context.svelte.js";
@@ -40,13 +41,16 @@
 	>
 		<Sheet.Content
 			bind:ref
+			motion="none"
 			data-sidebar="sidebar"
 			data-slot="sidebar"
 			data-mobile="true"
 			class={cn(
-				"bg-background text-foreground w-(--sidebar-width) p-0 [&>button]:hidden",
+				"docs-mobile-sidebar t-panel-slide-x bg-background text-foreground inset-y-2 left-2 h-auto w-(--sidebar-width) rounded-2xl border-0 p-0 card",
 				class_name
 			)}
+			closeButtonClass="top-2 right-2 size-10 rounded-full bg-foreground/5 text-muted-foreground card hover:text-foreground"
+			onCloseButtonClick={() => play("toggle")}
 			style="--sidebar-width: {sidebar_width_mobile};"
 			{side}
 		>

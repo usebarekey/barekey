@@ -16,6 +16,7 @@
 	let {
 		ref = $bindable(null),
 		open = $bindable(true),
+		mobile_breakpoint,
 		onOpenChange: on_open_change = () => {},
 		class: class_name,
 		style,
@@ -23,6 +24,7 @@
 		...rest_props
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		open?: boolean;
+		mobile_breakpoint?: number;
 		onOpenChange?: (open: boolean) => void;
 	} = $props();
 
@@ -136,6 +138,7 @@
 	};
 
 	const sidebar = set_sidebar({
+		mobile_breakpoint: () => mobile_breakpoint,
 		open: () => open,
 		set_open: set_open_with_flip,
 	});

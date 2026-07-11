@@ -14,6 +14,11 @@
 	--stagger-exit-dur: 220ms;
 	--sidebar-stretch-dur: 420ms;
 	--sidebar-stretch-ease: var(--ease-smooth-out);
+	--panel-open-dur: 400ms;
+	--panel-close-dur: 350ms;
+	--panel-translate-x: calc(-100% - 0.5rem);
+	--panel-blur: 2px;
+	--panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--sidebar: oklch(0.985 0 0);
 	--sidebar-foreground: oklch(0.141 0.005 285.823);
 	--sidebar-primary: oklch(0.21 0.006 285.885);
@@ -22,6 +27,41 @@
 	--sidebar-accent-foreground: oklch(0.21 0.006 285.885);
 	--sidebar-border: oklch(0.92 0.004 286.32);
 	--sidebar-ring: oklch(0.705 0.015 286.067);
+}
+
+.t-panel-slide-x {
+	transform: translateX(0);
+	opacity: 1;
+	filter: blur(0);
+	transition:
+		transform var(--panel-close-dur) var(--panel-ease),
+		opacity var(--panel-close-dur) var(--panel-ease),
+		filter var(--panel-close-dur) var(--panel-ease);
+	will-change: transform, opacity, filter;
+}
+
+.t-panel-slide-x[data-state="open"] {
+	transition:
+		transform var(--panel-open-dur) var(--panel-ease),
+		opacity var(--panel-open-dur) var(--panel-ease),
+		filter var(--panel-open-dur) var(--panel-ease);
+}
+
+.t-panel-slide-x[data-starting-style],
+.t-panel-slide-x[data-ending-style] {
+	transform: translateX(var(--panel-translate-x));
+	opacity: 0;
+	filter: blur(var(--panel-blur));
+	pointer-events: none;
+}
+
+.docs-mobile-sidebar[data-side="left"] {
+	top: 0.5rem;
+	bottom: 0.5rem;
+	left: 0.5rem;
+	height: auto;
+	width: min(var(--sidebar-width), calc(100vw - 1rem));
+	border: 0;
 }
 
 .dark {
@@ -399,6 +439,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+	.t-panel-slide-x {
+		transition: none !important;
+	}
+
 	.t-resize,
 	.t-sidebar-motion,
 	.t-sidebar-flyout,

@@ -270,7 +270,7 @@ const ScrollToHeading = (
 	});
 </script>
 
-<div class="flex min-h-full flex-col gap-4 p-7">
+<div class="flex min-h-full flex-col gap-4 p-5 sm:p-6 xl:p-7">
   <div class="flex flex-row items-center gap-2">
     <ListLetters class="size-4 text-muted-foreground" />
     <span class="whitespace-nowrap text-xs uppercase text-muted-foreground">

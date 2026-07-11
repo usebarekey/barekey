@@ -59,6 +59,7 @@
 
 	const selected_caret_horizontal_offset_px = 9;
 	const sidebar_natural_width_variable = "--docs-sidebar-natural-width";
+	const sidebar_state = Sidebar.use_sidebar();
 
 	const fallback_name = (slug: string) =>
 		slug
@@ -84,6 +85,10 @@
 			doc_title,
 			from_path: get_page_path(),
 		});
+
+		if (sidebar_state.is_mobile) {
+			sidebar_state.set_open_mobile(false);
+		}
 	};
 
 	const get_docs_nav_groups = (meta: DocsContentMeta) => Object.entries(meta);
@@ -598,7 +603,7 @@
 							on_state_change={handle_entry_group_state_change}
 							on_state_change_complete={handle_entry_group_state_change}
 						>
-			{#each render_section.entry_groups as render_entry_group}
+			{#each render_section.entry_groups as render_entry_group (render_entry_group.group_index)}
 				{const has_group_label = Boolean(
 					render_entry_group.name || render_entry_group.category,
 				)}
