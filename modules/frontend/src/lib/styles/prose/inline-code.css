@@ -44,11 +44,11 @@
 }
 
 .prose :not(pre) > code.docs-inline-code-icon .docs-inline-code-source-location {
-	@apply inline-flex items-center gap-1.5 text-muted-foreground no-underline;
+	@apply inline-flex items-center gap-1.5 text-foreground no-underline;
 }
 
 .prose :not(pre) > code.docs-inline-code-icon .docs-source-location-name {
-	@apply font-normal text-muted-foreground;
+	@apply font-normal text-foreground;
 }
 
 .prose :not(pre) > code.docs-inline-code-icon .docs-source-location-position {
@@ -60,7 +60,8 @@
 	> code.docs-inline-code-icon
 	.docs-inline-code-source-location[href]
 	.docs-source-location-position {
-	@apply text-foreground transition-colors duration-(--duration-fast) ease-in-out;
+	@apply text-blue-600 transition-colors duration-(--duration-fast) ease-in-out
+		dark:text-blue-400;
 }
 
 .prose
@@ -68,7 +69,7 @@
 	> code.docs-inline-code-icon
 	.docs-inline-code-source-location[href]:hover
 	.docs-source-location-position {
-	@apply text-foreground-extra;
+	@apply text-blue-500 dark:text-blue-300;
 }
 
 .prose

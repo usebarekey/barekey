@@ -99,5 +99,6 @@ test("SER error source references are complete and free of migration artifacts",
 	);
 
 	expect(source_locations).toHaveLength(105);
+	expect(content).not.toMatch(/^`name=.*line=.*char=.*link=.*`$/mu);
 	expect(content).not.toMatch(/tokens truncated|â€¦/u);
 });

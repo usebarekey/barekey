@@ -11,9 +11,7 @@ In application code, this usually comes from the path-aware `ts invalid` proxy p
 
 ## Exactly where it triggers
 
-`name="modules/svelte-effect-runtime/src/server/invalid.ts" line="18" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/invalid.ts#L18"`
-
-```ts name="modules/svelte-effect-runtime/src/server/invalid.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/server/invalid.ts" icon="ts" line="18" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/invalid.ts#L18"
 return (message: string) =>
 	Effect.fail(create_form_error([{ message, path: [...path] } satisfies FormIssue]));
 ```
@@ -22,9 +20,7 @@ This is an `ts Effect.fail`, not a synchronous `ts throw`. The failure becomes o
 
 The value itself is constructed here:
 
-`name="modules/svelte-effect-runtime/src/remote/shared.ts" line="100" char="17" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/shared.ts#L100"`
-
-```ts name="modules/svelte-effect-runtime/src/remote/shared.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/shared.ts" icon="ts" line="100" char="17" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/shared.ts#L100"
 export function create_form_error(issues: readonly FormIssue[]): FormError {
 	return { _tag: "FormError", issues };
 }
@@ -32,9 +28,7 @@ export function create_form_error(issues: readonly FormIssue[]): FormError {
 
 At the request boundary, SER recognizes the tag and hands the issues to SvelteKit:
 
-`name="modules/svelte-effect-runtime/src/remote/server.ts" line="98" char="42" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/server.ts#L98"`
-
-```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/server.ts" icon="ts" line="98" char="42" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/server.ts#L98"
 const form_error = cause.failureOrCause.pipe(
 	Option.filter((failure): failure is FormError => is_tagged_failure(failure, "FormError")),
 );

@@ -13,9 +13,7 @@ Client Effects see `RemoteTransportError`. Its `cause` is this class and its `bo
 
 ## Exactly where it triggers
 
-`name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="78" char="45" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L78"`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts" line="78" char="45" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L78"
 const serialized = decode_serialized_remote_failure(raw);
 
 if (serialized._tag === "SerializedRemoteFailureInvalid") {
@@ -25,9 +23,7 @@ if (serialized._tag === "SerializedRemoteFailureInvalid") {
 
 The decoder catches those failures here:
 
-`name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="136" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L136"`
-
-```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts"
+```ts name="modules/svelte-effect-runtime/src/remote/client/failures.ts" icon="ts" line="136" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L136"
 try {
 	const decoded = decode_payload ? decode_payload(envelope.encoded) : parse(envelope.encoded);
 
