@@ -5,11 +5,11 @@ description: "Trace attempts to replace an SER runtime after work has claimed it
 
 ## What this error means and what can trigger it
 
-`ts RuntimeAlreadyInitializedError` means `ts ClientRuntime.make(...)` or `ts ServerRuntime.make(...)` tried to configure a runtime after one already existed.
+`RuntimeAlreadyInitializedError` means `ts ClientRuntime.make(...)` or `ts ServerRuntime.make(...)` tried to configure a runtime after one already existed.
 
-An earlier explicit `ts make` call is not required. Client code can lazily install the default dispatcher through `ts get_dispatcher()`. Server code can lazily install an empty runtime through `ts get_server_runtime_or_throw()`. Calling `ts make(layer)` afterward also fails because existing generated work may already hold the first runtime.
+The first runtime does not have to come from an explicit `ts make` call. Client code may install the default dispatcher lazily through `ts get_dispatcher()`, while server code can do the same with an empty runtime through `ts get_server_runtime_or_throw()`. A later `ts make(layer)` still fails because generated work may already hold the original runtime.
 
-Server-side Vite development SSR has one intentional exception. During HMR, SER disposes the previous server runtime and accepts a replacement. Production, tests, and other environments retain the duplicate-initialization guard.
+Vite development SSR has one intentional exception: during HMR, SER disposes the previous server runtime and accepts a replacement. Production, tests, and other environments keep the duplicate-initialization guard.
 
 ## Exactly where it triggers
 
@@ -32,10 +32,10 @@ if (current_server_runtime && !should_replace_dev_runtime) {
 }
 ```
 
-Both are synchronous throws. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="564" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L564"`.
+Both are synchronous throws. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="564" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L564"`.
 
 ## Why this is the case
 
 Dispatchers, fibers, caches, provided layers, and generated handlers need one stable runtime identity in each environment. Replacing it after initialization would leave earlier work attached to one runtime while later work sees another.
 
-The HMR exception is scoped to Vite development SSR because reevaluating `ts hooks.server.ts` is expected there. SER disposes the previous instance before replacement rather than allowing two active server runtimes.
+The HMR exception is scoped to Vite development SSR because reevaluating `hooks.server.ts` is expected there. SER disposes the previous instance before replacement rather than allowing two active server runtimes.

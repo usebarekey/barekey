@@ -5,11 +5,11 @@ description: "Trace a marked SER failure envelope whose encoded value cannot be 
 
 ## What this error means and what can trigger it
 
-`ts RemoteErrorDecodeError` means the client recognized SER's serialized remote-failure envelope, then failed to decode its encoded payload. Recognition of the envelope matters: an arbitrary invalid JSON string does not trigger this class. The value must first carry the marker that says it is a serialized SER failure.
+`RemoteErrorDecodeError` means the client recognized SER's serialized remote-failure envelope but could not decode its payload. Recognizing the envelope matters here: arbitrary invalid JSON does not trigger this class. The value must first carry the marker identifying it as a serialized SER failure.
 
-Decoding uses a custom payload decoder when the adapter supplies one, otherwise it uses devalue's `ts parse`. A thrown decoder exception or an invalid decoded result produces the internal invalid state. The class retains the original wire value in `ts raw`.
+When the adapter supplies a custom payload decoder, SER uses it; otherwise, it falls back to devalue's `ts parse`. A thrown decoder exception or invalid result produces the internal invalid state, while the original wire value remains available in `raw`.
 
-Client Effects see `ts RemoteTransportError`. Its `cause` is this class and its `body` is the same raw value.
+Client Effects see `RemoteTransportError`. Its `cause` is this class and its `body` is the same raw value.
 
 ## Exactly where it triggers
 
@@ -23,7 +23,7 @@ if (serialized._tag === "SerializedRemoteFailureInvalid") {
 }
 ```
 
-The decoder catches failures here:
+The decoder catches those failures here:
 
 `name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="136" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L136"`
 
@@ -37,10 +37,10 @@ try {
 }
 ```
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="728" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L728"`; the construction above is its only production use.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="728" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L728"`; the construction above is its only production use.
 
 ## Why this is the case
 
 The marker says the server intended to preserve a typed Effect failure across the remote boundary. Returning the encoded value as ordinary data would silently turn a failed Effect into a successful one, while treating it as an unknown domain failure would invent a tag the client never decoded.
 
-The transport wrapper reports that the representation failed before application meaning could be restored. Keeping `ts raw` makes codec and version mismatches inspectable without allowing the malformed payload into the typed failure union.
+The transport wrapper reports that the representation failed before application meaning could be restored. Keeping `raw` makes codec and version mismatches inspectable without allowing the malformed payload into the typed failure union.

@@ -5,11 +5,11 @@ description: "Trace a remote Form whose generated endpoint metadata is incomplet
 
 ## What this error means and what can trigger it
 
-`ts RemoteFormEndpointMissingError` means SER has no complete URL for a remote form submission. The form adapter can use a native `ts submit` method when one is present. Its fallback transport needs both an action identifier and the generated remote base URL. This error is created when either part is missing.
+`RemoteFormEndpointMissingError` means SER cannot build a complete URL for a remote form submission. The form adapter prefers a native `ts submit` method when one is available; its fallback transport, however, needs both an action identifier and the generated remote base URL. If either part is missing, this is the error it creates.
 
-The action identifier is read from the native form action URL, using the `ts /remote` or `ts remote` query parameter. The base URL is passed into the generated client adapter. A stale generated module, incompatible SvelteKit output, direct use of SER's internal adapter, or missing action metadata can leave one of them empty.
+The action identifier is read from the native form action URL, using the `/remote` or `remote` query parameter. The base URL is passed into the generated client adapter. A stale generated module, incompatible SvelteKit output, direct use of SER's internal adapter, or missing action metadata can leave one of them empty.
 
-Application Effects normally receive a `ts RemoteTransportError`. This class is retained as that wrapper's `cause`.
+Application Effects normally see the surrounding `RemoteTransportError`, with this more specific class retained as its `cause`.
 
 ## Exactly where it triggers
 
@@ -19,9 +19,9 @@ if (!action_id || remote_base.length === 0) {
 }
 ```
 
-The guard runs before `ts to_remote_form_url` and before any request is issued. It is a synchronous throw inside the asynchronous submission path, so the surrounding Promise rejects and the adapter exposes the resulting tagged `ts RemoteTransportError` through its Effect error channel.
+That guard runs before `ts to_remote_form_url` and before any request is issued. It is a synchronous throw inside the asynchronous submission path, so the surrounding Promise rejects and the adapter exposes the resulting tagged `RemoteTransportError` through its Effect error channel.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="647" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L647"`. No other production construction site exists.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="647" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L647"`. No other production construction site exists.
 
 ## Why this is the case
 

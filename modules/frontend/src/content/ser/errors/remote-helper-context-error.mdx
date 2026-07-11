@@ -5,9 +5,9 @@ description: "Trace a SvelteKit request-context failure normalized at an SER rem
 
 ## What this error means and what can trigger it
 
-`ts RemoteHelperContextError` means a native SvelteKit remote helper or request lookup reported that it was running outside its route/request context. This commonly follows a declaration outside a valid `ts *.remote.ts` route module or execution in tooling that does not establish SvelteKit's request store.
+`RemoteHelperContextError` means a native SvelteKit remote helper or request lookup reported that it was running outside its route/request context. This commonly follows a declaration outside a valid `*.remote.ts` route module or execution in tooling that does not establish SvelteKit's request store.
 
-SER recognizes the condition by message because SvelteKit does not expose a stable exported error class for an `ts instanceof` check. It accepts a message beginning with `ts Can only read the current request event inside functions invoked during \`handle\``or exactly equal to`ts Could not get the request store.`A user-thrown`ts Error` with the same message is therefore classified the same way.
+SER has to recognize this condition by its message because SvelteKit does not expose a stable error class for an `ts instanceof` check. The accepted messages begin with `Can only read the current request event inside functions invoked during handle` or exactly match `Could not get the request store.` Consequently, a user-thrown `Error` carrying the same text is classified in the same way.
 
 ## Exactly where it triggers
 
@@ -39,7 +39,7 @@ Wrapper-level catches also normalize request capture and synchronous handler inv
 - `name="modules/svelte-effect-runtime/src/server/wrappers.ts" line="120" char="4" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/wrappers.ts#L120"`
 - `name="modules/svelte-effect-runtime/src/server/wrappers.ts" line="135" char="5" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/wrappers.ts#L135"`
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="816" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L816"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="816" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L816"`.
 
 ## Why this is the case
 

@@ -5,9 +5,9 @@ description: "Trace a generated Command client value without a callable invocati
 
 ## What this error means and what can trigger it
 
-`ts InvalidCommandFactoryError` means the client Command adapter received neither a callable value nor a non-null object with a callable `ts invoke` method. SER supports both shapes because SvelteKit output and compatibility paths can represent a Command either way.
+`InvalidCommandFactoryError` means the client Command adapter received neither a callable value nor a non-null object with a callable `ts invoke` method. SER supports both shapes because SvelteKit output and compatibility paths can represent a Command either way.
 
-An incorrect import, stale generated module, compiler/runtime version mismatch, or malformed direct call to the internal adapter can violate this shape.
+This generally points to an integration problem, such as an incorrect import, stale generated module, or compiler/runtime version mismatch. A malformed direct call to the internal adapter can produce it too, although application code should never call that adapter.
 
 ## Exactly where it triggers
 
@@ -24,7 +24,7 @@ if (!command && !invoke) {
 
 The check runs synchronously while generated client exports are initialized. The compiler emits the adapter call at `name="modules/svelte-effect-runtime/src/compiler/remote-client.ts" line="118" char="10" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/compiler/remote-client.ts#L118"`. No Command Effect or network request has started.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="627" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L627"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="627" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L627"`.
 
 ## Why this is the case
 

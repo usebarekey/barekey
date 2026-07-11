@@ -5,11 +5,11 @@ description: "Trace a generated Query client value that has no callable transpor
 
 ## What this error means and what can trigger it
 
-`ts InvalidQueryFactoryError` means the client adapter received neither a callable native factory nor a non-null object with a callable `ts load` method. The error is raised while the adapter is created, usually during evaluation of the generated client module.
+`InvalidQueryFactoryError` means the client adapter received neither a callable native factory nor a non-null object with a callable `ts load` method. The error is raised while the adapter is created, usually during evaluation of the generated client module.
 
-Likely causes are a missing or incompatible SvelteKit-generated export, stale generated code, version skew at the compiler boundary, or direct use of SER's internal adapter with the wrong value.
+This usually means a SvelteKit-generated export is missing or incompatible, generated code is stale, or the compiler and runtime disagree about the boundary. Calling SER's internal adapter with the wrong value can also reach this error, although application code should not call that adapter directly.
 
-The current error message mentions objects exposing `ts query` or `ts load`. The 4.0.0 implementation accepts a direct function or an object with `ts load`; an object that exposes only `ts query` still triggers this error. This page describes the implemented predicate.
+One wrinkle is that the current message mentions objects exposing `ts query` or `ts load`. In 4.0.0, however, the implementation accepts a direct function or an object with `ts load`; an object exposing only `ts query` still fails. The behavior described here follows the implemented predicate.
 
 ## Exactly where it triggers
 
@@ -26,7 +26,7 @@ if (!query && !load) {
 
 `ts has_method` requires a non-null object and a callable property. The throw is synchronous and occurs before the wrapped Query Effect is returned. Generated code calls this adapter from `name="modules/svelte-effect-runtime/src/compiler/remote-client.ts" line="129" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/compiler/remote-client.ts#L129"`.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="587" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L587"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="587" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L587"`.
 
 ## Why this is the case
 

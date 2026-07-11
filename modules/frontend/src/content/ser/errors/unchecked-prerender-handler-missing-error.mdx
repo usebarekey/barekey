@@ -5,9 +5,9 @@ description: "Trace an unchecked Prerender declaration without a callable build-
 
 ## What this error means and what can trigger it
 
-`ts UncheckedPrerenderHandlerMissingError` means the first argument to `ts Prerender` is `ts "unchecked"`, while the second argument is not a function. This differs slightly from the other unchecked helpers because the second position may also contain Prerender options.
+`UncheckedPrerenderHandlerMissingError` means the first argument to `ts Prerender` is `ts "unchecked"`, while the second is not a function. This case differs slightly from the other unchecked helpers because Prerender options may also occupy that second position.
 
-The guard therefore uses an exact callable check rather than truthiness. An omitted value, falsy value, options object, or any other truthy non-function triggers the error when paired with the unchecked sentinel.
+For that reason, the guard checks callability rather than mere truthiness. An omitted value, a falsy value, an options object, or any other non-function triggers the error when paired with the unchecked sentinel.
 
 ## Exactly where it triggers
 
@@ -19,7 +19,7 @@ if (is_unchecked(validate_or_handler)) {
 
 This branch is reached after the factory has tested the second argument with `ts typeof value === "function"`. It throws synchronously during helper creation and is rethrown unchanged after normalization.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="481" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L481"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="481" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L481"`.
 
 ## Why this is the case
 

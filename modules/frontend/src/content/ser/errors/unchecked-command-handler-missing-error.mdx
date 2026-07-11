@@ -5,9 +5,9 @@ description: "Trace an unchecked Command whose mutation handler is absent."
 
 ## What this error means and what can trigger it
 
-`ts UncheckedCommandHandlerMissingError` means `ts Command("unchecked", handler)` has no truthy second argument at runtime. The unchecked sentinel opts out of schema validation. It cannot perform the mutation or return its result.
+`UncheckedCommandHandlerMissingError` means `ts Command("unchecked", handler)` reached runtime without a truthy second argument. The sentinel only opts out of schema validation; it cannot perform the mutation or produce a result by itself.
 
-Omission and other falsy values can reach the guard through JavaScript, generated mismatch, or an unsafe cast. TypeScript's intended overload requires the handler.
+TypeScript's intended overload requires the handler, although untyped JavaScript, an unsafe cast, or mismatched generated code can still pass an omitted or falsy value to the guard.
 
 ## Exactly where it triggers
 
@@ -17,9 +17,9 @@ if (is_unchecked(validate_or_handler)) {
 }
 ```
 
-The factory catches, normalizes, and synchronously rethrows the same `ts Error` instance at its declaration boundary. No Command Effect has run at this point.
+The factory catches, normalizes, and synchronously rethrows the same `Error` instance at its declaration boundary. No Command Effect has run at this point.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="441" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L441"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="441" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L441"`.
 
 ## Why this is the case
 

@@ -5,15 +5,15 @@ description: "Understand the nominal base shared by SER-authored JavaScript erro
 
 ## What this error means and what can trigger it
 
-`ts RuntimeError` is the common JavaScript base class for SER-authored runtime and compiler exceptions. It preserves the native `ts Error` stack and message while giving direct instances the stable name `ts RuntimeError`. Concrete subclasses replace that name with their own class name and may add structured fields.
+`RuntimeError` is the common JavaScript base class for SER-authored runtime and compiler exceptions. It preserves the native `Error` stack and message while giving direct instances the stable name `RuntimeError`. Concrete subclasses replace that name with their own class name and may add structured fields.
 
-The current production source never constructs `ts RuntimeError` directly. It therefore has no standalone runtime trigger. Its meaning comes from subclasses such as `ts PreprocessError`, `ts DispatcherDisposedError`, and `ts RuntimeAlreadyInitializedError`.
+Production code does not construct `RuntimeError` directly, so there is no standalone runtime trigger to find. You encounter the base through subclasses such as `PreprocessError`, `DispatcherDisposedError`, and `RuntimeAlreadyInitializedError`.
 
-The base does not add a `ts cause`, error code, tagged-data protocol, or Effect failure behavior. A subclass may be thrown synchronously, placed in a Promise rejection, or supplied to `ts Effect.fail`; inheritance alone does not determine delivery.
+The base adds no `cause`, error code, tagged-data protocol, or Effect failure behavior. A subclass may be thrown synchronously, placed in a Promise rejection, or supplied to `ts Effect.fail`; inheritance alone says nothing about how the error reaches you.
 
 ## Exactly where it triggers
 
-There is no production trigger site. The declaration is:
+Since production code never instantiates the base directly, there is no trigger site to point to. Its declaration is:
 
 ```ts name="modules/svelte-effect-runtime/src/errors.ts" icon="ts" line="16" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L16"
 export class RuntimeError extends Error {
@@ -28,6 +28,6 @@ The only direct `ts new RuntimeError(...)` in current source is the documentatio
 
 ## Why this is the case
 
-The base gives integration code a nominal boundary for errors authored by SER while allowing each invariant to keep a precise class and fields. It also avoids turning tagged remote failures such as `ts RemoteHttpError` into JavaScript exceptions merely for inheritance.
+The base gives integration code a nominal boundary for errors authored by SER while allowing each invariant to keep a precise class and fields. It also avoids turning tagged remote failures such as `RemoteHttpError` into JavaScript exceptions merely for inheritance.
 
 Because the class represents no single invariant, production code selects a concrete subclass at each failure site. Catching only the base is intentionally broad and loses the detail that identifies the failed subsystem.

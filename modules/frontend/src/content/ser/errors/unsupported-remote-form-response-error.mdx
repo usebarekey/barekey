@@ -5,11 +5,11 @@ description: "Trace a recognized form envelope whose result payload SER cannot c
 
 ## What this error means and what can trigger it
 
-`ts UnsupportedRemoteFormResponseError` means the response passed SER's top-level envelope check as `ts type: "result"`, but the result branch cannot supply a usable decoded payload. The class retains the original value in `ts envelope` and is nested in `ts RemoteTransportError.cause`.
+`UnsupportedRemoteFormResponseError` means the response passed SER's top-level envelope check as `ts type: "result"`, but the result branch cannot supply a usable decoded payload. The class retains the original value in `envelope` and is nested in `ts RemoteTransportError.cause`.
 
-Two shapes trigger it. The envelope may omit both of the supported encoded slots, `ts result` and `ts data`. Alternatively, one of those strings may parse with devalue but produce a value that fails SER's payload schema. That schema accepts an optional issue array and an optional result value; issue paths must consist of string or numeric segments.
+Two response shapes trigger it. The envelope may omit both supported encoded slots, `result` and `data`; alternatively, one of those strings may parse with devalue but produce a value that fails SER's payload schema. That schema accepts an optional issue array and result value, with issue paths made only from string or numeric segments.
 
-Invalid devalue syntax is a different path. The parser throws before this explicit construction, and the outer Promise normalization handles that thrown parser error as a transport failure.
+Invalid devalue syntax takes a different path because the parser throws before this class can be constructed. The outer Promise normalization then handles that parser error as a transport failure.
 
 ## Exactly where it triggers
 
@@ -33,10 +33,10 @@ if (!decoded) {
 }
 ```
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="699" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L699"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="699" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L699"`.
 
 ## Why this is the case
 
-Recognizing the envelope's discriminator proves that the server intended a result response. It does not prove that the client can extract a result from it. Separating this case from `ts InvalidRemoteFormResponseError` pinpoints version skew and payload-contract changes after the top-level protocol has already succeeded.
+Recognizing the envelope's discriminator proves that the server intended a result response. It does not prove that the client can extract a result from it. Separating this case from `InvalidRemoteFormResponseError` pinpoints version skew and payload-contract changes after the top-level protocol has already succeeded.
 
 SER validates the decoded value before reading issues or results from it. That check prevents arbitrary devalue output from being treated as validation data and gives the transport boundary one controlled failure shape.

@@ -5,11 +5,11 @@ description: "Trace yield work hidden inside a nested synchronous callback in an
 
 ## What this error means and what can trigger it
 
-`ts AsyncEffectInEventCallbackError` means an event expression has a valid outer SER boundary, yet another `ts yield*` remains inside a nested non-generator callback. A representative case is `ser onclick={yield* Effect.try(() => yield* Save())}`.
+`AsyncEffectInEventCallbackError` means the event expression begins at a valid SER boundary, but another `ts yield*` is still buried inside a nested non-generator callback. For example: `ser onclick={yield* Effect.try(() => yield* Save())}`.
 
 SER parses the event body in a synthetic generator and tracks whether each `ts yield*` belongs to the top-level event body, a nested generator, or an invalid nested function. Arrows, ordinary functions, methods, getters, and setters enter the invalid context. Generator functions enter a separate valid generator context.
 
-Known Effect combinators can be normalized into generator-safe forms before this check. The error is raised when invalid nested work remains, including yielding callbacks attached to unrecognized receivers whose invocation semantics SER cannot prove.
+SER can normalize known Effect combinators into generator-safe forms before it performs this check. If nested work remains, however, the transform stops. This includes yielding callbacks attached to receivers whose invocation semantics SER cannot prove.
 
 ## Exactly where it triggers
 
@@ -21,7 +21,7 @@ if (analysis.has_nested_invalid_yield_star) {
 }
 ```
 
-The callback-shaped whole-expression check runs first. This second check therefore addresses nested callback boundaries inside an otherwise direct event expression. It throws synchronously during the markup transform. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="222" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L222"`.
+The callback-shaped whole-expression check runs first. This second check therefore addresses nested callback boundaries inside an otherwise direct event expression. It throws synchronously during the markup transform. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="222" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L222"`.
 
 ## Why this is the case
 

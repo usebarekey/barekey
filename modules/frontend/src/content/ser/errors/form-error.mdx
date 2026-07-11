@@ -5,9 +5,9 @@ description: "Trace field and form validation from the invalid proxy to SvelteKi
 
 ## What this error means and what can trigger it
 
-`ts FormError` is the server-side validation value produced by a SER `ts Form` handler. Despite its name, it is not a JavaScript `ts Error`, does not extend `ts RuntimeError`, and is not thrown by SER. It is a tagged data structure with `_tag: "FormError"` and an `issues` array. Each issue contains a message and a path made from string or numeric segments.
+`FormError` is the server-side validation value produced by a SER `ts Form` handler. The name is slightly misleading: this is tagged data with `_tag: "FormError"` and an `issues` array, not a JavaScript `Error` or a `RuntimeError` subclass. SER does not throw it. Instead, each issue carries a message and a path made from string or numeric segments.
 
-The normal trigger is the path-aware `ts invalid` proxy passed to a form handler. Calling `ts invalid.email("Required")` fails the current Effect with an issue at `ts ["email"]`. Property access extends the path, so `ts invalid.profile.email("Required")` produces `ts ["profile", "email"]`. Calling the proxy itself, such as `ts invalid("Could not save")`, produces an issue whose path is empty and therefore belongs to the whole form.
+In application code, this usually comes from the path-aware `ts invalid` proxy passed to a form handler. Calling `ts invalid.email("Required")` fails the current Effect with an issue at `ts ["email"]`; each property access extends that path, so `ts invalid.profile.email("Required")` produces `ts ["profile", "email"]`. Calling the proxy itself, as in `ts invalid("Could not save")`, leaves the path empty and attaches the issue to the whole form.
 
 ## Exactly where it triggers
 
@@ -48,4 +48,4 @@ if (Option.isSome(form_error)) {
 
 Validation is expected control flow inside a form handler. Keeping it in Effect's typed error channel allows the handler to compose validation with database work, services, retries, and ordinary domain failures without throwing an untyped exception through the middle of that program.
 
-SvelteKit's `ts invalid` helper belongs at the request boundary because it uses framework control flow to produce the form response. SER therefore keeps validation as plain data until it has the active request and can translate the issue list once. The `_schema` member on `ts FormError` is phantom typing only. It helps TypeScript relate paths to a form schema, but it is absent from the runtime object and never sent over the wire.
+SvelteKit's `ts invalid` helper belongs at the request boundary because it uses framework control flow to produce the form response. SER therefore keeps validation as plain data until it has the active request and can translate the issue list once. The `_schema` member on `FormError` is phantom typing only. It helps TypeScript relate paths to a form schema, but it is absent from the runtime object and never sent over the wire.

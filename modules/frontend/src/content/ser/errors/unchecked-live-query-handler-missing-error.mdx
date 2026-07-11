@@ -5,9 +5,9 @@ description: "Trace an unchecked live Query with no Stream-producing handler."
 
 ## What this error means and what can trigger it
 
-`ts UncheckedLiveQueryHandlerMissingError` means `ts Query.live("unchecked", handler)` reached its server factory without a truthy second argument. The sentinel removes input decoding; the handler must still create the live Effect `ts Stream`.
+`UncheckedLiveQueryHandlerMissingError` means `ts Query.live("unchecked", handler)` reached its server factory without a truthy second argument. The sentinel removes input decoding, although the handler must still create the live Effect Stream.
 
-The guard catches omitted and other falsy values when static typing has been bypassed. A truthy value can proceed past this exact branch, although a non-callable value will fail later.
+Once static typing has been bypassed, the guard catches omitted and other falsy values. A truthy value gets past this exact branch, albeit only for a non-callable value to fail later.
 
 ## Exactly where it triggers
 
@@ -17,9 +17,9 @@ if (is_unchecked(validate_or_handler)) {
 }
 ```
 
-The surrounding `ts try`/`ts catch` rethrows this existing error unchanged after helper normalization. It is raised synchronously while the remote export is created, before any live request starts.
+The surrounding `ts try`/`ts catch`, however, rethrows this existing error unchanged after helper normalization. It is raised synchronously while the remote export is created, before any live request starts.
 
-The declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="421" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L421"`.
+For reference, the class is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="421" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L421"`.
 
 ## Why this is the case
 

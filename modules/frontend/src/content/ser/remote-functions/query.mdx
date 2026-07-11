@@ -103,13 +103,13 @@ export const GetPost = Query("unchecked", (slug: string) => Effect.succeed(slug)
 
 Calling a query function returns an object that is both:
 
-- An Effect you can `ser yield*` to obtain the data (`ts A`)
+- An Effect you can `ser yield*` to obtain the data (`A`)
 - A resource with reactive fields and methods
 
 Available on every query call result:
 
-- `ts current` – last successful value (or `ts undefined`)
-- `ts loading`, `ts ready`, `ts error`
+- `current` – last successful value (or `undefined`)
+- `loading`, `ready`, `error`
 - `ts refresh()` – returns an Effect that forces a refetch
 
 ```ser icon="svelte" name="+page.svelte"
@@ -195,11 +195,11 @@ Batching only affects transport. Each caller still receives its own result.
 
 ## Query.live
 
-A normal `ts Query` asks the server for one value. `ts Query.live` may look like a query that refreshes repeatedly, but its contract is quite different: it opens a remote source and gives the client an Effect Stream.
+A normal `ts Query` asks the server for one value. `ts Query.live` sounds as though it might run that query over and over, although that is not what happens. It opens a remote source and gives the client an Effect Stream.
 
-The handler must return Effect's `ts Stream.Stream<A, E, R>` data type directly. Returning `ts 42`, an object, an array, or a Promise is invalid. Returning `ts Effect.succeed(42)` is also invalid, as is `ts Effect.succeed(Stream.make(42))`. Those are single Effects, and `ts Query.live` does not unwrap an Effect to search for a Stream inside it.
+The handler must return Effect's `ts Stream.Stream<A, E, R>` data type directly. A number such as `42`, an object, an array, or a Promise does not satisfy that contract. Neither does `ts Effect.succeed(42)` or `ts Effect.succeed(Stream.make(42))`: both are single Effects, and `ts Query.live` does not run an Effect merely to see whether a Stream is hiding inside it.
 
-The Stream may emit ordinary JavaScript values. A `ts Stream<number>` emits numbers and a `ts Stream<User>` emits user objects. The important part is that the handler returns the Stream itself rather than returning one of its elements.
+The Stream itself may emit perfectly ordinary JavaScript values. A `ts Stream<number>` emits numbers, for instance, while a `ts Stream<User>` emits user objects. What matters at the handler boundary is the container: return the Stream, not one of the values it may eventually emit.
 
 |                                  | `ts Query`                                  | `ts Query.live`                               |
 | -------------------------------- | ------------------------------------------- | --------------------------------------------- |
@@ -208,7 +208,7 @@ The Stream may emit ordinary JavaScript values. A `ts Stream<number>` emits numb
 | A direct `ser yield*` reads      | The query result                            | Only the first emitted Stream element         |
 | Keeping it active                | SvelteKit retains the cached query resource | A Stream runner consumes it until interrupted |
 
-This can feel odd at first because calling the exported function does not start by giving you a user, count, date, or other application value. It gives you the Stream that will carry those values. Stream operators such as `ts Stream.map`, `ts Stream.filter`, and `ts Stream.runForEach` are therefore the normal client API.
+This is the part that differs from most remote functions. Calling the export does not immediately hand you a user, count, date, or other application value. Instead, it gives you the Stream that will carry those values, which is why operators such as `ts Stream.map`, `ts Stream.filter`, and `ts Stream.runForEach` are the natural client API.
 
 ```ts icon="ts" name="time.remote.ts"
 import { Stream } from "effect";
@@ -219,7 +219,7 @@ export const Clock = Query.live(
 );
 ```
 
-With input, use the same validator forms as an ordinary query. The caller passes the encoded value, while the handler receives the decoded one:
+With input, the validator forms are the same as for an ordinary query. The caller passes the encoded value and, once validation succeeds, the handler receives the decoded one:
 
 ```ts icon="ts" name="room.remote.ts"
 import { Schema, Stream } from "effect";
@@ -230,13 +230,13 @@ export const WatchRoom = Query.live(Schema.String, (room_id) =>
 );
 ```
 
-In this example, the handler returns `ts Stream.make(...)`. The room object is an element emitted by that Stream. Returning the room object by itself would cause `ts InvalidLiveQueryReturnError` when the server invokes the handler.
+Here, the handler returns `ts Stream.make(...)`; the room object is merely an element emitted by that Stream. If the handler returned the object by itself, the server would raise `InvalidLiveQueryReturnError` when it invoked the handler.
 
 For a query without input, pass either a Stream or a callback that returns one. An input-bearing handler takes a schema or `ts "unchecked"`; once a validator is present, the second argument must be a function that returns a Stream.
 
 ### Consume the stream
 
-Calling `ts Clock()` returns a `ts RemoteLiveStream` immediately. No clock value has been selected at that point. The returned object is the live sequence, with SER's transport metadata attached so `ts Live.status(...)` and `ts Live.reconnect(...)` can still reach the underlying connection.
+Calling `ts Clock()` returns a `RemoteLiveStream` immediately, before any clock value has been selected. That object is the live sequence itself, with SER's transport metadata attached so `ts Live.status(...)` and `ts Live.reconnect(...)` can still reach the underlying connection.
 
 ```ser icon="svelte" name="+page.svelte"
 <script lang="ts" effect>
@@ -263,9 +263,9 @@ Calling `ts Clock()` returns a `ts RemoteLiveStream` immediately. No clock value
 </button>
 ```
 
-A direct `ser yield* clock` converts the Stream into one value by waiting for its first element. Once that element arrives, the yield is complete. It does not leave a subscription running in the background. If the Stream finishes before emitting anything, the Effect fails with `ts EmptyStreamYieldError`.
+A direct `ser yield* clock` asks the Stream for one value and waits for its first element. Once that element arrives, the yield is complete; it does not quietly leave a subscription running in the background. If the Stream finishes without emitting, the Effect fails with `EmptyStreamYieldError`.
 
-Use a Stream runner when later elements matter. `ts Stream.runForEach(...)` stays attached until the Stream ends, fails, or the surrounding script effect is interrupted. In the example above, each element is copied into Svelte state as it arrives.
+When later elements matter, use a Stream runner instead. `ts Stream.runForEach(...)` stays attached until the Stream ends, fails, or the surrounding script effect is interrupted. In the example above, each arriving element is copied into Svelte state.
 
 ### Compose values and transport state
 
@@ -277,7 +277,7 @@ const labels = Clock()
 	.pipe(Stream.filter((label) => label.length > 0));
 ```
 
-`ts Live.status(labels)` returns another stream with `ts "Connecting"`, `ts "Open"`, `ts "Failed"`, and `ts "Closed"` states. Manual reconnect is an Effect returned by `ts Live.reconnect(labels)`, so it must be yielded or run. Derived live streams retain the hidden transport metadata those helpers need.
+`ts Live.status(labels)` returns another stream whose states are `ts "Connecting"`, `ts "Open"`, `ts "Failed"`, and `ts "Closed"`. A manual reconnect, meanwhile, is an Effect returned by `ts Live.reconnect(labels)`, so it must be yielded or run. Derived live streams retain the hidden transport metadata both helpers need.
 
 Ordinary stream operators handle retry policies as well:
 
@@ -300,7 +300,7 @@ The 4.0.0 client is stream-native. These replacements cover the old resource API
 | `ts clock.ready`, `ts clock.loading`, or `ts clock.connected` | Consume `ts Live.status(clock)`                         |
 | `ser yield* clock.reconnect()`                                | `ser yield* Live.reconnect(clock)`                      |
 
-Async generators and native iterables need an Effect Stream wrapper before the server returns them:
+Async generators and native iterables are valid sources, albeit only after they have been wrapped as an Effect Stream:
 
 ```ts icon="ts" name="counter.remote.ts"
 import { Stream } from "effect";
@@ -317,4 +317,4 @@ export const Counter = Query.live("unchecked", (limit: number) =>
 );
 ```
 
-Stream failures before or after an emitted value arrive through the client's `ts RemoteFailure` error channel. When the component unmounts or a tracked dependency changes, its script effect interrupts the stream consumer; iterator cleanup is forwarded when the downstream consumer closes.
+Whether a Stream fails before or after an emission, the failure arrives through the client's `RemoteFailure` error channel. When the component unmounts or a tracked dependency changes, the script effect interrupts its consumer and forwards cleanup to the iterator as the downstream side closes.

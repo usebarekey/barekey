@@ -5,9 +5,9 @@ description: "Trace a scanned markup expression for which SER has no lowering ru
 
 ## What this error means and what can trigger it
 
-`ts UnsupportedMarkupEffectPositionError` means SER found a braced markup expression containing `ts yield*`, but the Svelte AST placed that expression somewhere without an implemented lowering strategy.
+`UnsupportedMarkupEffectPositionError` means SER found `ts yield*` inside a braced markup expression, but the Svelte AST placed it somewhere SER does not yet know how to lower safely.
 
-SER supports expression tags; `ts if`, `ts each`, `ts await`, and `ts key` block expressions; render and HTML tags; declaration tags; and event attributes following Svelte's current or legacy conventions. Ordinary component/element attributes are not implicit Effect boundaries. A prop such as `ser <Widget value={yield* Load()} />` triggers this error, as does an unsupported tag position such as `ser {@debug yield* Inspect()}`.
+Supported positions include expression tags; `ts if`, `ts each`, `ts await`, and `ts key` block expressions; render and HTML tags; declaration tags; and event attributes that follow Svelte's current or legacy conventions. Ordinary component and element attributes are not implicit Effect boundaries, however. A prop such as `ser <Widget value={yield* Load()} />` therefore triggers this error, as does an unsupported tag position such as `ser {@debug yield* Inspect()}`.
 
 ## Exactly where it triggers
 
@@ -21,9 +21,9 @@ if (unmatched) {
 }
 ```
 
-The scanner first replaces every relevant brace expression with a placeholder so Svelte can parse the sanitized markup. The classifier then walks only AST positions SER knows how to emit. The first placeholder that was scanned but never classified becomes `ts unmatched` and causes this synchronous transform exception.
+The scanner first replaces every relevant brace expression with a placeholder so Svelte can parse the sanitized markup. The classifier then walks only AST positions SER knows how to emit. The first placeholder that was scanned but never classified becomes `unmatched` and causes this synchronous transform exception.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="322" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L322"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="322" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L322"`.
 
 ## Why this is the case
 

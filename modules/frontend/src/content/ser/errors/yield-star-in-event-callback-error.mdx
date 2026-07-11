@@ -5,9 +5,9 @@ description: "Trace a markup event whose entire attribute value is a callback co
 
 ## What this error means and what can trigger it
 
-`ts YieldStarInEventCallbackError` means an event-like attribute contains SER work, but the whole attribute expression is already an arrow function or function expression. Examples include `ser onclick={() => yield* Save()}` and `ser oninput={function (event) { yield* Validate(event); }}`.
+`YieldStarInEventCallbackError` means an event-like attribute contains SER work, although the entire attribute expression is already an arrow or function expression. Examples include `ser onclick={() => yield* Save()}` and `ser oninput={function (event) { yield* Validate(event); }}`.
 
-Markup classification has already established that the attribute follows Svelte's event conventions. The error is about the expression's outer AST shape, not a textual search for `ts =>`. SER parses the expression as an initializer and checks whether that initializer is an arrow or function expression.
+By this stage, markup classification has already established that the attribute follows Svelte's event conventions. The error concerns the expression's outer AST shape, not a textual search for `ts =>`: SER parses the expression as an initializer and checks whether that initializer is an arrow or function expression.
 
 ## Exactly where it triggers
 
@@ -19,7 +19,7 @@ if (is_callback_function_expression(expr_text)) {
 }
 ```
 
-This happens during markup emission, before SER generates the actual event callback. It is a synchronous preprocessing exception. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="272" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L272"`.
+This happens during markup emission, before SER generates the actual event callback. It is a synchronous preprocessing exception. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="272" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L272"`.
 
 The accepted boundary form leaves callback creation to SER:
 

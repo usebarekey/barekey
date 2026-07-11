@@ -5,11 +5,11 @@ description: "Trace invalid live Query factories, resources, and reconnect metad
 
 ## What this error means and what can trigger it
 
-`ts InvalidLiveQueryFactoryError` covers three distinct live-query shape invariants.
+`InvalidLiveQueryFactoryError` covers three distinct live-query shape invariants.
 
-First, the client adapter requires the generated native factory itself to be callable. Second, invoking a nominal live factory must produce a value with a callable `ts Symbol.asyncIterator`; ordinary query resources, arrays, primitives, and arbitrary objects are rejected. Third, `ts Live.reconnect(stream)` requires hidden live metadata whose native resource exposes a callable `ts reconnect` method.
+The first invariant is simple: the generated native factory must be callable. Once called, it must produce a value with a callable `ts Symbol.asyncIterator`, which rules out ordinary query resources, arrays, primitives, and arbitrary objects. Reconnection adds one more requirement because `ts Live.reconnect(stream)` needs hidden live metadata whose native resource exposes a callable `ts reconnect` method.
 
-The current diagnostic message mentions an object with a `ts query` method. The client adapter in 4.0.0 accepts only a function. The async-iterable validator and reconnect path inspect different later shapes.
+One wrinkle is that the diagnostic message mentions an object with a `ts query` method, although the 4.0.0 client adapter accepts only a function at that boundary. The async-iterable validator and reconnect path inspect different shapes later on.
 
 ## Exactly where it triggers
 
@@ -40,7 +40,7 @@ if (!metadata || typeof metadata.resource.reconnect !== "function") {
 }
 ```
 
-The third path is not a synchronous throw. It becomes a typed failure only when the reconnect Effect runs. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="607" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L607"`.
+The third path behaves differently: it is not a synchronous throw. It becomes a typed failure only when the reconnect Effect runs. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="607" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L607"`.
 
 ## Why this is the case
 

@@ -5,9 +5,9 @@ description: "Trace a yielded Stream that completes before emitting its first va
 
 ## What this error means and what can trigger it
 
-`ts EmptyStreamYieldError` means SER converted an Effect Stream used in a value-style `ts yield*`, ran it for its head, and observed normal completion before any element was emitted.
+`EmptyStreamYieldError` means SER converted an Effect Stream used in a value-style `ts yield*`, ran it for its head, and observed normal completion before any element was emitted.
 
-The distinctions are exact. A Stream that fails before emitting preserves its original error. A Stream that never emits and never completes remains pending. A Stream that emits `ts undefined` succeeds because `ts Option.some(undefined)` is still present. Values after the first emission are not consumed by this conversion.
+The empty case is narrower than it may first appear. A Stream that fails before emitting keeps its original error, while one that neither emits nor completes remains pending. Even `undefined` counts as an emitted value because `ts Option.some(undefined)` is still present. Once the first element arrives, this conversion consumes nothing further.
 
 ## Exactly where it triggers
 
@@ -23,12 +23,12 @@ return Stream.runHead(yieldable).pipe(
 );
 ```
 
-This is an `ts Effect.fail`, not a JavaScript throw. The error enters the generated component Effect's typed failure channel when the Stream completes empty.
+SER reports this through `ts Effect.fail`, rather than a JavaScript throw, so an empty completion enters the generated component Effect's typed failure channel.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="522" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L522"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="522" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L522"`.
 
 ## Why this is the case
 
 A value expression must resume with one concrete value. Effect Streams legally contain zero elements, so converting a Stream to a single value requires an explicit empty case.
 
-SER uses `ts Stream.runHead` because value-style yielding asks for the first resolved value rather than continuous subscription or full consumption. Normal empty completion cannot manufacture a value of the Stream's element type, so the conversion adds `ts EmptyStreamYieldError` to that overload's failure type.
+SER uses `ts Stream.runHead` because value-style yielding asks for the first resolved value rather than continuous subscription or full consumption. Normal empty completion cannot manufacture a value of the Stream's element type, so the conversion adds `EmptyStreamYieldError` to that overload's failure type.

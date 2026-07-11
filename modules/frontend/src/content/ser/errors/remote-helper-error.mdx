@@ -5,9 +5,9 @@ description: "Trace a non-Error JavaScript value caught at a remote helper bound
 
 ## What this error means and what can trigger it
 
-`ts RemoteHelperError` normalizes a value caught while SER creates a native remote helper, captures request state, or synchronously invokes a handler when that value is not an `ts Error` instance.
+`RemoteHelperError` normalizes a value caught while SER creates a native remote helper, captures request state, or synchronously invokes a handler when that value is not an `Error` instance.
 
-Examples include `ts throw "failed"`, `ts throw 42`, `ts throw null`, or `ts throw { reason: "failed" }`. The class stores the original value in `ts value`; its message uses `ts String(value)` and the stable `ts REMOTE_HELPER_ERROR` prefix. Existing JavaScript errors pass through unchanged. Recognized SvelteKit context errors become `ts RemoteHelperContextError` instead.
+Examples include `ts throw "failed"`, `ts throw 42`, `ts throw null`, or `ts throw { reason: "failed" }`. SER keeps the original value in `value` and builds the message with `ts String(value)` plus the stable `REMOTE_HELPER_ERROR` prefix. Existing JavaScript errors pass through unchanged, while recognized SvelteKit context failures become `RemoteHelperContextError` instead.
 
 ## Exactly where it triggers
 
@@ -19,12 +19,12 @@ if (is_sveltekit_remote_context_error(err)) {
 return err instanceof Error ? err : new RemoteHelperError(err);
 ```
 
-Every normalization call listed for `ts RemoteHelperContextError` can reach this branch. Factory catches live in `ts server/factories.ts`; wrapper catches live in `ts server/wrappers.ts`. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="848" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L848"`.
+Every normalization call listed for `RemoteHelperContextError` can reach this branch. Factory catches live in `server/factories.ts`; wrapper catches live in `server/wrappers.ts`. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="848" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L848"`.
 
-This class describes synchronous JavaScript values caught at those boundaries. A typed Effect failure produced after handler execution starts is encoded through the remote failure protocol and does not automatically become `ts RemoteHelperError`.
+This class describes synchronous JavaScript values caught at those boundaries. A typed Effect failure produced after handler execution starts is encoded through the remote failure protocol and does not automatically become `RemoteHelperError`.
 
 ## Why this is the case
 
-JavaScript permits throwing values that have no stack, name, or message contract. Remote helper boundaries need an actual `ts Error` for consistent rethrowing and diagnostics, while replacing the raw value entirely would remove useful evidence.
+JavaScript permits throwing values that have no stack, name, or message contract. Remote helper boundaries need an actual `Error` for consistent rethrowing and diagnostics, while replacing the raw value entirely would remove useful evidence.
 
 The conditional preserves well-formed errors, gives request-context failures their specific class, and wraps only the remaining arbitrary values.

@@ -5,9 +5,9 @@ description: "Trace a live Query handler result that is not an Effect Stream."
 
 ## What this error means and what can trigger it
 
-`ts InvalidLiveQueryReturnError` means a server-side `ts Query.live` handler returned a value for which Effect's `ts Stream.isStream` predicate is false. Arrays, synchronous iterables, async iterables, Promises, scalars, `ts null`, generator objects, and an Effect that later succeeds with a Stream all fail this runtime check.
+`InvalidLiveQueryReturnError` means a server-side `ts Query.live` handler returned something for which Effect's `ts Stream.isStream` predicate is false. That includes arrays, native iterables, Promises, scalars, `null`, generator objects, and even an Effect that later succeeds with a Stream. The handler boundary wants the Stream itself.
 
-The handler must return the Effect Stream directly. Native sources can be wrapped with `ts Stream.fromIterable`, `ts Stream.fromAsyncIterable`, or another Stream constructor. The public handler type already expresses this requirement; the runtime guard protects JavaScript, unsafe casts, and compiler/integration mismatches.
+Native sources are still usable, although they must first be wrapped with `ts Stream.fromIterable`, `ts Stream.fromAsyncIterable`, or another Stream constructor. The public handler type expresses this requirement already; the runtime guard is there for JavaScript, unsafe casts, and compiler or integration mismatches.
 
 ## Exactly where it triggers
 
@@ -17,9 +17,9 @@ if (!is_live_source(source)) {
 }
 ```
 
-The wrapper invokes the handler synchronously, passes its immediate return value into this validator, and catches the thrown class. Helper normalization returns existing `ts Error` instances unchanged, so the async remote wrapper's Promise rejects with `ts InvalidLiveQueryReturnError`.
+At that point, the wrapper invokes the handler synchronously, passes its immediate return value into this validator, and catches the thrown class. Helper normalization returns existing `Error` instances unchanged, so the async remote wrapper's Promise rejects with `InvalidLiveQueryReturnError`.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="501" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L501"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="501" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L501"`.
 
 ## Why this is the case
 

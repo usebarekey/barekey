@@ -5,11 +5,11 @@ description: "Trace a form response that fails SER's top-level envelope schema."
 
 ## What this error means and what can trigger it
 
-`ts InvalidRemoteFormResponseError` means the raw remote form response is not one of the two top-level envelopes SER understands. A valid error envelope has `ts type: "error"` plus optional error and status fields. A valid result envelope has `ts type: "result"` plus an optional devalue-encoded `ts data` or `ts result` string.
+`InvalidRemoteFormResponseError` means the raw remote form response matches neither of the two top-level envelopes SER understands. An error envelope has `ts type: "error"` with optional error and status fields, whereas a result envelope has `ts type: "result"` with an optional devalue-encoded `data` or `result` string.
 
-The raw response may be a primitive, `ts null`, an array, an object without a string `ts type`, an object with an unknown type, or an otherwise incompatible field shape. The class stores that value in `ts envelope`. SER also copies it into the surrounding transport failure's `ts body`.
+The raw response may be a primitive, `null`, an array, an object without a string `type`, an object with an unknown type, or an otherwise incompatible field shape. The class stores that value in `envelope`. SER also copies it into the surrounding transport failure's `body`.
 
-This differs from `ts UnsupportedRemoteFormResponseError`: the invalid variant means SER could not establish the top-level protocol branch at all.
+That is slightly different from `UnsupportedRemoteFormResponseError`. Here, SER cannot even establish which top-level protocol branch it received.
 
 ## Exactly where it triggers
 
@@ -21,9 +21,9 @@ if (!response) {
 }
 ```
 
-The decoder above uses Effect Schema to match the raw JSON against the error/result envelope union. The error is constructed only when that decoder returns no recognized branch. It is immediately nested inside `ts RemoteTransportError`, so client code normally inspects `ts error.cause` to reach it.
+At this point, the decoder uses Effect Schema to match the raw JSON against the error/result envelope union. The error is constructed only when that decoder returns no recognized branch. It is immediately nested inside `RemoteTransportError`, so client code normally inspects `ts error.cause` to reach it.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="669" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L669"`. This is its sole production construction site.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="669" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L669"`. This is its sole production construction site.
 
 ## Why this is the case
 

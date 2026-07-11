@@ -5,13 +5,13 @@ description: "Trace remote failures for which SER has a concrete HTTP status."
 
 ## What this error means and what can trigger it
 
-`ts RemoteHttpError` means a remote operation reached a failure with known HTTP semantics. It is a tagged data record, not a JavaScript `ts Error`. Its required `status` identifies the response class; `body` may preserve a parsed response body, and `cause` may retain the native failure that supplied the status.
+`RemoteHttpError` means a remote operation reached a failure with known HTTP semantics. It is a tagged data record, not a JavaScript `Error`. Its required `status` identifies the response class; `body` may preserve a parsed response body, and `cause` may retain the native failure that supplied the status.
 
-SER constructs this variant in three situations. A remote form error envelope may contain a payload that is not one of SER's tagged failures. A native remote helper may reject with an object that exposes a numeric `status`. A non-successful `ts Response` may contain a body that does not decode to an existing tagged failure. In each case an HTTP status is known, even though no more specific typed failure could be recovered.
+SER reaches this variant through several paths. A remote form error envelope may contain a payload that is not one of SER's tagged failures; a native remote helper may reject with an object exposing a numeric `status`; or an unsuccessful `Response` may contain a body that does not decode to an existing tagged failure. In every case, SER knows the HTTP status even though it cannot recover a more specific typed failure.
 
 ## Exactly where it triggers
 
-An unrecognized form error envelope falls back to its reported status, or `ts 500` when the envelope omitted one:
+An unrecognized form error envelope falls back to its reported status, or `500` when the envelope omitted one:
 
 ```ts name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" icon="ts" line="158" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L158"
 const decoded_error = decode_remote_error(response.error);
@@ -31,7 +31,7 @@ if (status !== undefined) {
 }
 ```
 
-A failed `ts Response` whose body is not already a tagged failure is converted here:
+A failed `Response` whose body is not already a tagged failure is converted here:
 
 ```ts name="modules/svelte-effect-runtime/src/remote/client/responses.ts" icon="ts" line="28" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/responses.ts#L28"
 const decoded_error = decode_remote_error(body);
@@ -47,6 +47,6 @@ The common constructor is `name="modules/svelte-effect-runtime/src/remote/shared
 
 ## Why this is the case
 
-The presence of a status changes what callers can decide. A `ts 401`, `ts 404`, and `ts 503` describe different server outcomes even if their bodies are empty or use an unknown format. Folding those values into `ts RemoteTransportError` would discard information that can drive authentication, absence, or retry behavior.
+The known status gives callers something concrete to act on. `401`, `404`, and `503`, for example, describe different server outcomes even when their bodies are empty or unfamiliar. Folding all of them into `RemoteTransportError` would discard information needed for authentication, missing resources, or retry behavior.
 
 SER preserves an existing tagged remote failure before using this fallback. The HTTP wrapper is therefore reserved for failures whose status is meaningful but whose body cannot be assigned a more specific SER tag. Only the native normalization path includes the original thrown object as `cause`, because that is the path where such an object exists.

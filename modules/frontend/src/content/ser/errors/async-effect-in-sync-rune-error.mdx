@@ -5,11 +5,11 @@ description: "Trace Effect work found in a Svelte rune position with a synchrono
 
 ## What this error means and what can trigger it
 
-`ts AsyncEffectInSyncRuneError` means SER found `ts yield*` inside a Svelte rune position that it cannot turn into dispatcher work without changing the rune's semantics. The error records the rune name, complete expression text, and source filename.
+`AsyncEffectInSyncRuneError` means SER found `ts yield*` inside a Svelte rune position that it cannot turn into dispatcher work without changing the rune's semantics. The error records the rune name, complete expression text, and source filename.
 
-There are two trigger families. The first is a rune call outside SER's small set of async-expression-compatible runes. The currently allowed set is `ts $derived`, `ts $state`, `ts $state.raw`, `ts $state.snapshot`, and `ts $bindable`. Calls such as `ts $props(yield* Load())`, `ts $effect.pending(yield* Load())`, or `ts $inspect(yield* Load())` fail the general check.
+There are two ways to reach it. One is to place Effect work in a rune outside SER's small set of async-expression-compatible runes. At present, that set contains `ts $derived`, `ts $state`, `ts $state.raw`, `ts $state.snapshot`, and `ts $bindable`; calls such as `ts $props(yield* Load())`, `ts $effect.pending(yield* Load())`, or `ts $inspect(yield* Load())` therefore fail the general check.
 
-The second family opens the first callback passed to `ts $derived.by`, `ts $effect`, `ts $effect.pre`, or `ts $effect.root`. A direct `ts yield*` in that callback fails even though the general detector stops at the callback's function boundary.
+The other route goes through the first callback passed to `ts $derived.by`, `ts $effect`, `ts $effect.pre`, or `ts $effect.root`. Although the general detector stops at that callback's function boundary, SER opens it separately and rejects a direct `ts yield*` inside.
 
 ## Exactly where it triggers
 
@@ -37,7 +37,7 @@ if (!callback || !callback_has_top_level_yield_star(callback)) {
 throw new AsyncEffectInSyncRuneError(rune_name, slice(content, call), filename);
 ```
 
-Both are synchronous transform exceptions. The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="169" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L169"`.
+Both are synchronous transform exceptions. For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="169" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L169"`.
 
 ## Why this is the case
 

@@ -5,11 +5,11 @@ description: "Trace Promise-backed dispatcher work requested after component tea
 
 ## What this error means and what can trigger it
 
-`ts DispatcherDisposedError` means code called `ts dispatcher.promise(...)` or `ts dispatcher.run(...)` after the dispatcher had been disposed. Disposal sets the private flag, interrupts active fibers, clears dispatcher caches, and begins disposal of the managed runtime.
+`DispatcherDisposedError` means code called `ts dispatcher.promise(...)` or `ts dispatcher.run(...)` after the dispatcher had been disposed. Disposal sets the private flag, interrupts active fibers, clears dispatcher caches, and begins disposal of the managed runtime.
 
-The usual cause is work retained past component teardown: a delayed task, external callback, stale event reference, or manual dispatcher reference outlives the component that owned it.
+Usually, this comes from work retained past component teardown: a delayed task, external callback, stale event reference, or manual dispatcher reference outlives the component that owned it.
 
-The dispatcher treats other post-disposal operations differently. `ts fork(...)` returns an inert disposer, and `ts value(...)` returns its fallback. The error is reserved for methods whose contracts already return a Promise and would otherwise imply that new asynchronous work had started.
+Other post-disposal operations have quieter fallbacks: `ts fork(...)` returns an inert disposer, while `ts value(...)` returns its fallback. This error is reserved for Promise-returning methods, since resolving one successfully would imply that new asynchronous work had actually started.
 
 ## Exactly where it triggers
 
@@ -37,4 +37,4 @@ These methods do not throw synchronously. They return rejected Promises. Failing
 
 Both methods promise to bridge work through the dispatcher's managed runtime. After disposal, that runtime no longer has valid lifecycle ownership, and starting a fiber would detach it from component cleanup.
 
-Returning a rejected Promise preserves each method's asynchronous contract and lets generated callers handle failure through their existing Promise path. The inert/fallback behavior of `ts fork` and `ts value` avoids creating new completion promises where their public contracts do not expose one.
+A rejected Promise still preserves each method's asynchronous contract and lets generated callers handle failure through their existing Promise path. The inert/fallback behavior of `ts fork` and `value` avoids creating new completion promises where their public contracts do not expose one.

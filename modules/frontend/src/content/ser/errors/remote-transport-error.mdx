@@ -5,9 +5,9 @@ description: "Trace failures that prevent SER from recovering application or HTT
 
 ## What this error means and what can trigger it
 
-`ts RemoteTransportError` means the client could not complete or interpret the remote protocol. It is tagged data with optional `cause` and `body` fields. It deliberately has no `status`, because this category includes failures for which SER cannot prove that a usable HTTP response existed.
+`RemoteTransportError` means the client could not complete or interpret the remote protocol. It is tagged data with optional `cause` and `body` fields. It deliberately has no `status`, because this category includes failures for which SER cannot prove that a usable HTTP response existed.
 
-The tag covers endpoint discovery, malformed form envelopes, missing result slots, payload-schema mismatches, undecodable serialized failures, and generic native promise rejections without a numeric status. Lower-level SER classes such as `ts RemoteFormEndpointMissingError`, `ts InvalidRemoteFormResponseError`, `ts UnsupportedRemoteFormResponseError`, and `ts RemoteErrorDecodeError` normally appear in `cause` rather than directly on the public Effect error channel.
+The tag covers failures such as missing endpoint metadata, malformed form envelopes, payload-schema mismatches, and native Promise rejections without a numeric status. More specific SER classes, including `RemoteFormEndpointMissingError`, `InvalidRemoteFormResponseError`, `UnsupportedRemoteFormResponseError`, and `RemoteErrorDecodeError`, normally sit in `cause` rather than appearing directly on the public Effect error channel.
 
 ## Exactly where it triggers
 
@@ -15,7 +15,7 @@ The factory itself is `name="modules/svelte-effect-runtime/src/remote/shared.ts"
 
 - `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="90" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L90"` for missing form endpoint metadata.
 - `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="148" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L148"` for a top-level form envelope that fails structural decoding.
-- `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="164" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L164"` for a result envelope with neither a `ts result` nor `ts data` slot.
+- `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="164" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L164"` for a result envelope with neither a `result` nor `data` slot.
 - `name="modules/svelte-effect-runtime/src/remote/client/form-transport.ts" line="174" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/form-transport.ts#L174"` for a parsed result payload that fails SER's payload schema.
 - `name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="78" char="11" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L78"` for a marked serialized failure whose encoded value cannot be decoded.
 - `name="modules/svelte-effect-runtime/src/remote/client/failures.ts" line="184" char="9" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/client/failures.ts#L184"` for a native rejection that is neither an existing tagged failure nor an object with a numeric status.
@@ -34,6 +34,6 @@ Remote adapters pass rejected native calls through this normalization from `name
 
 ## Why this is the case
 
-Typed remote failures require a successfully decoded error envelope. HTTP failures require a trustworthy numeric status. Transport failures are what remain when the operation breaks before either fact can be established.
+A typed remote failure needs a successfully decoded error envelope, whereas an HTTP failure needs a trustworthy numeric status. `RemoteTransportError` is what remains when the operation breaks before SER can establish either fact.
 
-Keeping `cause` and `body` separate matters during diagnosis. `cause` records why the protocol failed, often as a specific SER `ts RuntimeError`; `body` records the value that arrived, if anything did. Neither field upgrades the failure into a domain error. The wrapper prevents low-level parser errors, rejected strings, and protocol details from creating an unstable public error union.
+Keeping `cause` and `body` separate matters during diagnosis. `cause` records why the protocol failed, often as a specific SER `RuntimeError`; `body` records the value that arrived, if anything did. Neither field upgrades the failure into a domain error. The wrapper prevents low-level parser errors, rejected strings, and protocol details from creating an unstable public error union.

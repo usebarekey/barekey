@@ -5,9 +5,9 @@ description: "Trace execution of SER's publish-time fallback for a SvelteKit vir
 
 ## What this error means and what can trigger it
 
-`ts SvelteKitServerExportUnavailableError` means code executed SER's internal publish-time shim for `ts $app/server` instead of the virtual module implementation supplied by SvelteKit. The class records the unavailable export in `ts export_name`.
+`SvelteKitServerExportUnavailableError` means code executed SER's internal publish-time shim for `$app/server` instead of the virtual module implementation supplied by SvelteKit. The class records the unavailable export in `export_name`.
 
-The shim contains placeholders for `ts query`, `ts command`, `ts form`, `ts prerender`, and `ts getRequestEvent`. Each placeholder throws immediately. This file is an internal build fallback and is not currently exposed as a supported public package entry, so ordinary application code should not normally import it directly.
+The shim contains placeholders for `ts query`, `ts command`, `ts form`, `ts prerender`, and `ts getRequestEvent`, each of which throws immediately. This file is an internal build fallback rather than a supported public package entry, so application code should not import it directly.
 
 ## Exactly where it triggers
 
@@ -27,10 +27,10 @@ They throw from these exact placeholders:
 - `name="modules/svelte-effect-runtime/src/internal/sveltekit-server.ts" line="44" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/internal/sveltekit-server.ts#L44"` for `ts prerender`.
 - `name="modules/svelte-effect-runtime/src/internal/sveltekit-server.ts" line="54" char="2" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/internal/sveltekit-server.ts#L54"` for `ts getRequestEvent`.
 
-The class declaration is `name="modules/svelte-effect-runtime/src/errors.ts" line="786" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L786"`.
+For reference, the class itself is declared at `name="modules/svelte-effect-runtime/src/errors.ts" line="786" char="14" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/errors.ts#L786"`.
 
 ## Why this is the case
 
-`ts $app/server` is provided by SvelteKit's compilation environment, not by a normal file available to plain Node execution. SER needs a publish-time module shape for building the package, but that fallback cannot implement route-bound remote helpers or request lookup.
+SvelteKit's compilation environment provides `$app/server`; plain Node execution cannot load it as an ordinary file. SER still needs a publish-time module shape to build the package, although that fallback cannot implement route-bound remote helpers or request lookup.
 
-Immediate named failure prevents the shim from behaving like a partial server implementation. The recorded export identifies which virtual capability was requested outside the environment that owns it.
+Failing immediately by name prevents the shim from behaving like a partial server implementation. The recorded export identifies which virtual capability was requested outside the environment that owns it.

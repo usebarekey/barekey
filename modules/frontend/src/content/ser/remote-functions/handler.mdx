@@ -1,0 +1,89 @@
+---
+title: "Handler"
+description: "Run native SvelteKit HTTP handlers through the Effect runtime."
+---
+
+Not every request enters your application through a remote function. Some arrive directly at a `+server.ts` endpoint, where SvelteKit expects an ordinary HTTP handler.
+
+`Handler` lets you write that callback as an effect without taking the route away from SvelteKit. The framework still selects the exported `GET`, `POST`, or other method, supplies the usual event, and checks the returned `Response`. SER only changes how the work inside the callback is executed.
+
+## Handle an endpoint
+
+Pass the route-local handler type to `Handler`, then write the callback as a generator:
+
+```ts name="+server.ts" icon="ts"
+import type { RequestHandler } from "./$types";
+import { GetPost } from "$lib/server/posts";
+import { Handler } from "svelte-effect-runtime";
+
+export const GET = Handler<RequestHandler>(function* ({ params }) {
+	const post = yield* GetPost(params.slug);
+
+	return Response.json(post);
+});
+```
+
+The route-local `RequestHandler` type keeps the event argument accurate and requires the effect to succeed with a `Response`. The generator form is often the easiest to read, although a callback may return an Effect directly as well:
+
+```ts name="+server.ts" icon="ts"
+import type { RequestHandler } from "./$types";
+import { Effect } from "effect";
+import { Handler } from "svelte-effect-runtime";
+
+export const GET = Handler<RequestHandler>(({ url }) => Effect.succeed(new Response(url.pathname)));
+```
+
+Keep the route-local `RequestHandler` type from the endpoint you are wrapping. `Handler` works with one HTTP method at a time; it does not wrap an `Actions` collection.
+
+## Runtime and request scope
+
+The handler runs through the same [server runtime](/docs/ser/server-runtime) as remote functions, so every effect reached from the callback can use services installed with `ts ServerRuntime.make(...)`.
+
+At the same time, SER captures the current SvelteKit request and provides it as the [RequestEvent](/docs/ser/request-event) effect service. That becomes useful once the work moves a few calls deep, since you do not have to thread the event through functions that otherwise have no reason to know about HTTP:
+
+```ts name="+server.ts" icon="ts"
+import type { RequestHandler } from "./$types";
+import { AuditLog } from "$lib/server/audit-log";
+import { Handler, RequestEvent } from "svelte-effect-runtime";
+
+export const POST = Handler<RequestHandler>(function* () {
+	const event = yield* RequestEvent;
+
+	yield* AuditLog.Write({
+		ip: event.getClientAddress(),
+		path: event.url.pathname,
+	});
+
+	return new Response(null, { status: 204 });
+});
+```
+
+SER captures the request before the callback starts. Effects called by the handler then inherit that same request, even while the shared server runtime is serving other requests concurrently.
+
+## HTTP failures at the boundary
+
+> [!WARNING]
+> `Handler` is an adapter for native HTTP endpoints, not SER's page-data transport. Native HTTP handlers have no typed Effect error channel, so the callback's error type must be `never`. Remote functions are different: `Query`, `Command`, `Form`, and `Prerender` preserve typed domain failures for their callers. For page data, call a [Query](/docs/ser/query) from an `effect` script instead of wrapping a SvelteKit `load` function with `Handler`.
+
+Because the native handler cannot expose a typed Effect error channel, recover domain failures inside the effect or translate them into SvelteKit control flow before the callback returns.
+
+```ts name="+server.ts" icon="ts"
+import type { RequestHandler } from "./$types";
+import { Effect } from "effect";
+import { GetAccount } from "$lib/server/accounts";
+import { Error, Handler, Redirect } from "svelte-effect-runtime";
+
+export const GET = Handler<RequestHandler>(function* ({ locals }) {
+	if (!locals.user) {
+		return yield* Redirect("SeeOther", "/sign-in");
+	}
+
+	const account = yield* GetAccount(locals.user.id).pipe(
+		Effect.catchTag("AccountNotFound", () => Error("NotFound", "Account not found")),
+	);
+
+	return Response.json(account);
+});
+```
+
+`ts Error(...)` and `ts Redirect(...)` preserve SvelteKit's native HTTP behavior. An unrecovered `ts Effect.fail(...)`, however, does not type-check at this boundary. A defect still rejects with its original cause.

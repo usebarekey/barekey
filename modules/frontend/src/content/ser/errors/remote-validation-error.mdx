@@ -5,11 +5,11 @@ description: "Trace decoded form issues on the client-side remote failure channe
 
 ## What this error means and what can trigger it
 
-`ts RemoteValidationError` is the client-side representation of rejected form input. It is tagged data rather than an `ts Error` instance. The record always has `_tag: "RemoteValidationError"` and a numeric `status`; decoded `issues` and the original response `body` are optional.
+`RemoteValidationError` is the client-side representation of rejected form input. It is tagged data rather than an `Error` instance. The record always has `_tag: "RemoteValidationError"` and a numeric `status`; decoded `issues` and the original response `body` are optional.
 
-SER constructs it when the remote form endpoint returns a valid result envelope whose decoded payload contains at least one form issue. The top-level envelope has already passed its structural checks at this point, its devalue string has parsed successfully, and the resulting value has matched SER's payload schema. A malformed envelope takes a transport path instead.
+SER constructs it after a remote form endpoint returns a valid result envelope whose decoded payload contains at least one form issue. By then, the envelope has passed its structural checks, the devalue string has parsed, and the resulting value matches SER's payload schema. A malformed envelope never gets this far; it follows the transport-failure path instead.
 
-An already-tagged `ts RemoteValidationError` received through the general remote-failure codec is passed through as the same failure variant. That path does not construct a second object.
+An already-tagged `RemoteValidationError` received through the general remote-failure codec is passed through as the same failure variant. That path does not construct a second object.
 
 ## Exactly where it triggers
 
@@ -19,7 +19,7 @@ if (decoded.issues && decoded.issues.length > 0) {
 }
 ```
 
-The factory creates the tagged record here:
+The factory then creates the tagged record here:
 
 ```ts name="modules/svelte-effect-runtime/src/remote/shared.ts" icon="ts" line="290" char="17" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/remote/shared.ts#L290"
 export function create_remote_validation_error(
@@ -35,6 +35,6 @@ The throw occurs inside the Promise used by the remote adapter. `ts MakeEffectFr
 
 ## Why this is the case
 
-`ts FormError` and `ts RemoteValidationError` sit on opposite sides of the request boundary. The server-side value records validation intent while the handler is running. The client-side value includes transport-facing information such as the status and decoded response body. Giving the browser a separate tagged shape prevents SvelteKit's server control-flow object from leaking into application code.
+`FormError` and `RemoteValidationError` live on opposite sides of the request boundary. While the handler is running, the server-side value records validation intent. The client-side value then adds transport-facing details such as the status and decoded response body, without leaking SvelteKit's server control-flow object into browser code.
 
-The status defaults to `ts 400` because the request was understood and its input was rejected. SER does not classify this as `ts RemoteHttpError`: the response carried the validation protocol successfully, and the issues are recoverable application data rather than an unknown HTTP failure.
+The status defaults to `400` because the request was understood and its input was rejected. SER does not classify this as `RemoteHttpError`: the response carried the validation protocol successfully, and the issues are recoverable application data rather than an unknown HTTP failure.
