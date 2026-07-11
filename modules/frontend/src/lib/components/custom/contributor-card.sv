@@ -4,12 +4,12 @@
 	import { prefersReducedMotion, Tween } from "svelte/motion";
 
 	type Contributor = {
-		avatar: string;
 		commits: number;
 		diff: {
 			minus: number;
 			plus: number;
 		};
+		dominant_color: string;
 		name: string;
 	};
 
@@ -120,14 +120,10 @@
 	<div
 		aria-hidden="true"
 		class="contributor-card-background pointer-events-none absolute inset-0"
+		style:background-color={contributor.dominant_color}
 	>
-		<img
-			src={contributor.avatar}
-			alt=""
-			class="contributor-card-avatar absolute inset-0 size-full max-w-none object-cover opacity-70"
-		/>
 		<div
-			class="absolute inset-0 bg-linear-to-r from-background/65 via-background/70 to-background/80 backdrop-blur-2xl"
+			class="absolute inset-0 bg-linear-to-r from-background/65 via-background/70 to-background/80"
 		></div>
 	</div>
 
@@ -186,11 +182,11 @@
 					d={`M ${diff_slash_top} 0.5 H ${diff_card_right_curve} A 11.5 11.5 0 0 1 ${diff_card_right_edge} 12 A 11.5 11.5 0 0 1 ${diff_card_right_curve} 23.5 H ${diff_slash_bottom}`}
 				/>
 			</svg>
-			<span class="contributor-diff-segment contributor-diff-plus ps-2 pe-1">
+			<span class="contributor-diff-segment contributor-diff-plus px-1.5">
 				<span aria-hidden="true">+</span>
 				<span class="max-w-[4ch] text-left tabular-nums">{format_diff(plus.current)}</span>
 			</span>
-			<span class="contributor-diff-segment contributor-diff-minus ps-1 pe-2">
+			<span class="contributor-diff-segment contributor-diff-minus px-1.5">
 				<span aria-hidden="true">-</span>
 				<span class="max-w-[4ch] text-left tabular-nums">{format_diff(minus.current)}</span>
 			</span>
@@ -204,11 +200,6 @@
 		clip-path: inset(0 round 9999px);
 		contain: paint;
 		overflow: hidden;
-	}
-
-	.contributor-card-avatar {
-		filter: blur(1.5rem);
-		transform: scale(1.4);
 	}
 
 	.contributor-diff-pill {
