@@ -31,8 +31,8 @@
 	const diff_card_right_curve = $derived(diff_card_width - 12);
 	const diff_card_right_edge = $derived(diff_card_width - 0.5);
 	const diff_clip_width = $derived(diff_card_width - 1);
-	const diff_slash_bottom = $derived(diff_card_width / 2 - 0.75);
-	const diff_slash_top = $derived(diff_card_width / 2 + 0.75);
+	const diff_slash_bottom = $derived(diff_card_width / 2 - 3);
+	const diff_slash_top = $derived(diff_card_width / 2 + 3);
 
 	const format_diff = (value: number) => {
 		let scaled_value = value;
