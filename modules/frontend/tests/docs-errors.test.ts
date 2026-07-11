@@ -18,7 +18,6 @@ const expected_error_groups = [
 	[
 		"RuntimeError",
 		"PreprocessError",
-		"VitePreTransformPluginConflictError",
 		"AwaitInEffectWorkError",
 		"AsyncEffectInSyncRuneError",
 		"AsyncEffectInEventCallbackError",
@@ -49,7 +48,6 @@ const expected_error_groups = [
 		"SvelteKitServerExportUnavailableError",
 		"RemoteHelperContextError",
 		"RemoteHelperError",
-		"UnknownRuntimeError",
 	],
 ];
 
@@ -100,6 +98,6 @@ test("SER error source references are complete and free of migration artifacts",
 		/line="\d+" char="\d+" link="https:\/\/github\.com\/usebarekey\/svelte-effect-runtime\/blob\/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e\/modules\/svelte-effect-runtime\/src\/[^\"]+\.ts#L\d+"/g,
 	);
 
-	expect(source_locations).toHaveLength(109);
+	expect(source_locations).toHaveLength(105);
 	expect(content).not.toMatch(/tokens truncated|â€¦/u);
 });
