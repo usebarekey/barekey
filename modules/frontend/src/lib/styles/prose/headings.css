@@ -40,6 +40,18 @@
 	transition-timing-function: var(--ease-smooth-out);
 }
 
+.docs-page-title {
+	max-width: 100%;
+	min-width: 0;
+	overflow-wrap: anywhere;
+	text-wrap: balance;
+}
+
+.docs-page-title .docs-heading-self-link {
+	max-width: 100%;
+	overflow-wrap: inherit;
+}
+
 .docs-heading-self-link:hover,
 .docs-heading-self-link:focus-visible,
 .prose.prose .docs-heading-self-link:hover,

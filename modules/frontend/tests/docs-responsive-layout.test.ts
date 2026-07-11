@@ -56,3 +56,18 @@ test("mobile documentation drawer closes after selecting a page", () => {
 	expect(docs_sidebar).toContain("if (sidebar_state.is_mobile)");
 	expect(docs_sidebar).toContain("sidebar_state.set_open_mobile(false)");
 });
+
+test("long page titles wrap at semantic boundaries without overflowing", () => {
+	const docs_article = readFileSync(
+		"src/routes/docs/[category]/[slug]/components/docs-article.sv",
+		"utf8",
+	);
+	const headings_css = readFileSync("src/lib/styles/prose/headings.css", "utf8");
+
+	expect(docs_article).toContain("title_segments");
+	expect(docs_article).toContain("<wbr />");
+	expect(docs_article).toContain("docs-page-title");
+	expect(headings_css).toMatch(
+		/\.docs-page-title \{[\s\S]*?max-width: 100%;[\s\S]*?overflow-wrap: anywhere;[\s\S]*?text-wrap: balance;/,
+	);
+});

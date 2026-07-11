@@ -12,6 +12,10 @@
 		heading_id: string;
 		title: string;
 	} = $props();
+
+	const title_segments = $derived(
+		title.split(/(?<=[a-z\d])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/),
+	);
 </script>
 
 <div
@@ -19,8 +23,10 @@
 	data-prose-media-scope
 >
 	<div class="flex max-w-[60ch] flex-col gap-2">
-		<h1 id={heading_id} class="font-heading text-3xl font-semibold">
-			<a class="docs-heading-self-link" href={`#${heading_id}`}>{title}</a>
+		<h1 id={heading_id} class="docs-page-title font-heading text-3xl font-semibold">
+			<a class="docs-heading-self-link" href={`#${heading_id}`} aria-label={title}
+				>{#each title_segments as segment, index (index)}{segment}{#if index < title_segments.length - 1}<wbr />{/if}{/each}</a
+			>
 		</h1>
 		{#if description}
 			<span class="font-medium text-muted-foreground">{description}</span>
