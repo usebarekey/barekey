@@ -8,6 +8,7 @@ const fallback_dominant_color = "#18181b";
 const github_contributors = [
 	{
 		avatar: "https://avatars.githubusercontent.com/u/69873514?v=4",
+		is_barekey_member: true,
 		commits: 441,
 		diff: {
 			minus: 113_879,
@@ -17,6 +18,7 @@ const github_contributors = [
 	},
 	{
 		avatar: "https://github.com/aurorarissime.png",
+		is_barekey_member: false,
 		commits: 1,
 		diff: {
 			minus: 1,

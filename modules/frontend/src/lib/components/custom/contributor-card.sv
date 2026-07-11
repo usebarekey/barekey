@@ -3,7 +3,10 @@
 	import { Badge } from "$lib/components/ui/badge";
 	import { prefersReducedMotion, Tween } from "svelte/motion";
 
+	import barekey_logo from "$lib/assets/barekey/logo.png";
+
 	type Contributor = {
+		is_barekey_member: boolean;
 		commits: number;
 		diff: {
 			minus: number;
@@ -131,6 +134,13 @@
 	<div class="relative flex min-h-12 min-w-0 items-center gap-1.5 px-3 py-2">
 		<p class="min-w-0 truncate font-heading text-sm font-semibold text-foreground">
 			{contributor.name}
+			{#if contributor.is_barekey_member}
+				<img
+					src={barekey_logo}
+					alt="Barekey organization member"
+					class="ml-1 inline size-3 align-[-0.1em]"
+				/>
+			{/if}
 		</p>
 		<Badge
 			variant="secondary"
