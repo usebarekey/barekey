@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cubicOut } from "svelte/easing";
+	import { Badge } from "$lib/components/ui/badge";
 	import { prefersReducedMotion, Tween } from "svelte/motion";
 
 	type Contributor = {
@@ -30,8 +31,8 @@
 	const diff_card_right_curve = $derived(diff_card_width - 12);
 	const diff_card_right_edge = $derived(diff_card_width - 0.5);
 	const diff_clip_width = $derived(diff_card_width - 1);
-	const diff_slash_bottom = $derived(diff_card_width / 2 - 1.5);
-	const diff_slash_top = $derived(diff_card_width / 2 + 1.5);
+	const diff_slash_bottom = $derived(diff_card_width / 2 - 0.75);
+	const diff_slash_top = $derived(diff_card_width / 2 + 0.75);
 
 	const format_diff = (value: number) => {
 		let scaled_value = value;
@@ -114,75 +115,82 @@
 
 <article
 	bind:this={card_element}
-	class="relative min-w-0 rounded-3xl bg-linear-to-t from-background/30 to-foreground/5 p-4 card"
+	class="relative isolate min-w-0 overflow-hidden rounded-full bg-background card"
 >
+	<img
+		src={contributor.avatar}
+		alt=""
+		aria-hidden="true"
+		class="pointer-events-none absolute inset-0 size-full scale-125 object-cover opacity-70"
+	/>
 	<div
-		bind:this={diff_pill_element}
-		class="contributor-diff-pill absolute right-3 top-3 flex rounded-full backdrop-blur-xl"
-		aria-label={`${contributor.diff.plus.toLocaleString("en-US")} lines added and ${contributor.diff.minus.toLocaleString("en-US")} lines removed`}
-	>
-		<svg
-			class="contributor-diff-card docs-code-diff-card"
-			viewBox={`0 0 ${diff_card_width} 24`}
-			preserveAspectRatio="none"
-			aria-hidden="true"
-		>
-			<defs>
-				<linearGradient id={plus_gradient_id} x1="0" x2="0" y1="0" y2="1">
-					<stop class="contributor-diff-plus-gradient-start" offset="0%" />
-					<stop class="contributor-diff-plus-gradient-end" offset="100%" />
-				</linearGradient>
-				<linearGradient id={minus_gradient_id} x1="0" x2="0" y1="0" y2="1">
-					<stop class="contributor-diff-minus-gradient-start" offset="0%" />
-					<stop class="contributor-diff-minus-gradient-end" offset="100%" />
-				</linearGradient>
-				<clipPath id={diff_clip_id}>
-					<rect x="0.5" y="0.5" width={diff_clip_width} height="23" rx="11.5" />
-				</clipPath>
-			</defs>
-			<g clip-path={`url(#${diff_clip_id})`}>
-				<polygon
-					points={`0,0 ${diff_slash_top + 0.2},0 ${diff_slash_bottom + 0.2},24 0,24`}
-					fill={`url(#${plus_gradient_id})`}
-				/>
-				<polygon
-					points={`${diff_slash_top},0 ${diff_card_width},0 ${diff_card_width},24 ${diff_slash_bottom},24`}
-					fill={`url(#${minus_gradient_id})`}
-				/>
-			</g>
-			<path
-				class="contributor-diff-outline-plus"
-				d={`M ${diff_slash_top} 0.5 H 12 A 11.5 11.5 0 0 0 0.5 12 A 11.5 11.5 0 0 0 12 23.5 H ${diff_slash_bottom}`}
-			/>
-			<path
-				class="contributor-diff-outline-minus"
-				d={`M ${diff_slash_top} 0.5 H ${diff_card_right_curve} A 11.5 11.5 0 0 1 ${diff_card_right_edge} 12 A 11.5 11.5 0 0 1 ${diff_card_right_curve} 23.5 H ${diff_slash_bottom}`}
-			/>
-		</svg>
-		<span class="contributor-diff-segment contributor-diff-plus ps-2 pe-3">
-			<span aria-hidden="true">+</span>
-			<span class="max-w-[4ch] text-left tabular-nums">{format_diff(plus.current)}</span>
-		</span>
-		<span class="contributor-diff-segment contributor-diff-minus ps-3 pe-2">
-			<span aria-hidden="true">-</span>
-			<span class="max-w-[4ch] text-left tabular-nums">{format_diff(minus.current)}</span>
-		</span>
-	</div>
+		aria-hidden="true"
+		class="pointer-events-none absolute inset-0 bg-linear-to-r from-background/65 via-background/70 to-background/80 backdrop-blur-xl"
+	></div>
 
-	<div class="flex min-w-0 items-center gap-3 pt-7">
-		<img
-			src={contributor.avatar}
-			alt=""
-			class="size-12 shrink-0 rounded-full bg-muted object-cover card"
-		/>
-		<div class="min-w-0">
-			<p class="truncate font-heading text-sm font-semibold text-foreground">
-				{contributor.name}
-			</p>
-			<p class="mt-1 text-xs text-muted-foreground">
-				{contributor.commits.toLocaleString("en-US")}
-				{contributor.commits === 1 ? "commit" : "commits"}
-			</p>
+	<div class="relative flex min-h-12 min-w-0 items-center gap-1.5 px-3 py-2">
+		<p class="min-w-0 truncate font-heading text-sm font-semibold text-foreground">
+			{contributor.name}
+		</p>
+		<Badge
+			variant="outline"
+			class="bg-background/55 font-mono text-[0.6875rem] text-muted-foreground backdrop-blur-md"
+		>
+			{contributor.commits.toLocaleString("en-US")}
+			{contributor.commits === 1 ? "commit" : "commits"}
+		</Badge>
+
+		<div
+			bind:this={diff_pill_element}
+			class="contributor-diff-pill ml-auto flex shrink-0 rounded-full backdrop-blur-xl"
+			aria-label={`${contributor.diff.plus.toLocaleString("en-US")} lines added and ${contributor.diff.minus.toLocaleString("en-US")} lines removed`}
+		>
+			<svg
+				class="contributor-diff-card docs-code-diff-card"
+				viewBox={`0 0 ${diff_card_width} 24`}
+				preserveAspectRatio="none"
+				aria-hidden="true"
+			>
+				<defs>
+					<linearGradient id={plus_gradient_id} x1="0" x2="0" y1="0" y2="1">
+						<stop class="contributor-diff-plus-gradient-start" offset="0%" />
+						<stop class="contributor-diff-plus-gradient-end" offset="100%" />
+					</linearGradient>
+					<linearGradient id={minus_gradient_id} x1="0" x2="0" y1="0" y2="1">
+						<stop class="contributor-diff-minus-gradient-start" offset="0%" />
+						<stop class="contributor-diff-minus-gradient-end" offset="100%" />
+					</linearGradient>
+					<clipPath id={diff_clip_id}>
+						<rect x="0.5" y="0.5" width={diff_clip_width} height="23" rx="11.5" />
+					</clipPath>
+				</defs>
+				<g clip-path={`url(#${diff_clip_id})`}>
+					<polygon
+						points={`0,0 ${diff_slash_top + 0.2},0 ${diff_slash_bottom + 0.2},24 0,24`}
+						fill={`url(#${plus_gradient_id})`}
+					/>
+					<polygon
+						points={`${diff_slash_top},0 ${diff_card_width},0 ${diff_card_width},24 ${diff_slash_bottom},24`}
+						fill={`url(#${minus_gradient_id})`}
+					/>
+				</g>
+				<path
+					class="contributor-diff-outline-plus"
+					d={`M ${diff_slash_top} 0.5 H 12 A 11.5 11.5 0 0 0 0.5 12 A 11.5 11.5 0 0 0 12 23.5 H ${diff_slash_bottom}`}
+				/>
+				<path
+					class="contributor-diff-outline-minus"
+					d={`M ${diff_slash_top} 0.5 H ${diff_card_right_curve} A 11.5 11.5 0 0 1 ${diff_card_right_edge} 12 A 11.5 11.5 0 0 1 ${diff_card_right_curve} 23.5 H ${diff_slash_bottom}`}
+				/>
+			</svg>
+			<span class="contributor-diff-segment contributor-diff-plus ps-2 pe-1">
+				<span aria-hidden="true">+</span>
+				<span class="max-w-[4ch] text-left tabular-nums">{format_diff(plus.current)}</span>
+			</span>
+			<span class="contributor-diff-segment contributor-diff-minus ps-1 pe-2">
+				<span aria-hidden="true">-</span>
+				<span class="max-w-[4ch] text-left tabular-nums">{format_diff(minus.current)}</span>
+			</span>
 		</div>
 	</div>
 </article>
