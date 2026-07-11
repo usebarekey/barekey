@@ -9,8 +9,6 @@ description: "Trace field and form validation from the invalid proxy to SvelteKi
 
 The normal trigger is the path-aware `ts invalid` proxy passed to a form handler. Calling `ts invalid.email("Required")` fails the current Effect with an issue at `ts ["email"]`. Property access extends the path, so `ts invalid.profile.email("Required")` produces `ts ["profile", "email"]`. Calling the proxy itself, such as `ts invalid("Could not save")`, produces an issue whose path is empty and therefore belongs to the whole form.
 
-Application code may also call `ts create_form_error(issues)` and place the returned value on an Effect error channel. The factory is public precisely because validation can be assembled by code that does not use the proxy.
-
 ## Exactly where it triggers
 
 `name="modules/svelte-effect-runtime/src/server/invalid.ts" line="18" char="3" link="https://github.com/usebarekey/svelte-effect-runtime/blob/55b22b5afcfecf1a5643c5e26f7088fae6a22a6e/modules/svelte-effect-runtime/src/server/invalid.ts#L18"`
