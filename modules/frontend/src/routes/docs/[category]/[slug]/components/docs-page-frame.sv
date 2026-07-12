@@ -1,9 +1,14 @@
-<script lang="ts">
+<script lang="ts" effect>
+	import { Effect } from "effect";
 	import type { Snippet } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
 	import * as ScrollArea from "$lib/components/ui/scroll-area";
 	import * as Sidebar from "$lib/components/ui/sidebar";
 	import LayoutSidebar from "@tabler/icons-svelte/icons/layout-sidebar";
+
+	const CreateCompactLayout = Effect.gen(function* () {
+		return new MediaQuery("(max-width: 1279px)");
+	});
 
 	let {
 		article,
@@ -17,7 +22,12 @@
 
 	let article_viewport = $state<HTMLElement | null>(null);
 	let compact_scroll_root = $state<HTMLElement | null>(null);
-	const compact_layout = new MediaQuery("(max-width: 1279px)");
+	const compact_layout = yield* CreateCompactLayout;
+	const DocsDeveloperPanel = import.meta.env.DEV
+		? yield* Effect.gen(function* () {
+				return (yield* Effect.promise(() => import("./docs-developer-panel/docs-developer-panel.sv"))).default;
+			})
+		: undefined;
 	const toc_scroll_root = $derived(
 		compact_layout.current ? compact_scroll_root : article_viewport,
 	);
@@ -25,13 +35,13 @@
 
 <Sidebar.Provider
 	mobile_breakpoint={1280}
-	style="--sidebar-min-width: 14rem; --sidebar-max-width: 16rem; --sidebar-width: min(var(--sidebar-max-width), max(var(--sidebar-min-width), var(--docs-sidebar-natural-width, var(--sidebar-min-width)))); --sidebar-width-icon: 2.5rem;"
+	style="--sidebar-width: 16rem; --sidebar-width-icon: 2.5rem;"
 >
 	<Sidebar.Root variant="inset" collapsible="icon">
 		<div class="relative flex min-h-0 flex-1 flex-row">
 			{@render sidebar()}
 			<Sidebar.Trigger
-				class="group/sidebar-toggle absolute right-2 top-2 hidden size-10 items-center justify-center rounded-full bg-foreground/5 card group-data-[collapsible=icon]:right-0 xl:flex"
+				class="group/sidebar-toggle absolute right-0 top-2 hidden size-10 items-center justify-center rounded-full bg-foreground/5 card xl:flex"
 			>
 				<LayoutSidebar
 					class="size-4 text-muted-foreground transition-colors duration-(--duration-fast) ease-in-out group-hover/sidebar-toggle:text-foreground motion-reduce:transition-none"
@@ -74,6 +84,10 @@
 			</ScrollArea.Root>
 		</div>
 	</Sidebar.Inset>
+
+	{#if DocsDeveloperPanel}
+		<DocsDeveloperPanel />
+	{/if}
 </Sidebar.Provider>
 
 <style>

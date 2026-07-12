@@ -33,6 +33,7 @@
 .prose.prose .docs-heading-self-link {
 	border-radius: 0.375rem;
 	color: inherit;
+	font-weight: inherit;
 	min-width: 0;
 	text-decoration-line: none;
 	transition-duration: var(--duration-fast);
