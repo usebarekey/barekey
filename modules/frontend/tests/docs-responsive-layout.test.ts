@@ -103,6 +103,8 @@ test("mobile documentation drawer aligns its brand with the navigation heading",
 	);
 
 	expect(docs_sidebar).toContain('class="pl-6 pr-14 xl:pl-2"');
+	expect(docs_sidebar).toContain("t-sidebar-child -ml-1 flex");
+	expect(docs_sidebar).toContain("xl:ml-0");
 });
 
 test("long page titles wrap at semantic boundaries without overflowing", () => {

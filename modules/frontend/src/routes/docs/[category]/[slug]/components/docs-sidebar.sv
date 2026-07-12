@@ -531,7 +531,7 @@
 		<div class="t-sidebar-flyout-inline">
 			<a
 				href="/"
-				class="t-sidebar-child flex flex-row items-center gap-2"
+				class="t-sidebar-child -ml-1 flex flex-row items-center gap-2 xl:ml-0"
 				style={get_sidebar_child_style(0, docs_nav_render_model.child_count)}
 			>
 				<img
