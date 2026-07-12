@@ -13,8 +13,8 @@
 
 	<Sidebar.Trigger
 		aria-label="Open documentation navigation"
-		variant="ghost"
+		variant="default"
 		size="icon"
-		class="text-foreground-extra"
+		class="rounded-full bg-foreground-extra/25 text-foreground-extra card hover:bg-foreground-extra/35"
 	/>
 </header>
