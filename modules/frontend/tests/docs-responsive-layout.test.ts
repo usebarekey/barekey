@@ -5,6 +5,10 @@ const docs_frame = readFileSync(
 	"src/routes/docs/[category]/[slug]/components/docs-page-frame.sv",
 	"utf8",
 );
+const docs_scroll_reset = readFileSync(
+	"src/routes/docs/[category]/[slug]/components/docs-scroll-reset.sv",
+	"utf8",
+);
 
 test("compact docs layout uses a drawer breakpoint that includes tablets", () => {
 	expect(docs_frame).toContain("mobile_breakpoint={1280}");
@@ -79,8 +83,9 @@ test("docs viewport follows mobile browser chrome and resets after navigation", 
 	expect(docs_frame).toContain("min-h-dvh");
 	expect(docs_frame).toContain("env(safe-area-inset-bottom)");
 	expect(docs_frame).toContain("page_key: string;");
-	expect(docs_frame).toContain("window.scrollTo({ top: 0 });");
-	expect(docs_frame).toContain("article_viewport?.scrollTo({ top: 0 });");
+	expect(docs_frame).toContain("<DocsScrollReset");
+	expect(docs_scroll_reset).toContain("window.scrollTo({ top: 0 });");
+	expect(docs_scroll_reset).toContain("article_viewport?.scrollTo({ top: 0 });");
 });
 
 test("mobile table of contents tracks document scrolling", () => {

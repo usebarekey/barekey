@@ -1,11 +1,16 @@
-<script lang="ts">
+<script lang="ts" effect>
 	import { Effect } from "effect";
-	import { tick, type Snippet } from "svelte";
+	import type { Snippet } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
 	import * as ScrollArea from "$lib/components/ui/scroll-area";
 	import * as Sidebar from "$lib/components/ui/sidebar";
 	import DocsMobileHeader from "./docs-mobile-header.sv";
+	import DocsScrollReset from "./docs-scroll-reset.sv";
 	import LayoutSidebar from "@tabler/icons-svelte/icons/layout-sidebar";
+
+	const CreateCompactLayout = Effect.gen(function* () {
+		return new MediaQuery("(max-width: 1279px)");
+	});
 
 	let {
 		article,
@@ -20,38 +25,27 @@
 	} = $props();
 
 	let article_viewport = $state<HTMLElement | null>(null);
-	const compact_layout = new MediaQuery("(max-width: 1279px)");
-
-	$effect(() => {
-		void page_key;
-
-		const reset_fiber = Effect.runFork(
-			Effect.promise(tick).pipe(
-				Effect.andThen(
-					Effect.sync(() => {
-						if (compact_layout.current) {
-							window.scrollTo({ top: 0 });
-						}
-
-						article_viewport?.scrollTo({ top: 0 });
-					}),
-				),
-			),
-		);
-
-		return () => reset_fiber.interruptUnsafe();
-	});
+	const compact_layout = yield* CreateCompactLayout;
+	const DocsDeveloperPanel = import.meta.env.DEV
+		? yield* Effect.gen(function* () {
+				return (yield* Effect.promise(() => import("./docs-developer-panel/docs-developer-panel.sv"))).default;
+			})
+		: undefined;
 </script>
 
 <Sidebar.Provider
 	mobile_breakpoint={1280}
 	style="--sidebar-width: 16rem; --sidebar-width-icon: 2.5rem;"
 >
+	{#key page_key}
+		<DocsScrollReset article_viewport={article_viewport} compact={compact_layout.current} />
+	{/key}
+
 	<Sidebar.Root variant="inset" collapsible="icon">
 		<div class="relative flex min-h-0 flex-1 flex-row">
 			{@render sidebar()}
 			<Sidebar.Trigger
-				class="group/sidebar-toggle absolute right-2 top-2 hidden size-10 items-center justify-center rounded-full bg-foreground/5 card group-data-[collapsible=icon]:right-0 xl:flex"
+				class="group/sidebar-toggle absolute right-0 top-2 hidden size-10 items-center justify-center rounded-full bg-foreground/5 card xl:flex"
 			>
 				<LayoutSidebar
 					class="size-4 text-muted-foreground transition-colors duration-(--duration-fast) ease-in-out group-hover/sidebar-toggle:text-foreground motion-reduce:transition-none"
@@ -103,6 +97,10 @@
 			</div>
 		{/if}
 	</Sidebar.Inset>
+
+	{#if DocsDeveloperPanel}
+		<DocsDeveloperPanel />
+	{/if}
 </Sidebar.Provider>
 
 <style>
