@@ -1,8 +1,14 @@
+import { readFileSync } from "node:fs";
 import { render } from "svelte/server";
 import { expect, test } from "vitest";
 
 import CodeSnippet from "$lib/components/markdown/code-snippet.sv";
 import InlineCodeIcon from "$lib/components/markdown/inline-code-icon.sv";
+
+const code_snippet_styles = readFileSync(
+	"src/lib/styles/markdown/components/code-snippet.css",
+	"utf8",
+);
 
 test("filename-less code snippets omit the header and overlay the copy control", () => {
 	const { body } = render(CodeSnippet, {
@@ -49,6 +55,17 @@ test("code snippets use a smaller copy glyph without shrinking its button", () =
 	expect(body).toContain("size-3.5");
 	expect(body).toContain("relative grid size-4 place-items-center");
 	expect(body).toContain("flex size-4 items-center justify-center");
+});
+
+test("code snippet filenames share the copy button surface without changing shape", () => {
+	const filename_rule = code_snippet_styles.match(
+		/\.docs-code-snippet-filename \{[\s\S]*?\n\}/,
+	)?.[0];
+
+	expect(filename_rule).toContain("rounded-3xl");
+	expect(filename_rule).toContain("bg-linear-to-b");
+	expect(filename_rule).toContain("from-foreground/7.5 to-foreground/2.5");
+	expect(filename_rule).toContain("card-lg");
 });
 
 test("source snippets render linked line and character metadata", () => {
