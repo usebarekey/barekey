@@ -96,6 +96,15 @@ test("mobile documentation drawer closes after selecting a page", () => {
 	expect(docs_sidebar).toContain("sidebar_state.set_open_mobile(false)");
 });
 
+test("mobile documentation drawer aligns its brand with the navigation heading", () => {
+	const docs_sidebar = readFileSync(
+		"src/routes/docs/[category]/[slug]/components/docs-sidebar.sv",
+		"utf8",
+	);
+
+	expect(docs_sidebar).toContain('class="pl-6 pr-14 xl:pl-2"');
+});
+
 test("long page titles wrap at semantic boundaries without overflowing", () => {
 	const docs_article = readFileSync(
 		"src/routes/docs/[category]/[slug]/components/docs-article.sv",

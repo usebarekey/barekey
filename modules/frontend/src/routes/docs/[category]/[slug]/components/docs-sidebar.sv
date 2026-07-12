@@ -526,7 +526,7 @@
 
 <div bind:this={sidebar_panel} class="t-sidebar-flyout flex flex-1 flex-col">
 	<Sidebar.Header
-		class="px-2 pr-14"
+		class="pl-6 pr-14 xl:pl-2"
 	>
 		<div class="t-sidebar-flyout-inline">
 			<a
