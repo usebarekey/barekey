@@ -58,7 +58,7 @@
 	>
 		<div
 			bind:this={compact_scroll_root}
-			class="docs-responsive-surfaces flex h-full min-h-0 flex-col items-stretch gap-2 overflow-y-auto overscroll-y-contain xl:flex-row xl:justify-between xl:overflow-hidden"
+			class="docs-responsive-surfaces flex h-full min-h-0 flex-col items-stretch gap-2 overflow-y-auto overscroll-y-contain xl:flex-row xl:justify-between xl:overflow-visible"
 		>
 			<DocsMobileHeader />
 
@@ -81,6 +81,10 @@
 </Sidebar.Provider>
 
 <style>
+	:global(.docs-scroll-fade > [data-slot="scroll-area-viewport"]) {
+		border-radius: calc(var(--radius-2xl) - 0.25rem);
+	}
+
 	:global(.docs-scroll-fade [data-slot="scroll-area-viewport"]) {
 		mask-image: linear-gradient(
 			to bottom,
@@ -113,6 +117,12 @@
 
 		:global(.docs-responsive-surfaces > [data-slot="scroll-area"] > [data-slot="scroll-area-scrollbar"]) {
 			display: none;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		:global(.docs-scroll-fade > [data-slot="scroll-area-viewport"]) {
+			border-radius: calc(var(--radius-3xl) - 0.25rem);
 		}
 	}
 </style>

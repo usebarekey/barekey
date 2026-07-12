@@ -20,8 +20,16 @@ test("compact docs layout stacks the table of contents before the article", () =
 
 test("compact docs surfaces share one vertical scroll root", () => {
 	expect(docs_frame).toMatch(/docs-responsive-surfaces[^\n]+overflow-y-auto/);
+	expect(docs_frame).toContain("xl:overflow-visible");
 	expect(docs_frame).toContain("table_of_contents(toc_scroll_root)");
 	expect(docs_frame).toContain("overflow: visible !important");
+});
+
+test("docs card inset preserves inner rounding and outer shadows", () => {
+	expect(docs_frame).toMatch(/docs-toc-surface[^\n]+p-1 card/);
+	expect(docs_frame).toMatch(/docs-article-surface[^\n]+p-1 card/);
+	expect(docs_frame).toContain("border-radius: calc(var(--radius-2xl) - 0.25rem);");
+	expect(docs_frame).toContain("border-radius: calc(var(--radius-3xl) - 0.25rem);");
 });
 
 test("compact docs layout uses a sticky branded glass header", () => {
