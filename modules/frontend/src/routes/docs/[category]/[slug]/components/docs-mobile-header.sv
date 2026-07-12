@@ -15,6 +15,6 @@
 		aria-label="Open documentation navigation"
 		variant="default"
 		size="icon"
-		class="rounded-full bg-foreground-extra/25 text-foreground-extra card hover:bg-foreground-extra/35"
+		class="rounded-full bg-linear-to-b from-foreground-extra/5 to-foreground-extra/10 text-foreground-extra card"
 	/>
 </header>
