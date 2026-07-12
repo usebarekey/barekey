@@ -52,7 +52,7 @@
 	</Sidebar.Root>
 
 	<Sidebar.Inset
-		class="min-h-dvh min-w-0 w-0 flex-1 p-2 xl:h-[calc(100dvh-1rem)] xl:min-h-0 xl:max-h-[calc(100dvh-1rem)]"
+		class="min-h-dvh min-w-0 w-0 flex-1 p-2 xl:h-[calc(100dvh-1rem)] xl:min-h-0 xl:max-h-[calc(100dvh-1rem)] xl:peer-data-[collapsible=icon]:pl-0"
 		style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));"
 	>
 		{#if compact_layout.current}

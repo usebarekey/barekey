@@ -22,6 +22,10 @@ test("desktop docs sidebar has a stable server-rendered width", () => {
 	expect(docs_sidebar).not.toContain("set_sidebar_natural_width");
 });
 
+test("collapsed desktop sidebar keeps one spacing unit between its toggle and prose", () => {
+	expect(docs_frame).toContain("xl:peer-data-[collapsible=icon]:pl-0");
+});
+
 test("compact docs layout stacks the table of contents before the article", () => {
 	expect(docs_frame).toMatch(/docs-article-surface[^\n]+order-last/);
 	expect(docs_frame).toMatch(/docs-toc-surface[^\n]+order-first/);
