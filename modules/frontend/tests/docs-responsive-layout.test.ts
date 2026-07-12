@@ -35,6 +35,8 @@ test("compact docs layout uses a sticky branded glass header", () => {
 	expect(mobile_header).toContain("sticky top-0 z-20 order-first");
 	expect(mobile_header).toContain("justify-between");
 	expect(mobile_header).toContain("rounded-full");
+	expect(mobile_header).toContain("from-white/18 to-white/8");
+	expect(mobile_header).toContain("border-white/18");
 	expect(mobile_header).toContain("backdrop-blur-xl");
 	expect(mobile_header).toContain("Barekey");
 	expect(mobile_header).toContain('aria-label="Open documentation navigation"');
