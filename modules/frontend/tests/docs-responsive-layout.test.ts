@@ -30,8 +30,9 @@ test("docs card inset preserves inner rounding and outer shadows", () => {
 	expect(docs_frame).toMatch(/docs-article-surface[^\n]+p-1 card/);
 	expect(docs_frame).toContain("border-radius: calc(var(--radius-3xl) - 0.25rem);");
 	expect(
-		docs_frame.match(/rounded-\[calc\(var\(--radius-2xl\)-0\.25rem\)\] bg-background/g),
+		docs_frame.match(/overflow-hidden rounded-\[calc\(var\(--radius-2xl\)-0\.25rem\)\]/g),
 	).toHaveLength(2);
+	expect(docs_frame).not.toContain("rounded-[calc(var(--radius-2xl)-0.25rem)] bg-background");
 });
 
 test("compact docs layout uses a sticky branded glass header", () => {
