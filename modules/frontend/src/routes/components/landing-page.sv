@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { capture_event } from "$lib/client/analytics";
+	import { CaptureEvent } from "$lib/client/analytics";
 	import { Effect } from "effect";
 	import type { Component } from "svelte";
 	import Button from "$lib/components/ui/button/button.sv";
@@ -78,7 +78,7 @@
 			const generation = ++copy_generation;
 
 			yield* WriteClipboard(command);
-			capture_event("cli_install_copied", { package_manager });
+			yield* CaptureEvent("cli_install_copied", { package_manager });
 			copied_command = command;
 
 			yield* Effect.sleep("1200 millis");

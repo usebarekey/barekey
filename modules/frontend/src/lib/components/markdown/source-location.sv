@@ -1,5 +1,6 @@
-<script lang="ts">
-	import { capture_event, get_page_path } from "$lib/client/analytics";
+<script lang="ts" effect>
+	import { CaptureEvent, GetPagePath } from "$lib/client/analytics";
+	import { Effect } from "effect";
 	import FileIcon from "$lib/components/markdown/file-icon.sv";
 
 	type Props = {
@@ -20,17 +21,21 @@
 		name,
 	}: Props = $props();
 
-	const track_external_source_click = () => {
-		if (!link) {
+	const TrackExternalSourceClick = Effect.gen(function* () {
+		const source_url = link;
+
+		if (!source_url) {
 			return;
 		}
 
-		capture_event("external_source_clicked", {
-			page_path: get_page_path(),
+		const page_path = yield* GetPagePath;
+
+		yield* CaptureEvent("external_source_clicked", {
+			page_path,
 			source_name: name,
-			source_url: link,
+			source_url,
 		});
-	};
+	});
 </script>
 
 {#snippet content()}
@@ -51,7 +56,7 @@
 		href={link}
 		rel="external noopener noreferrer"
 		target="_blank"
-		onclick={track_external_source_click}
+		onclick={yield* TrackExternalSourceClick}
 	>
 		{@render content()}
 	</a>

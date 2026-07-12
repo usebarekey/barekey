@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { capture_event } from "$lib/client/analytics";
+	import { CaptureEvent } from "$lib/client/analytics";
+	import { Effect } from "effect";
 	import type { PageProps } from "./$types";
 	import content_meta from "$content/meta.json";
 	import DocsContent from "$/docs/[category]/[slug]/components/docs-content.sv";
@@ -30,11 +31,11 @@
 		}
 
 		tracked_docs_page = page_key;
-		capture_event("docs_page_viewed", {
+		Effect.runSync(CaptureEvent("docs_page_viewed", {
 			category: route.category,
 			slug: route.slug,
 			doc_title: metadata.title,
-		});
+		}));
 	});
 </script>
 

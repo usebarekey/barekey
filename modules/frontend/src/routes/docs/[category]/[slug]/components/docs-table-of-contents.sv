@@ -1,5 +1,5 @@
 <script lang="ts" effect>
-import { capture_event, get_page_path } from "$lib/client/analytics";
+import { CaptureEvent, GetPagePath } from "$lib/client/analytics";
 import { Effect } from "effect";
 import type { Action } from "svelte/action";
 import ListLetters from "@tabler/icons-svelte/icons/list-letters";
@@ -225,7 +225,7 @@ const ScrollToHeading = (
 	id: string,
 	scroll_root: HTMLElement | null,
 ) =>
-	Effect.sync(() => {
+	Effect.gen(function* () {
 		if (
 			event.button !== 0 ||
 			event.metaKey ||
@@ -258,9 +258,11 @@ const ScrollToHeading = (
 				: "smooth",
 		});
 
-		capture_event("toc_heading_clicked", {
+		const page_path = yield* GetPagePath;
+
+		yield* CaptureEvent("toc_heading_clicked", {
 			heading_id: id,
-			page_path: get_page_path(),
+			page_path,
 		});
 	});
 </script>

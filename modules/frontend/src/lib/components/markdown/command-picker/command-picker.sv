@@ -1,4 +1,5 @@
-<script lang="ts">
+<script lang="ts" effect>
+	import { Effect } from "effect";
 	import { tick, type Snippet } from "svelte";
 	import { fromStore } from "svelte/store";
 	import { set_command_picker_context } from "$lib/components/markdown/command-picker/context";
@@ -108,10 +109,11 @@
 		hover_highlight_visible = false;
 	};
 
-	const wait_for_animation_frame = () =>
-		new Promise<void>((resolve) => {
-			requestAnimationFrame(() => resolve());
-		});
+	const WaitForAnimationFrame = Effect.callback<void>((resume) => {
+		const frame = requestAnimationFrame(() => resume(Effect.void));
+
+		return Effect.sync(() => cancelAnimationFrame(frame));
+	});
 
 	const portal_to_body = (node: HTMLElement) => {
 		document.body.append(node);
@@ -123,12 +125,12 @@
 		};
 	};
 
-	const update_content_placement = async () => {
+	const UpdateContentPlacement = Effect.gen(function* () {
 		if (!open) {
 			return;
 		}
 
-		await tick();
+		yield* Effect.promise(tick);
 
 		if (!open || !trigger || !content) {
 			return;
@@ -159,7 +161,7 @@
 			? trigger_rect.top - content_gap - rendered_content_height
 			: trigger_rect.bottom + content_gap;
 		content_max_height = rendered_content_height;
-	};
+	});
 
 	const close_content = () => {
 		open = false;
@@ -170,27 +172,27 @@
 		clear_hover_highlight();
 	};
 
-	const open_content = async () => {
+	const OpenContent = Effect.gen(function* () {
 		open = true;
 		content_ready = false;
 
-		await update_content_placement();
-		await wait_for_animation_frame();
+		yield* UpdateContentPlacement;
+		yield* WaitForAnimationFrame;
 
 		if (open) {
 			content_ready = true;
 		}
-	};
+	});
 
-	const toggle_content = () => {
+	const ToggleContent = Effect.gen(function* () {
 		if (open) {
 			close_content();
 
 			return;
 		}
 
-		void open_content();
-	};
+		yield* OpenContent;
+	});
 
 	const select_option = (value: string) => {
 		if (!has_option(value)) {
@@ -244,7 +246,7 @@
 </script>
 
 <svelte:document onclick={handle_document_click} />
-<svelte:window onresize={update_content_placement} onscroll={update_content_placement} />
+<svelte:window onresize={yield* UpdateContentPlacement} onscroll={yield* UpdateContentPlacement} />
 
 <div
 	bind:this={root}
@@ -274,7 +276,7 @@
 				aria-controls={content_id}
 				aria-label={select_label}
 				data-command-trigger
-				onclick={toggle_content}
+				onclick={yield* ToggleContent}
 			>
 				{#each options as option (option.value)}
 					<span

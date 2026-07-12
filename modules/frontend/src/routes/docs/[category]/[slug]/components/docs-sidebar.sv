@@ -1,5 +1,6 @@
-<script lang="ts">
-	import { capture_event, get_page_path } from "$lib/client/analytics";
+<script lang="ts" effect>
+	import { CaptureEvent, GetPagePath } from "$lib/client/analytics";
+	import { Effect } from "effect";
 	import { get_sidebar_stagger_delays } from "$lib/client/sidebar-motion";
 	import type { DocsContentMeta, DocsNavEntry, DocsNavEntryGroup, DocsNavGroup } from "$lib/data/docs-content-meta";
 	import { tick } from "svelte";
@@ -77,18 +78,23 @@
 		category: string;
 		slug: string;
 		doc_title: string;
-	}) => {
-		capture_event("docs_nav_clicked", {
+	}) =>
+		Effect.gen(function* () {
+			const from_path = yield* GetPagePath;
+
+			yield* CaptureEvent("docs_nav_clicked", {
 			category,
 			slug,
 			doc_title,
-			from_path: get_page_path(),
-		});
+			from_path,
+			});
 
-		if (sidebar_state.is_mobile) {
-			sidebar_state.set_open_mobile(false);
-		}
-	};
+			yield* Effect.sync(() => {
+				if (sidebar_state.is_mobile) {
+					sidebar_state.set_open_mobile(false);
+				}
+			});
+		});
 
 	const get_docs_nav_groups = (meta: DocsContentMeta) => Object.entries(meta);
 
@@ -362,7 +368,7 @@
 	};
 
 	const schedule_selected_caret_update = () => {
-		void tick().then(update_selected_caret);
+		Effect.runFork(Effect.promise(tick).pipe(Effect.andThen(Effect.sync(update_selected_caret))));
 	};
 
 	const update_nav_chrome = () => {
@@ -516,12 +522,11 @@
 											data-active={href === current_href}
 											data-sidebar="menu-sub-button"
 											class="docs-sidebar-nav-link group/docs-nav relative z-1 flex h-7 w-full min-w-0 items-center rounded-full px-2.5 text-sm font-medium text-muted-foreground outline-none transition-[color,transform] duration-(--duration-fast) ease-(--ease-smooth-out) hover:text-foreground active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring/50 data-[active=true]:text-foreground motion-reduce:transition-none"
-											onclick={() =>
-												track_docs_nav_click({
-													category: render_group.category,
-													slug: render_entry.slug,
-													doc_title: title,
-												})}
+										onclick={yield* track_docs_nav_click({
+												category: render_group.category,
+												slug: render_entry.slug,
+												doc_title: title,
+											})}
 											onpointerenter={show_hover_highlight}
 										>
 											<span class="docs-sidebar-nav-link-text truncate whitespace-nowrap">{title}</span>

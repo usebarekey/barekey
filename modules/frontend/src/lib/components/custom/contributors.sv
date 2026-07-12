@@ -6,17 +6,19 @@
 	import ContributorCard from "$lib/components/custom/contributor-card.sv";
 
 	const FetchContributors = Effect.tryPromise({
-		try: async () => {
-			const response = await fetch("/api/github/contributors");
-
-			if (!response.ok) {
-				throw new Error("Could not load contributors: " + response.status.toString());
-			}
-
-			return response.json();
-		},
+		try: () => fetch("/api/github/contributors"),
 		catch: (cause) => new Error("Could not load contributors: " + String(cause)),
 	}).pipe(
+		Effect.flatMap((response) =>
+			response.ok
+				? Effect.tryPromise({
+						try: () => response.json(),
+						catch: (cause) => new Error("Could not decode contributors: " + String(cause)),
+					})
+				: Effect.fail(
+						new Error("Could not load contributors: " + response.status.toString()),
+					),
+		),
 		Effect.flatMap(Schema.decodeUnknownEffect(ContributorsResponseSchema)),
 		Effect.map((response) => response.contributors),
 		Effect.catch(() => Effect.succeed([])),

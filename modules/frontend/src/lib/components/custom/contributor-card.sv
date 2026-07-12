@@ -1,5 +1,5 @@
-<script lang="ts">
-	import { capture_event } from "$lib/client/analytics";
+<script lang="ts" effect>
+	import { CaptureEvent } from "$lib/client/analytics";
 	import { Avatar, AvatarFallback, AvatarImage } from "$lib/components/ui/avatar";
 	import type { Contributor } from "$lib/data/github-contributors";
 
@@ -40,8 +40,9 @@
 					target="_blank"
 					rel="noreferrer"
 					class="font-heading font-semibold text-foreground underline-offset-4 hover:underline"
-					onclick={() =>
-						capture_event("contributor_clicked", { contributor: contributor.name })}
+					onclick={yield* CaptureEvent("contributor_clicked", {
+						contributor: contributor.name,
+					})}
 					>{contributor.name}</a
 				>
 			{:else}

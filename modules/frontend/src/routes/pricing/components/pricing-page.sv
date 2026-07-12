@@ -1,5 +1,6 @@
-<script lang="ts">
-	import { capture_event, get_referrer_path } from "$lib/client/analytics";
+<script lang="ts" effect>
+	import { CaptureEvent, GetReferrerPath } from "$lib/client/analytics";
+	import { Effect } from "effect";
 	import Badge from "$lib/components/ui/badge/badge.sv";
 	import Switch from "$lib/components/ui/switch/switch.sv";
 	import AppWindow from "@tabler/icons-svelte/icons/app-window";
@@ -85,11 +86,7 @@
 			: "Upgrade to Max for experiment overages";
 
 	const track_pricing_toggle = (toggle: "annual" | "overages", enabled: boolean) => {
-		capture_event("pricing_toggle_changed", { toggle, enabled });
-	};
-
-	const track_plan_interest = (plan_name: string) => {
-		capture_event("plan_cta_clicked", { plan_name });
+		Effect.runSync(CaptureEvent("pricing_toggle_changed", { toggle, enabled }));
 	};
 
 	$effect(() => {
@@ -98,7 +95,9 @@
 		}
 
 		tracked_pricing_view = true;
-		capture_event("pricing_viewed", { referrer_path: get_referrer_path() });
+		const referrer_path = Effect.runSync(GetReferrerPath);
+
+		Effect.runSync(CaptureEvent("pricing_viewed", { referrer_path }));
 	});
 </script>
 
@@ -155,7 +154,10 @@
 
 		<div class="grid grid-cols-1 gap-12 lg:grid-cols-3 lg:gap-14">
 			{#each plans as plan}
-				<div role="presentation" onclick={() => track_plan_interest(plan.name)}>
+				<div
+					role="presentation"
+					onclick={yield* CaptureEvent("plan_cta_clicked", { plan_name: plan.name })}
+				>
 					<MarketingFrame class="z-10 p-6 sm:p-8">
 					<div class="flex h-full flex-col gap-8">
 						<section class="flex flex-col gap-2">

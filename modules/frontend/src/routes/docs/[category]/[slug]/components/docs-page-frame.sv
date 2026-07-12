@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Effect } from "effect";
 	import { tick, type Snippet } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
 	import * as ScrollArea from "$lib/components/ui/scroll-area";
@@ -24,13 +25,21 @@
 	$effect(() => {
 		void page_key;
 
-		void tick().then(() => {
-			if (compact_layout.current) {
-				window.scrollTo({ top: 0 });
-			}
+		const reset_fiber = Effect.runFork(
+			Effect.promise(tick).pipe(
+				Effect.andThen(
+					Effect.sync(() => {
+						if (compact_layout.current) {
+							window.scrollTo({ top: 0 });
+						}
 
-			article_viewport?.scrollTo({ top: 0 });
-		});
+						article_viewport?.scrollTo({ top: 0 });
+					}),
+				),
+			),
+		);
+
+		return () => reset_fiber.interruptUnsafe();
 	});
 </script>
 

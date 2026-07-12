@@ -5,6 +5,7 @@ import { DiffCodeCardLive } from "$lib/client/diff-code-card";
 import { HeadingLinksLive } from "$lib/client/heading-links";
 import { CopyButtonLive } from "$lib/client/copy-button";
 import { PostHogLive } from "$lib/client/posthog";
+import { CommandPickerSelectionLive } from "$lib/components/markdown/command-picker/selection";
 
 const ClientLive = Layer.mergeAll(
 	PostHogLive,
@@ -12,6 +13,7 @@ const ClientLive = Layer.mergeAll(
 	DiffCodeCardLive,
 	HeadingLinksLive,
 	ProseMediaWidthLive,
+	CommandPickerSelectionLive,
 );
 
 export const init = () => {

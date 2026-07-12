@@ -1,4 +1,4 @@
-import { capture_event, get_page_path } from "$lib/client/analytics";
+import { CaptureEvent, GetPagePath } from "$lib/client/analytics";
 import { Data, Effect, Fiber, Layer } from "effect";
 import { play } from "cuelume";
 
@@ -293,11 +293,13 @@ const run_copy = (button: HTMLButtonElement, state: CopyButtonState) =>
 		}
 
 		yield* write_clipboard_text(text);
+		const page_path = yield* GetPagePath;
+
+		yield* CaptureEvent("code_copied", {
+			copy_kind: get_copy_kind(button),
+			page_path,
+		});
 		yield* Effect.sync(() => {
-			capture_event("code_copied", {
-				copy_kind: get_copy_kind(button),
-				page_path: get_page_path(),
-			});
 			play("release");
 			keep_success_visible(button, state);
 		});
