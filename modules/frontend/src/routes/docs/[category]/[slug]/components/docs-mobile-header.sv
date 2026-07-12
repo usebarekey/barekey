@@ -13,6 +13,8 @@
 
 	<Sidebar.Trigger
 		aria-label="Open documentation navigation"
-		class="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-foreground/75 ring-1 ring-white/10 transition-transform duration-(--duration-quick) ease-(--ease-smooth-out) active:scale-[0.97] motion-reduce:transition-none"
+		variant="ghost"
+		size="icon"
+		class="text-foreground-extra"
 	/>
 </header>

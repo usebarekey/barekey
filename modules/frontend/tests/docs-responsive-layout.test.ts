@@ -40,6 +40,9 @@ test("compact docs layout uses a sticky branded glass header", () => {
 	expect(mobile_header).toContain("backdrop-blur-xl");
 	expect(mobile_header).toContain("Barekey");
 	expect(mobile_header).toContain('aria-label="Open documentation navigation"');
+	expect(mobile_header).toContain('variant="ghost"');
+	expect(mobile_header).toContain('size="icon"');
+	expect(mobile_header).toContain('class="text-foreground-extra"');
 	expect(mobile_header).not.toContain("LayoutSidebar");
 });
 
