@@ -3,6 +3,7 @@
 	import { MediaQuery } from "svelte/reactivity";
 	import * as ScrollArea from "$lib/components/ui/scroll-area";
 	import * as Sidebar from "$lib/components/ui/sidebar";
+	import DocsMobileHeader from "./docs-mobile-header.sv";
 	import LayoutSidebar from "@tabler/icons-svelte/icons/layout-sidebar";
 
 	let {
@@ -51,17 +52,6 @@
 		</div>
 	</Sidebar.Root>
 
-	<div class="fixed left-2 top-2 z-20 xl:hidden">
-		<Sidebar.Trigger
-			aria-label="Open documentation navigation"
-			class="group/sidebar-toggle flex size-10 items-center justify-center rounded-full bg-foreground/5 card"
-		>
-			<LayoutSidebar
-				class="size-4 text-muted-foreground transition-colors duration-(--duration-fast) ease-in-out group-hover/sidebar-toggle:text-foreground motion-reduce:transition-none"
-			/>
-		</Sidebar.Trigger>
-	</div>
-
 	<Sidebar.Inset
 		class="h-dvh max-h-dvh min-h-0 min-w-0 w-0 flex-1 p-2 xl:h-[calc(100dvh-1rem)] xl:max-h-[calc(100dvh-1rem)]"
 		style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));"
@@ -70,6 +60,8 @@
 			bind:this={compact_scroll_root}
 			class="docs-responsive-surfaces flex h-full min-h-0 flex-col items-stretch gap-2 overflow-y-auto overscroll-y-contain xl:flex-row xl:justify-between xl:overflow-hidden"
 		>
+			<DocsMobileHeader />
+
 			<ScrollArea.Root
 				class="docs-toc-surface docs-scroll-fade order-first min-h-0 w-full shrink-0 rounded-2xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card xl:order-last xl:h-full xl:w-[350px] xl:rounded-3xl"
 				scrollbarYClasses="hidden"

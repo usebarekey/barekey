@@ -24,9 +24,19 @@ test("compact docs surfaces share one vertical scroll root", () => {
 	expect(docs_frame).toContain("overflow: visible !important");
 });
 
-test("compact docs layout overlays its navigation trigger without taking horizontal space", () => {
-	expect(docs_frame).toContain("fixed left-2 top-2 z-20 xl:hidden");
+test("compact docs layout uses a sticky branded glass header", () => {
+	const mobile_header = readFileSync(
+		"src/routes/docs/[category]/[slug]/components/docs-mobile-header.sv",
+		"utf8",
+	);
+
+	expect(docs_frame).toContain("<DocsMobileHeader />");
 	expect(docs_frame).not.toContain('class="flex w-12 shrink-0');
+	expect(mobile_header).toContain("sticky top-0");
+	expect(mobile_header).toContain("justify-between");
+	expect(mobile_header).toContain("backdrop-blur-xl");
+	expect(mobile_header).toContain("Barekey");
+	expect(mobile_header).toContain('aria-label="Open documentation navigation"');
 });
 
 test("docs viewport follows mobile browser chrome and resets after navigation", () => {
