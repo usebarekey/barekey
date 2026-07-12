@@ -1,0 +1,162 @@
+---
+title: "Editor setup"
+description: "Enable native Svelte attribute completions in VS Code, Cursor, VSCodium, Windsurf, and VS Code Insiders."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+TypeScript sees generated route types through SvelteKit's `icon="file" tsconfig.json`. Native suggestions inside Svelte markup use a second standard: VS Code-compatible HTML custom data.
+
+## Configure the workspace
+
+Run the init command from your application root:
+
+<CommandPicker.Root
+	id="init-svelte-auto-href"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno run -A npm:svelte-auto-href init"
+	/>
+	<CommandPicker.Item value="bun" label="Bun" icon="bun" command="bunx svelte-auto-href init" />
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm exec svelte-auto-href init"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm exec -- svelte-auto-href init"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn exec svelte-auto-href init"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub exec svelte-auto-href init"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube exec svelte-auto-href init"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt exec svelte-auto-href init"
+	/>
+</CommandPicker.Root>
+
+The command creates or updates `icon="vscode" .vscode/settings.json`:
+
+```json name=".vscode/settings.json" icon="vscode"
+{
+	"html.customData": [".svelte-kit/svelte-auto-href/html-data.json"]
+}
+```
+
+Existing JSONC comments, trailing commas, and unrelated settings are preserved. Running the command again is safe; the generated path is only added once.
+
+The custom data supplies values for:
+
+- `svelte <a href>` and `svelte <area href>`
+- `svelte <form action>`
+- `svelte <button formaction>` and `svelte <input formaction>`
+
+Markup suggestions include static routes and concrete paths extracted from `ts entries()`. Dynamic patterns stay in TypeScript completions and the programmatic editor API, where inserting `/blog/${slug}` is meaningful code instead of literal HTML text.
+
+## Configure an editor globally
+
+Use global mode when you want every project to recognize the generated file without committing a workspace setting:
+
+<CommandPicker.Root
+	id="init-svelte-auto-href-global"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno run -A npm:svelte-auto-href init --global --editor cursor"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bunx svelte-auto-href init --global --editor cursor"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm exec svelte-auto-href init --global --editor cursor"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm exec -- svelte-auto-href init --global --editor cursor"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn exec svelte-auto-href init --global --editor cursor"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub exec svelte-auto-href init --global --editor cursor"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube exec svelte-auto-href init --global --editor cursor"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt exec svelte-auto-href init --global --editor cursor"
+	/>
+</CommandPicker.Root>
+
+Supported editor values are:
+
+- `vscode`
+- `vscode-insiders`
+- `cursor`
+- `vscodium`
+- `windsurf`
+
+Global settings paths are resolved for Windows, macOS, and Linux. The default editor is `vscode`; pass `--editor` explicitly for a fork.
+
+> [!TIP] Use workspace setup for teams
+> Committing `icon="vscode" .vscode/settings.json` gives every contributor the same markup completions. Global setup is useful when you own all the projects on the machine or do not want an editor-specific file in the repository.
+
+## When suggestions refresh
+
+The Vite plugin generates metadata when the build starts and when the dev server starts. While Vite is running, adding, changing, moving, or deleting files and directories beneath the configured routes directory schedules another generation pass.
+
+The plugin writes only when generated content changes, so normal route edits do not create unnecessary file churn.
+
+If TypeScript suggestions are missing, confirm that Vite has run and that `icon="file" tsconfig.json` extends `icon="file" .svelte-kit/tsconfig.json`. If markup suggestions are missing, confirm that `html.customData` points to the generated `icon="file" html-data.json` file and restart the editor language server once.

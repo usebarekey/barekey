@@ -367,5 +367,59 @@
 				]
 			}
 		]
+	},
+	"auto-href": {
+		"title": "svelte-auto-href",
+		"entries": [
+			{
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "auto-href/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "auto-href/installation.mdx"
+						}
+					}
+				]
+			},
+			{
+				"name": "How it works",
+				"entries": [
+					{
+						"route-types": {
+							"name": "Route types",
+							"path": "auto-href/route-types.mdx"
+						}
+					},
+					{
+						"editor-setup": {
+							"name": "Editor setup",
+							"path": "auto-href/editor-setup.mdx"
+						}
+					},
+					{
+						"configuration": {
+							"name": "Configuration",
+							"path": "auto-href/configuration.mdx"
+						}
+					}
+				]
+			},
+			{
+				"entries": [
+					{
+						"api-reference": {
+							"name": "API reference",
+							"path": "auto-href/api-reference.mdx"
+						}
+					}
+				]
+			}
+		]
 	}
 }

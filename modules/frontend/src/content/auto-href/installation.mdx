@@ -1,0 +1,123 @@
+---
+title: "Installation"
+description: "Install svelte-auto-href, add its Vite plugin, and enable native markup completions."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+Install `svelte-auto-href` as a development dependency, then add `ts href()` to `icon="vite" vite.config.ts` before the SvelteKit plugin, following the recommended plugin order.
+
+## Install the package
+
+<CommandPicker.Root
+	id="install-svelte-auto-href"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add --dev npm:svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add --dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add -D svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install --save-dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add --dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install --save-dev svelte-auto-href"
+	/>
+</CommandPicker.Root>
+
+The package supports Svelte 5, SvelteKit 2.54 or newer 2.x releases and SvelteKit 3 prereleases, Vite 7 or 8, and Node `^22.12.0 || >=24.0.0`.
+
+## Configure Vite
+
+Add `ts href()` before `ts sveltekit()`:
+
+```ts diff name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+++ import { href } from "svelte-auto-href";
+
+export default defineConfig({
+-	plugins: [sveltekit()],
++	plugins: [href(), sveltekit()],
+});
+```
+
+The plugin is also exported from `ts "svelte-auto-href/vite"` when you prefer an integration-specific import.
+
+### With svelte-plugin-composer
+
+Keep `ts href()` before `ts kit()` in the composed plugin list:
+
+```ts name="vite.config.ts" icon="vite"
+import adapter from "@sveltejs/adapter-auto";
+import { defineConfig } from "vite";
+import { href } from "svelte-auto-href";
+import { compose, kit } from "svelte-plugin-composer";
+
+export default defineConfig({
+	plugins: compose([href(), kit({ adapter: adapter() })]),
+});
+```
+
+> [!TIP] Plugin order
+> Keep `ts href()` before `ts sveltekit()` or `ts kit()`. This is the documented configuration and keeps route-generation plugins together before SvelteKit owns the remainder of the build.
+
+## Enable markup completions
+
+Run the editor command once from the application root. The [editor setup page](/docs/auto-href/editor-setup) provides the correct invocation for every package manager and for global editor settings.
+
+The command adds the generated HTML custom-data file to `icon="vscode" .vscode/settings.json`. It preserves the rest of the JSONC file and does nothing when the setting is already present.
+
+TypeScript call sites are available as soon as Vite generates the declaration file. Native completions inside `svelte href` and `svelte action` attributes need the editor setting above; [editor setup](/docs/auto-href/editor-setup) covers global configuration and supported editors.
+
+## Check the generated types
+
+Make sure your project TypeScript config extends SvelteKit's generated config:
+
+```json name="tsconfig.json" icon="typescript"
+{
+	"extends": "./.svelte-kit/tsconfig.json"
+}
+```
+
+Start Vite once after configuration. `svelte-auto-href` will generate its files beneath `icon="folder" .svelte-kit` and keep them current while the dev server runs.

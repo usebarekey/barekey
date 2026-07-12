@@ -1,0 +1,46 @@
+---
+title: "Autocomplete for every SvelteKit link"
+description: "svelte-auto-href turns your SvelteKit route tree into editor completions without closing the door on dynamic URLs."
+---
+
+`svelte-auto-href` reads your SvelteKit route tree and teaches your editor which URLs belong to the application.
+
+```svelte name="src/routes/account/+page.svelte" icon="svelte"
+<script lang="ts">
+	import { goto } from "$app/navigation";
+	import { strict_href } from "svelte-auto-href";
+
+	const settings_href = strict_href("/account/settings");
+</script>
+
+<a href="/account/profile">Profile</a>
+<button onclick={() => goto(settings_href)}>Settings</button>
+```
+
+The plugin adds route suggestions where SvelteKit applications already write URLs:
+
+- `svelte href`, `svelte action`, and `svelte formaction` attributes
+- `ts goto()`, `ts invalidate()`, `ts preloadData()`, and `ts preloadCode()`
+- `ts pushState()` and `ts replaceState()`
+- SvelteKit's `ts redirect()` helper
+- explicit `ts literal_href()` and `ts strict_href()` call sites
+
+Ordinary navigation stays flexible. External URLs, anchors, CMS paths, and values assembled at runtime still work because the augmented SvelteKit APIs accept arbitrary strings while offering known routes first. Use `ts strict_href()` when a particular value must be one of the application's generated routes.
+
+## How it works
+
+The Vite plugin scans `icon="folder" src/routes` without executing application code. It writes a route manifest, TypeScript declarations, and VS Code-compatible HTML custom data beneath `icon="folder" .svelte-kit`, then refreshes them when the route tree changes.
+
+The scanner independently derives route IDs, parameters, and matchers from the filesystem. Generated href types still build on SvelteKit's canonical `ts PathnameWithSearchOrHash`, while `svelte-auto-href` adds editor completions and statically discoverable `ts entries()` values.
+
+## What it does not do
+
+`svelte-auto-href` does not replace SvelteKit's router or change links at runtime. Its helpers return the string they receive, and the Vite plugin only generates development and type metadata.
+
+It also does not execute `ts entries()` exports. Literal values are extracted from source when possible; routes built from remote data or other runtime expressions keep their dynamic pattern completion and remain valid strings.
+
+## Licensing
+
+`svelte-auto-href` is released under the [BSD 3-Clause License](https://github.com/usebarekey/svelte-auto-href/blob/master/LICENSE), with source available in the [Barekey GitHub organization](https://github.com/usebarekey/svelte-auto-href).
+
+Continue with [installation](/docs/auto-href/installation), then read [route types](/docs/auto-href/route-types) to choose between autocomplete-friendly and strict call sites.

@@ -1,0 +1,116 @@
+---
+title: "API reference"
+description: "Reference the app-facing helpers, generated href types, and integration exports provided by svelte-auto-href."
+---
+
+Most applications only import `ts href()` in Vite configuration and optionally use `ts literal_href()` or `ts strict_href()` in application code. The remaining exports exist for editor plugins, generators, and other tooling.
+
+## Application helpers
+
+```ts
+import { literal_href, strict_href } from "svelte-auto-href";
+```
+
+### literal_href
+
+`ts literal_href(value)` returns `value` unchanged. Once the generated declaration is loaded, its `ts AutoHref` constraint resolves through `ts GeneratedHrefTypes` to known-route completions while preserving arbitrary strings.
+
+```ts
+const destination = literal_href("/account/settings");
+```
+
+### strict_href
+
+`ts strict_href(value)` also returns `value` unchanged. Once the generated declaration is loaded, its type constraint resolves through `ts GeneratedHrefTypes` to SvelteKit pathname types and statically discovered concrete entries.
+
+```ts
+const destination = strict_href("/account/settings");
+```
+
+Use strict mode for configuration and application-owned constants. Prefer the augmented SvelteKit APIs when the value legitimately comes from content, user data, or another runtime source.
+
+## Generated types
+
+Import project-specific types from the generated declaration-only module:
+
+```ts
+import type {
+	AutoHref,
+	ConcreteEntryHref,
+	EndpointHref,
+	PageHref,
+	StrictAppHref,
+} from "svelte-auto-href/generated";
+```
+
+| Type                | Meaning                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `AutoHref`          | Known routes plus arbitrary strings.                                                      |
+| `StrictAppHref`     | SvelteKit pathnames plus statically discovered entries.                                   |
+| `PageHref`          | Page-route completions plus arbitrary strings.                                            |
+| `EndpointHref`      | Endpoint-route completions plus arbitrary strings.                                        |
+| `ConcreteEntryHref` | Literal paths extracted from route `entries()` exports, including query or hash suffixes. |
+
+## Vite plugin
+
+```ts
+import { href } from "svelte-auto-href/vite";
+```
+
+`ts href(options?)` returns the Vite plugin. Its options are documented on the [configuration page](/docs/auto-href/configuration).
+
+## Editor integrations
+
+Use the editor export with a generated manifest:
+
+```ts
+import { diagnose_href, get_href_completions, is_known_app_href } from "svelte-auto-href/editor";
+
+const completions = get_href_completions(manifest, {
+	include_endpoints: false,
+});
+
+const known = is_known_app_href(manifest, "/account/settings?tab=profile");
+const diagnostic = diagnose_href(manifest, "/account/settngs");
+```
+
+`ts get_href_completions()` returns route, dynamic-pattern, and concrete-entry items sorted by label. Set `ts include_endpoints: false` to omit endpoint-only routes.
+
+`ts is_known_app_href()` and `ts diagnose_href()` inspect root-relative application paths and ignore query or hash suffixes while matching. External URLs, protocol-relative URLs, custom schemes, relative paths, and hash-only values are outside their scope.
+
+## Generator and scanner
+
+```ts
+import { generate_auto_href } from "svelte-auto-href/generator";
+import { scan_routes } from "svelte-auto-href/scanner";
+```
+
+`ts generate_auto_href()` scans routes and writes the manifest, custom data, and declaration file. It returns the manifest and every output path.
+
+```ts
+const generated = await generate_auto_href({
+	root: process.cwd(),
+});
+
+console.log(generated.manifest_path);
+console.log(generated.html_data_path);
+console.log(generated.types_path);
+```
+
+`ts scan_routes()` performs only route discovery and returns an `ts AutoHrefManifest`. Manifest types are available from `ts "svelte-auto-href/manifest"`; lower-level renderers are exposed from `ts "svelte-auto-href/type-renderer"` and `ts "svelte-auto-href/html-data"`.
+
+## Area exports
+
+| Export                           | Intended use                                 |
+| -------------------------------- | -------------------------------------------- |
+| `svelte-auto-href/vite`          | Vite plugin and options.                     |
+| `svelte-auto-href/editor`        | Manifest-backed completions and diagnostics. |
+| `svelte-auto-href/generator`     | Programmatic full generation.                |
+| `svelte-auto-href/scanner`       | Route-tree scanning.                         |
+| `svelte-auto-href/manifest`      | Public manifest types.                       |
+| `svelte-auto-href/type-renderer` | TypeScript declaration rendering.            |
+| `svelte-auto-href/html-data`     | HTML custom-data rendering.                  |
+| `svelte-auto-href/init`          | Editor settings helpers.                     |
+| `svelte-auto-href/cli`           | CLI entrypoint helpers.                      |
+
+The package root re-exports the commonly used runtime functions and public types. Area exports make the dependency boundary clearer for integrations that only need one part of the toolchain.

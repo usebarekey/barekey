@@ -1,0 +1,87 @@
+---
+title: "Route types"
+description: "Understand loose autocomplete, strict hrefs, dynamic patterns, and statically extracted SvelteKit entries."
+---
+
+`svelte-auto-href` combines SvelteKit's generated pathname types with a snapshot of the route tree. Known routes appear as completions, while each API decides whether unknown strings should remain valid.
+
+## Autocomplete without a closed world
+
+The generated declarations augment SvelteKit's navigation helpers directly:
+
+```ts name="navigation.ts"
+import { goto, invalidate, preloadData } from "$app/navigation";
+
+await goto("/account/settings");
+await preloadData("/blog/hello-world");
+await invalidate("/api/session");
+```
+
+These APIs offer route completions but deliberately retain `ts string & {}`. That matters when the destination comes from a CMS, includes an external protocol, or cannot be known during generation.
+
+Use the identity helpers when you want a named call site:
+
+```ts
+import { literal_href, strict_href } from "svelte-auto-href";
+
+const suggested = literal_href("/account/settings");
+const checked = strict_href("/account/settings");
+```
+
+`ts literal_href()` preserves loose string support. `ts strict_href()` accepts only SvelteKit's generated pathnames and concrete entries discovered by `svelte-auto-href`, so an unknown internal path becomes a TypeScript error.
+
+## Dynamic routes
+
+Given this route:
+
+```txt
+src/routes/blog/[slug]/+page.svelte
+```
+
+the generated metadata contains two related forms:
+
+- `/blog/${slug}` as an editor-friendly insertion for TypeScript and editor integrations
+- a template-literal pathname type that accepts any string in the slug position
+
+```ts
+type BlogHref = `/blog/${string}`;
+```
+
+HTML custom data only includes static routes and concrete entries. It does not insert `/blog/${slug}` into markup because that text would be a literal attribute value rather than a Svelte expression.
+
+Matchers, optional parameters, rest parameters, embedded parameters, route groups, and SvelteKit's `[x+NN]` static escapes are represented. Route groups remain in the route ID but disappear from the URL completion.
+
+```txt
+src/routes/(app)/docs/[[locale]]/[...path]/+page.svelte
+```
+
+That route produces variants with and without the optional locale, while the rest parameter accepts the remaining path.
+
+## Concrete entries
+
+When a dynamic route returns an inline literal `ts entries()` array, the scanner adds those resolved paths as concrete suggestions:
+
+```ts name="src/routes/blog/[slug]/+page.ts"
+export const entries = () => [{ slug: "hello-world" }, { slug: "release-notes" }];
+```
+
+The route can now suggest all of these:
+
+```txt
+/blog/${slug}
+/blog/hello-world
+/blog/release-notes
+```
+
+The scanner parses source and never imports or executes route modules. Direct exported functions, arrow functions, and function expressions returning an inline literal array are understood. Imported arrays, spreads, shorthand properties, calls, and computed values are ignored.
+
+> [!NOTE] Dynamic data still works
+> Static extraction only affects the extra concrete suggestions. The dynamic pattern and loose href APIs remain available when `ts entries()` reads a database, calls an API, or builds values programmatically.
+
+Literal route-level `ts trailingSlash` exports are also reflected. Computed values and settings inherited from layouts are left to SvelteKit's canonical generated types.
+
+## Pages, endpoints, and .sv routes
+
+The manifest distinguishes page routes, endpoint routes, and directories that provide both. It recognizes Svelte pages, TypeScript or JavaScript page modules, and server endpoints.
+
+Projects using [`svelte-sv-extension`](https://github.com/usebarekey/svelte-sv-extension) are covered too: a directory containing `icon="svelte" +page.sv` is recognized as a page route just like one containing `icon="svelte" +page.svelte`. Layout and error files can use either extension, but they do not create URL routes by themselves.

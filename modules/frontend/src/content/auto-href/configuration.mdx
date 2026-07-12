@@ -1,0 +1,94 @@
+---
+title: "Configuration"
+description: "Configure route scanning and generated output paths for svelte-auto-href."
+---
+
+Most SvelteKit applications only need `ts href()` with no options:
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import { href } from "svelte-auto-href";
+
+export default defineConfig({
+	plugins: [href(), sveltekit()],
+});
+```
+
+## Generated files
+
+The default generation pass writes:
+
+| File                                             | Purpose                                           |
+| ------------------------------------------------ | ------------------------------------------------- |
+| `.svelte-kit/svelte-auto-href/manifest.json`     | Route records for editor and integration tooling. |
+| `.svelte-kit/svelte-auto-href/html-data.json`    | Native markup attribute completions.              |
+| `.svelte-kit/types/svelte-auto-href/$types.d.ts` | SvelteKit and package type augmentations.         |
+
+Everything stays beneath SvelteKit's generated directory, so these files should not be committed.
+
+## Plugin options
+
+Override paths when the application uses a custom source layout or another tool owns part of `icon="folder" .svelte-kit`:
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import { href } from "svelte-auto-href";
+
+export default defineConfig({
+	plugins: [
+		href({
+			routes_dir: "src/routes",
+			output_dir: ".svelte-kit/svelte-auto-href",
+			types_path: ".svelte-kit/types/svelte-auto-href/$types.d.ts",
+		}),
+		sveltekit(),
+	],
+});
+```
+
+| Option       | Default                                          | Meaning                                          |
+| ------------ | ------------------------------------------------ | ------------------------------------------------ |
+| `routes_dir` | `src/routes`                                     | Route directory relative to the Vite root.       |
+| `output_dir` | `.svelte-kit/svelte-auto-href`                   | Directory for the manifest and HTML custom data. |
+| `types_path` | `.svelte-kit/types/svelte-auto-href/$types.d.ts` | Generated declaration file.                      |
+
+Relative paths resolve from Vite's project root. Absolute paths are accepted by the generator API, though keeping generated files inside the application makes editor and cleanup behavior easier to understand.
+
+## TypeScript inclusion
+
+The default declaration path is already included by SvelteKit's generated TypeScript config. Keep the usual project config:
+
+```json name="tsconfig.json" icon="typescript"
+{
+	"extends": "./.svelte-kit/tsconfig.json"
+}
+```
+
+If you move `types_path`, include the new declaration location yourself. The plugin can generate a correct file that TypeScript never reads, so this is the first place to check when completions disappear after customization.
+
+## Applications with a base path
+
+The scanner describes the route tree with root pathnames such as `/account/settings`. It does not read `ts kit.paths.base`, because that deployment prefix belongs to SvelteKit rather than the route ID.
+
+Resolve a suggested route through SvelteKit before rendering or navigating to it:
+
+```svelte
+<script lang="ts">
+	import { resolve } from "$app/paths";
+	import { strict_href } from "svelte-auto-href";
+
+	const account_href = resolve(strict_href("/account/settings"));
+</script>
+
+<a href={account_href}>Account settings</a>
+```
+
+`ts resolve()` prefixes the configured base and also handles relative server-rendered paths.
+
+## Plugin composition
+
+With `svelte-plugin-composer`, the recommended order places `ts href()` before `ts kit()`. With ordinary Vite plugins, place it before `ts sveltekit()`. The generator does not need a Svelte preprocessor and does not change application runtime code.
+
+For programmatic generation outside Vite, use `ts generate_auto_href()` from `ts "svelte-auto-href/generator"`; the [API reference](/docs/auto-href/api-reference) covers the returned paths and lower-level integration exports.
