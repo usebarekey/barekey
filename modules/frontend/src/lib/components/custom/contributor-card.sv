@@ -33,7 +33,7 @@
 		<AvatarFallback>{contributor.name.slice(0, 1).toUpperCase()}</AvatarFallback>
 	</Avatar>
 	<p class="text-sm text-muted-foreground">
-		<span class="inline-flex items-baseline gap-[1ch]">
+		<span>
 			{#if contributor.profile_url}
 				<a
 					href={contributor.profile_url}
@@ -48,11 +48,12 @@
 				<span class="font-heading font-semibold text-foreground">{contributor.name}</span>
 			{/if}
 			{#if contributor.is_barekey_member}
+				{" "}
 				<img
 					src={barekey_logo}
 					alt="Barekey organization member"
 					title="Barekey organization member"
-					class="inline size-3 self-center"
+					class="inline size-3 align-[-0.1em]"
 				/>
 			{/if}
 		</span>{" "}with
