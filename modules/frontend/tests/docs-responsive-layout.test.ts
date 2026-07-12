@@ -32,11 +32,13 @@ test("compact docs layout uses a sticky branded glass header", () => {
 
 	expect(docs_frame).toContain("<DocsMobileHeader />");
 	expect(docs_frame).not.toContain('class="flex w-12 shrink-0');
-	expect(mobile_header).toContain("sticky top-0");
+	expect(mobile_header).toContain("sticky top-0 z-20 order-first");
 	expect(mobile_header).toContain("justify-between");
+	expect(mobile_header).toContain("rounded-full");
 	expect(mobile_header).toContain("backdrop-blur-xl");
 	expect(mobile_header).toContain("Barekey");
 	expect(mobile_header).toContain('aria-label="Open documentation navigation"');
+	expect(mobile_header).not.toContain("LayoutSidebar");
 });
 
 test("docs viewport follows mobile browser chrome and resets after navigation", () => {
