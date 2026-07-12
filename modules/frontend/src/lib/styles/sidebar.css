@@ -56,11 +56,11 @@
 }
 
 .docs-mobile-sidebar[data-side="left"] {
-	top: 0.5rem;
-	bottom: 0.5rem;
-	left: 0.5rem;
-	height: auto;
-	width: min(var(--sidebar-width), calc(100vw - 1rem));
+	top: 0;
+	bottom: 0;
+	left: 0;
+	height: 100dvh;
+	width: min(var(--sidebar-width), 100vw);
 	border: 0;
 }
 

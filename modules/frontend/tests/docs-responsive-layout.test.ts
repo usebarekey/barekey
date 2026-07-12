@@ -49,10 +49,15 @@ test("docs viewport follows mobile browser chrome and resets after navigation", 
 
 test("mobile documentation drawer is an edge-attached panel with a visible close button", () => {
 	const sidebar = readFileSync("src/lib/components/ui/sidebar/sidebar.sv", "utf8");
+	const sidebar_css = readFileSync("src/lib/styles/sidebar.css", "utf8");
 
 	expect(sidebar).toContain("inset-y-0 left-0 h-full");
 	expect(sidebar).toContain("rounded-l-none rounded-r-2xl border-0 p-0 card");
 	expect(sidebar).not.toContain("inset-y-2 left-2 h-auto");
+	expect(sidebar_css).toMatch(
+		/\.docs-mobile-sidebar\[data-side="left"\] \{[\s\S]*?top: 0;[\s\S]*?bottom: 0;[\s\S]*?left: 0;[\s\S]*?height: 100dvh;/,
+	);
+	expect(sidebar_css).not.toContain("left: 0.5rem");
 	expect(sidebar).toContain('closeButtonClass="top-2 right-2 size-10 rounded-full');
 	expect(sidebar).toContain('onCloseButtonClick={() => play("toggle")}');
 	expect(sidebar).not.toContain("[&>button]:hidden");
