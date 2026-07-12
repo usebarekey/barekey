@@ -14,21 +14,20 @@ test("compact docs layout uses a drawer breakpoint that includes tablets", () =>
 test("compact docs layout stacks the table of contents before the article", () => {
 	expect(docs_frame).toMatch(/docs-article-surface[^\n]+order-last/);
 	expect(docs_frame).toMatch(/docs-toc-surface[^\n]+order-first/);
-	expect(docs_frame).toContain("xl:order-first");
-	expect(docs_frame).toContain("xl:order-last");
 });
 
-test("compact docs surfaces share one vertical scroll root", () => {
-	expect(docs_frame).toMatch(/docs-responsive-surfaces[^\n]+overflow-y-auto/);
-	expect(docs_frame).toContain("xl:overflow-visible");
-	expect(docs_frame).toContain("table_of_contents(toc_scroll_root)");
-	expect(docs_frame).toContain("overflow: visible !important");
+test("compact docs use document flow instead of nested scroll areas", () => {
+	expect(docs_frame).toContain("{#if compact_layout.current}");
+	expect(docs_frame).toContain("<section");
+	expect(docs_frame).toContain("<article");
+	expect(docs_frame).toContain("table_of_contents(null)");
+	expect(docs_frame).not.toContain("overflow-y-auto");
+	expect(docs_frame).not.toContain("compact_scroll_root");
 });
 
 test("docs card inset preserves inner rounding and outer shadows", () => {
 	expect(docs_frame).toMatch(/docs-toc-surface[^\n]+p-1 card/);
 	expect(docs_frame).toMatch(/docs-article-surface[^\n]+p-1 card/);
-	expect(docs_frame).toContain("border-radius: calc(var(--radius-2xl) - 0.25rem);");
 	expect(docs_frame).toContain("border-radius: calc(var(--radius-3xl) - 0.25rem);");
 });
 
@@ -58,11 +57,22 @@ test("compact docs layout uses a sticky branded glass header", () => {
 });
 
 test("docs viewport follows mobile browser chrome and resets after navigation", () => {
-	expect(docs_frame).toContain("h-dvh max-h-dvh");
+	expect(docs_frame).toContain("min-h-dvh");
 	expect(docs_frame).toContain("env(safe-area-inset-bottom)");
 	expect(docs_frame).toContain("page_key: string;");
-	expect(docs_frame).toContain("compact_scroll_root?.scrollTo({ top: 0 });");
+	expect(docs_frame).toContain("window.scrollTo({ top: 0 });");
 	expect(docs_frame).toContain("article_viewport?.scrollTo({ top: 0 });");
+});
+
+test("mobile table of contents tracks document scrolling", () => {
+	const table_of_contents = readFileSync(
+		"src/routes/docs/[category]/[slug]/components/docs-table-of-contents.sv",
+		"utf8",
+	);
+
+	expect(table_of_contents).toContain("scroll_root ?? document.documentElement");
+	expect(table_of_contents).toContain("scroll_root ?? window");
+	expect(table_of_contents).toContain("scroll_root ?? document");
 });
 
 test("mobile documentation drawer is an edge-attached panel with a visible close button", () => {

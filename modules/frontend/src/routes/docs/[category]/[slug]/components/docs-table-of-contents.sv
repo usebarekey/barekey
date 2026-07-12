@@ -96,24 +96,24 @@ const get_toc_line_context = (index: number, depth: number) => {
 const get_content_heading = (
 	scroll_root: HTMLElement | null,
 	id: string,
-) => scroll_root?.querySelector<HTMLElement>(`#${CSS.escape(id)}`) ?? null;
+) => (scroll_root ?? document).querySelector<HTMLElement>(`#${CSS.escape(id)}`);
 
 const get_scroll_progress = (scroll_root: HTMLElement | null) => {
-	if (!scroll_root) return 0;
+	const target = scroll_root ?? document.documentElement;
 
-	const max_scroll = scroll_root.scrollHeight - scroll_root.clientHeight;
+	const max_scroll = target.scrollHeight - target.clientHeight;
 
 	return max_scroll <= 0
 		? 1
-		: Math.min(Math.max(scroll_root.scrollTop / max_scroll, 0), 1);
+		: Math.min(Math.max(target.scrollTop / max_scroll, 0), 1);
 };
 
 const is_scroll_at_end = (scroll_root: HTMLElement | null) => {
-	if (!scroll_root) return false;
+	const target = scroll_root ?? document.documentElement;
 
-	const max_scroll = scroll_root.scrollHeight - scroll_root.clientHeight;
+	const max_scroll = target.scrollHeight - target.clientHeight;
 
-	return max_scroll > 0 && max_scroll - scroll_root.scrollTop <= 2;
+	return max_scroll > 0 && max_scroll - target.scrollTop <= 2;
 };
 
 const get_toc_activation_y = (scroll_root: HTMLElement | null) => {
@@ -171,13 +171,8 @@ const SetupActiveTocTracking = (tracking: TocTrackingState) =>
 	Effect.gen(function* () {
 		const { article_viewport: scroll_root } = tracking;
 
-		if (!scroll_root) {
-			yield* UpdateTocState(tracking);
-
-			return () => {};
-		}
-
 		const controller = new AbortController();
+		const scroll_target = scroll_root ?? window;
 		let frame: number | null = null;
 
 		const schedule_update = () => {
@@ -189,7 +184,7 @@ const SetupActiveTocTracking = (tracking: TocTrackingState) =>
 			});
 		};
 
-		scroll_root.addEventListener("scroll", schedule_update, {
+		scroll_target.addEventListener("scroll", schedule_update, {
 			passive: true,
 			signal: controller.signal,
 		});

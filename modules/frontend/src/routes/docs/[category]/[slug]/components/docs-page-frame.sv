@@ -19,17 +19,16 @@
 	} = $props();
 
 	let article_viewport = $state<HTMLElement | null>(null);
-	let compact_scroll_root = $state<HTMLElement | null>(null);
 	const compact_layout = new MediaQuery("(max-width: 1279px)");
-	const toc_scroll_root = $derived(
-		compact_layout.current ? compact_scroll_root : article_viewport,
-	);
 
 	$effect(() => {
 		void page_key;
 
 		void tick().then(() => {
-			compact_scroll_root?.scrollTo({ top: 0 });
+			if (compact_layout.current) {
+				window.scrollTo({ top: 0 });
+			}
+
 			article_viewport?.scrollTo({ top: 0 });
 		});
 	});
@@ -53,38 +52,47 @@
 	</Sidebar.Root>
 
 	<Sidebar.Inset
-		class="h-dvh max-h-dvh min-h-0 min-w-0 w-0 flex-1 p-2 xl:h-[calc(100dvh-1rem)] xl:max-h-[calc(100dvh-1rem)]"
+		class="min-h-dvh min-w-0 w-0 flex-1 p-2 xl:h-[calc(100dvh-1rem)] xl:min-h-0 xl:max-h-[calc(100dvh-1rem)]"
 		style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));"
 	>
-		<div
-			bind:this={compact_scroll_root}
-			class="docs-responsive-surfaces flex h-full min-h-0 flex-col items-stretch gap-2 overflow-y-auto overscroll-y-contain xl:flex-row xl:justify-between xl:overflow-visible"
-		>
-			<DocsMobileHeader />
+		{#if compact_layout.current}
+			<div class="docs-responsive-surfaces flex flex-col items-stretch gap-2">
+				<DocsMobileHeader />
 
-			<ScrollArea.Root
-				class="docs-toc-surface docs-scroll-fade order-first min-h-0 w-full shrink-0 rounded-2xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card xl:order-last xl:h-full xl:w-[350px] xl:rounded-3xl"
-				scrollbarYClasses="hidden"
-			>
-				{@render table_of_contents(toc_scroll_root)}
-			</ScrollArea.Root>
+				<section
+					class="docs-toc-surface order-first w-full rounded-2xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card"
+				>
+					{@render table_of_contents(null)}
+				</section>
 
-			<ScrollArea.Root
-				bind:viewportRef={article_viewport}
-				class="docs-article-surface docs-scroll-fade order-last min-h-0 min-w-0 shrink-0 rounded-2xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card xl:order-first xl:h-full xl:flex-1 xl:shrink xl:rounded-3xl"
-				scrollbarYClasses="hidden"
-			>
-				{@render article()}
-			</ScrollArea.Root>
-		</div>
+				<article
+					class="docs-article-surface order-last min-w-0 rounded-2xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card"
+				>
+					{@render article()}
+				</article>
+			</div>
+		{:else}
+			<div class="docs-responsive-surfaces flex h-full min-h-0 flex-row items-stretch justify-between gap-2 overflow-visible">
+				<ScrollArea.Root
+					bind:viewportRef={article_viewport}
+					class="docs-article-surface docs-scroll-fade order-first h-full min-h-0 min-w-0 flex-1 rounded-3xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card"
+					scrollbarYClasses="hidden"
+				>
+					{@render article()}
+				</ScrollArea.Root>
+
+				<ScrollArea.Root
+					class="docs-toc-surface docs-scroll-fade order-last h-full min-h-0 w-[350px] shrink-0 rounded-3xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card"
+					scrollbarYClasses="hidden"
+				>
+					{@render table_of_contents(article_viewport)}
+				</ScrollArea.Root>
+			</div>
+		{/if}
 	</Sidebar.Inset>
 </Sidebar.Provider>
 
 <style>
-	:global(.docs-scroll-fade > [data-slot="scroll-area-viewport"]) {
-		border-radius: calc(var(--radius-2xl) - 0.25rem);
-	}
-
 	:global(.docs-scroll-fade [data-slot="scroll-area-viewport"]) {
 		mask-image: linear-gradient(
 			to bottom,
@@ -102,27 +110,7 @@
 		);
 	}
 
-	@media (max-width: 1279px) {
-		:global(.docs-responsive-surfaces > [data-slot="scroll-area"]) {
-			overflow: visible;
-		}
-
-		:global(.docs-responsive-surfaces > [data-slot="scroll-area"] > [data-slot="scroll-area-viewport"]) {
-			display: block;
-			height: auto;
-			overflow: visible !important;
-			mask-image: none;
-			-webkit-mask-image: none;
-		}
-
-		:global(.docs-responsive-surfaces > [data-slot="scroll-area"] > [data-slot="scroll-area-scrollbar"]) {
-			display: none;
-		}
-	}
-
-	@media (min-width: 1280px) {
-		:global(.docs-scroll-fade > [data-slot="scroll-area-viewport"]) {
-			border-radius: calc(var(--radius-3xl) - 0.25rem);
-		}
+	:global(.docs-scroll-fade > [data-slot="scroll-area-viewport"]) {
+		border-radius: calc(var(--radius-3xl) - 0.25rem);
 	}
 </style>
