@@ -62,13 +62,17 @@
 				<section
 					class="docs-toc-surface order-first w-full rounded-2xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card"
 				>
-					{@render table_of_contents(null)}
+					<div class="overflow-hidden rounded-[calc(var(--radius-2xl)-0.25rem)] bg-background">
+						{@render table_of_contents(null)}
+					</div>
 				</section>
 
 				<article
 					class="docs-article-surface order-last min-w-0 rounded-2xl bg-linear-to-b from-foreground/5 to-foreground/2.5 p-1 card"
 				>
-					{@render article()}
+					<div class="overflow-hidden rounded-[calc(var(--radius-2xl)-0.25rem)] bg-background">
+						{@render article()}
+					</div>
 				</article>
 			</div>
 		{:else}

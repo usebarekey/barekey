@@ -29,6 +29,9 @@ test("docs card inset preserves inner rounding and outer shadows", () => {
 	expect(docs_frame).toMatch(/docs-toc-surface[^\n]+p-1 card/);
 	expect(docs_frame).toMatch(/docs-article-surface[^\n]+p-1 card/);
 	expect(docs_frame).toContain("border-radius: calc(var(--radius-3xl) - 0.25rem);");
+	expect(
+		docs_frame.match(/rounded-\[calc\(var\(--radius-2xl\)-0\.25rem\)\] bg-background/g),
+	).toHaveLength(2);
 });
 
 test("compact docs layout uses a sticky branded glass header", () => {
@@ -39,7 +42,7 @@ test("compact docs layout uses a sticky branded glass header", () => {
 
 	expect(docs_frame).toContain("<DocsMobileHeader />");
 	expect(docs_frame).not.toContain('class="flex w-12 shrink-0');
-	expect(mobile_header).toContain("sticky top-0 z-20 order-first");
+	expect(mobile_header).toContain("sticky top-2 z-20 order-first");
 	expect(mobile_header).toContain("justify-between");
 	expect(mobile_header).toContain("rounded-full");
 	expect(mobile_header).toContain("from-white/18 to-white/8");
