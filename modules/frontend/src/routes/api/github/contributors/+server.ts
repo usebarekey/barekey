@@ -1,4 +1,5 @@
 import type { Config } from "@sveltejs/adapter-vercel";
+import { Handler } from "svelte-effect-runtime/server";
 import { Effect } from "effect";
 import { json } from "@sveltejs/kit";
 import { FetchGithubContributors } from "$lib/server/github/contributors";
@@ -13,8 +14,8 @@ export const config: Config = {
 
 export const prerender = false;
 
-export const GET: RequestHandler = async () => {
-	const contributors = await Effect.runPromise(FetchGithubContributors);
+export const GET = Handler<RequestHandler>(function* () {
+	const contributors = yield* FetchGithubContributors.pipe(Effect.orDie);
 
 	return json({ contributors });
-};
+});

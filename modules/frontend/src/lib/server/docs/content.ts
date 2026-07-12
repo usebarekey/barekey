@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import content_meta from "$content/meta.json";
 import { get_docs_nav_entry_pairs, type DocsContentMeta } from "$lib/data/docs-content-meta";
 import { ExtractTableOfContents, type TableOfContentsEntry } from "$lib/server/markdown/headings";
@@ -63,44 +63,61 @@ export const get_docs_entries = () =>
 
 export const get_docs_categories = () => Object.keys(docs_content_meta);
 
-export const get_first_slug_for_category = (category: string): string | null => {
+export const get_first_slug_for_category = (category: string) => {
 	const group = docs_content_meta[category];
-	if (!group?.entries) return null;
+
+	if (!group?.entries) {
+		return Option.none<string>();
+	}
+
 	const pairs = get_docs_nav_entry_pairs(group.entries);
-	return pairs[0]?.[0] ?? null;
+
+	return Option.fromUndefinedOr(pairs[0]?.[0]);
 };
 
-export const load_docs_content = async (route: DocsRoute) => {
-	const entry = get_content_entry(route);
+export const LoadDocsContent = (route: DocsRoute) =>
+	Effect.gen(function* () {
+		const entry = get_content_entry(route);
 
-	if (!entry) {
-		return null;
-	}
+		if (!entry) {
+			return Option.none<DocsContent>();
+		}
 
-	const content_path = get_content_path(entry.path);
-	const metadata_loader = metadata_modules[content_path];
-	const raw_loader = raw_modules[content_path];
+		const content_path = get_content_path(entry.path);
+		const metadata_loader = metadata_modules[content_path];
+		const raw_loader = raw_modules[content_path];
 
-	if (!metadata_loader || !raw_loader) {
-		return null;
-	}
+		if (!metadata_loader || !raw_loader) {
+			return Option.none<DocsContent>();
+		}
 
-	const [metadata, markdown] = await Promise.all([metadata_loader(), raw_loader()]);
-	const has_frontmatter = has_frontmatter_metadata(metadata);
-	const decoded_metadata = await Effect.runPromise(
-		decode_metadata(has_frontmatter ? metadata : undefined, {
+		const [metadata, markdown] = yield* Effect.all(
+			[
+				Effect.tryPromise({
+					try: metadata_loader,
+					catch: (cause) => new Error("Could not load docs metadata", { cause }),
+				}),
+				Effect.tryPromise({
+					try: raw_loader,
+					catch: (cause) => new Error("Could not load docs source", { cause }),
+				}),
+			],
+			{ concurrency: "unbounded" },
+		);
+		const has_frontmatter = has_frontmatter_metadata(metadata);
+		const decoded_metadata = yield* decode_metadata(has_frontmatter ? metadata : undefined, {
 			description: "",
 			title: entry.name ?? fallback_name(route.slug),
-		}),
-	);
+		});
+		const toc = yield* ExtractTableOfContents(markdown);
 
-	return {
-		content_path,
-		has_frontmatter,
-		markdown,
-		metadata: decoded_metadata,
-		route,
-		title: entry.name ?? decoded_metadata.title,
-		toc: Effect.runSync(ExtractTableOfContents(markdown)),
-	};
-};
+		return Option.some({
+			content_path,
+			has_frontmatter,
+			markdown,
+			metadata: decoded_metadata,
+			route,
+			title: entry.name ?? decoded_metadata.title,
+			toc,
+		});
+	});

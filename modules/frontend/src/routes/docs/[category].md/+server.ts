@@ -1,25 +1,26 @@
-import { error } from "@sveltejs/kit";
+import { Error, Handler } from "svelte-effect-runtime/server";
+import { Effect, Option } from "effect";
 import type { RequestHandler } from "./$types";
-import { load_docs_markdown_response } from "$lib/server/docs/markdown-response";
+import { LoadDocsMarkdownResponse } from "$lib/server/docs/markdown-response";
 import { get_first_slug_for_category } from "$lib/server/docs/content";
 
 export const prerender = false;
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET = Handler<RequestHandler>(function* ({ params }) {
 	const first_slug = get_first_slug_for_category(params.category);
 
-	if (!first_slug) {
-		error(404, "Docs category not found.");
+	if (Option.isNone(first_slug)) {
+		return yield* Error("NotFound", "Docs category not found.");
 	}
 
-	const response = await load_docs_markdown_response({
+	const response = yield* LoadDocsMarkdownResponse({
 		category: params.category,
-		slug: first_slug,
-	});
+		slug: first_slug.value,
+	}).pipe(Effect.orDie);
 
-	if (response === null) {
-		error(404, "Docs page not found.");
+	if (Option.isNone(response)) {
+		return yield* Error("NotFound", "Docs page not found.");
 	}
 
-	return response;
-};
+	return response.value;
+});

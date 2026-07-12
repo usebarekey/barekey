@@ -1,13 +1,21 @@
-import { ServerRuntime } from "svelte-effect-runtime";
+import { ServerRuntime } from "svelte-effect-runtime/server";
 import { NodeFileSystem } from "@effect/platform-node";
 import type { Handle, ServerInit } from "@sveltejs/kit";
-import { handle_docs_markdown_request } from "$lib/server/docs/markdown-response";
+import { Effect, Option } from "effect";
+import { HandleDocsMarkdownRequest } from "$lib/server/docs/markdown-response";
 
-export const handle: Handle = async ({ event, resolve }) => {
-	const markdown_response = await handle_docs_markdown_request(event);
+export const handle: Handle = ({ event, resolve }) =>
+	Effect.runPromise(
+		Effect.gen(function* () {
+			const markdown_response = yield* HandleDocsMarkdownRequest(event).pipe(Effect.orDie);
 
-	return markdown_response ?? resolve(event);
-};
+			if (Option.isSome(markdown_response)) {
+				return markdown_response.value;
+			}
+
+			return yield* Effect.promise(async () => resolve(event));
+		}),
+	);
 
 export const init: ServerInit = () => {
 	ServerRuntime.make(NodeFileSystem.layer);

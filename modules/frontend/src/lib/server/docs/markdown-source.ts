@@ -1,4 +1,5 @@
 import content_meta from "$content/meta.json";
+import { Effect, Option } from "effect";
 import { get_docs_nav_entry_pairs, type DocsContentMeta } from "$lib/data/docs-content-meta";
 
 export type DocsRoute = {
@@ -18,16 +19,27 @@ const get_content_path = ({ category, slug }: DocsRoute) => {
 		([entry_slug]) => entry_slug === slug,
 	)?.[1];
 
-	return entry ? `/src/content/${entry.path.replaceAll("\\", "/")}` : null;
+	return Option.fromUndefinedOr(
+		entry ? `/src/content/${entry.path.replaceAll("\\", "/")}` : undefined,
+	);
 };
 
-export const load_docs_markdown_source = async (route: DocsRoute) => {
-	const configured_content_path = get_content_path(route);
-	const direct_content_path = `/src/content/${route.category}/${route.slug}.mdx`;
-	const raw_loader = [configured_content_path, direct_content_path]
-		.filter((content_path): content_path is string => content_path !== null)
-		.map((content_path) => raw_modules[content_path])
-		.find(Boolean);
+export const LoadDocsMarkdownSource = (route: DocsRoute) =>
+	Effect.gen(function* () {
+		const configured_content_path = get_content_path(route);
+		const direct_content_path = `/src/content/${route.category}/${route.slug}.mdx`;
+		const raw_loader = [...Option.toArray(configured_content_path), direct_content_path]
+			.map((content_path) => raw_modules[content_path])
+			.find(Boolean);
 
-	return raw_loader ? raw_loader() : null;
-};
+		if (!raw_loader) {
+			return Option.none<string>();
+		}
+
+		const markdown = yield* Effect.tryPromise({
+			try: raw_loader,
+			catch: (cause) => new Error("Could not load docs markdown source", { cause }),
+		});
+
+		return Option.some(markdown);
+	});

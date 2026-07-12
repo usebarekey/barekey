@@ -1,7 +1,8 @@
 import { env as private_env } from "$env/dynamic/private";
 import { env as public_env } from "$env/dynamic/public";
-import { error } from "@sveltejs/kit";
-import { get_docs_entries, load_docs_content } from "$lib/server/docs/content";
+import { Error, Handler } from "svelte-effect-runtime/server";
+import { Effect, Option } from "effect";
+import { get_docs_entries, LoadDocsContent } from "$lib/server/docs/content";
 import type { EntryGenerator, PageServerLoad } from "./$types";
 
 const trim_trailing_slash = (value: string) => value.replace(/\/$/, "");
@@ -18,23 +19,24 @@ export const entries: EntryGenerator = () => get_docs_entries();
 
 export const prerender = true;
 
-export const load: PageServerLoad = async ({ params, url }) => {
-	const docs_content = await load_docs_content({
+export const load = Handler<PageServerLoad>(function* ({ params, url }) {
+	const docs_content = yield* LoadDocsContent({
 		category: params.category,
 		slug: params.slug,
-	});
+	}).pipe(Effect.orDie);
 
-	if (!docs_content) {
-		error(404, "Docs page not found.");
+	if (Option.isNone(docs_content)) {
+		return yield* Error("NotFound", "Docs page not found.");
 	}
+	const content = docs_content.value;
 
 	return {
-		content_path: docs_content.content_path,
-		has_frontmatter: docs_content.has_frontmatter,
-		metadata: docs_content.metadata,
+		content_path: content.content_path,
+		has_frontmatter: content.has_frontmatter,
+		metadata: content.metadata,
 		origin: get_public_origin(url.origin),
-		route: docs_content.route,
-		title: docs_content.title,
-		toc: docs_content.toc,
+		route: content.route,
+		title: content.title,
+		toc: content.toc,
 	};
-};
+});

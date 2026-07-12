@@ -1,12 +1,13 @@
 import { read } from "$app/server";
-import { error } from "@sveltejs/kit";
+import { Error, Handler } from "svelte-effect-runtime/server";
 import { CustomFont, resolveFonts } from "@ethercorps/sveltekit-og/fonts";
 import { ImageResponse } from "@ethercorps/sveltekit-og";
+import { Effect, Option } from "effect";
 import logo_url from "$lib/assets/barekey/logo.png?url";
 import cal_sans_url from "$lib/assets/fonts/calsans/calsans-bold.ttf?url";
 import geist_url from "$lib/assets/fonts/geist/geist-600.ttf?url";
 import pp_neue_montreal_regular_url from "$lib/assets/fonts/neue-montreal/pp-neue-montreal-regular.otf?url";
-import { get_docs_entries, load_docs_content, type DocsRoute } from "$lib/server/docs/content";
+import { get_docs_entries, LoadDocsContent, type DocsRoute } from "$lib/server/docs/content";
 import OgCard from "$lib/components/og/og-card.sv";
 import type { EntryGenerator, RequestHandler } from "./$types";
 
@@ -48,31 +49,40 @@ const get_og_fonts = () =>
 		}),
 	]));
 
-export const entries: EntryGenerator = async () => {
-	const routes = await Promise.all(
-		get_docs_entries().map(async (route) => {
-			const docs_content = await load_docs_content(route);
-
-			return docs_content?.has_frontmatter ? route : undefined;
-		}),
+export const entries: EntryGenerator = () =>
+	Effect.runPromise(
+		Effect.forEach(
+			get_docs_entries(),
+			(route) =>
+				LoadDocsContent(route).pipe(
+					Effect.orDie,
+					Effect.map((content) =>
+						Option.isSome(content) && content.value.has_frontmatter
+							? Option.some(route)
+							: Option.none<DocsRoute>(),
+					),
+				),
+			{ concurrency: "unbounded" },
+		).pipe(Effect.map((routes) => routes.flatMap(Option.toArray))),
 	);
-
-	return routes.filter((route): route is DocsRoute => route !== undefined);
-};
 
 export const prerender = true;
 
-export const GET: RequestHandler = async ({ params }) => {
-	const docs_content = await load_docs_content({
+export const GET = Handler<RequestHandler>(function* ({ params }) {
+	const docs_content = yield* LoadDocsContent({
 		category: params.category,
 		slug: params.slug,
-	});
+	}).pipe(Effect.orDie);
 
-	if (!docs_content || !docs_content.has_frontmatter) {
-		error(404, "Docs OG image not found.");
+	if (Option.isNone(docs_content) || !docs_content.value.has_frontmatter) {
+		return yield* Error("NotFound", "Docs OG image not found.");
 	}
+	const content = docs_content.value;
 
-	const [fonts, logo_src] = await Promise.all([get_og_fonts(), get_logo_src()]);
+	const [fonts, logo_src] = yield* Effect.all(
+		[Effect.promise(get_og_fonts), Effect.promise(get_logo_src)],
+		{ concurrency: "unbounded" },
+	);
 
 	return new ImageResponse(
 		OgCard,
@@ -81,10 +91,10 @@ export const GET: RequestHandler = async ({ params }) => {
 			fonts,
 		},
 		{
-			description: docs_content.metadata.description,
+			description: content.metadata.description,
 			kind: "docs",
 			logo_src,
-			title: docs_content.metadata.title,
+			title: content.metadata.title,
 		},
 	);
-};
+});

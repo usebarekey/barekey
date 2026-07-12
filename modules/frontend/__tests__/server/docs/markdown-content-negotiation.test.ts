@@ -1,9 +1,12 @@
 import { expect, test } from "vitest";
 import { readFile } from "node:fs/promises";
 import type { RequestEvent } from "@sveltejs/kit";
-import { GET } from "$/docs/[category]/[slug]/+server";
-import { GET as get_markdown } from "$/docs/[category]/[slug].md/+server";
-import { handle_docs_markdown_request } from "$lib/server/docs/markdown-response";
+import { Effect, Option } from "effect";
+import {
+	accepts_docs_markdown,
+	HandleDocsMarkdownRequest,
+	LoadDocsMarkdownResponse,
+} from "$lib/server/docs/markdown-response";
 
 const make_docs_event = (category: string, slug: string, accept = "text/markdown") =>
 	({
@@ -18,52 +21,59 @@ const make_docs_event = (category: string, slug: string, accept = "text/markdown
 	}) as RequestEvent;
 
 test("serves a docs source file unchanged when Markdown is accepted", async () => {
-	const event = make_docs_event("ser", "introduction");
 	const expected_markdown = await readFile(
 		new URL("../../../src/content/ser/introduction.mdx", import.meta.url),
 		"utf8",
 	);
 
-	const response = await GET(event);
+	const response = await Effect.runPromise(
+		LoadDocsMarkdownResponse({ category: "ser", slug: "introduction" }, { vary_accept: true }),
+	);
 
-	expect(response.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
-	expect(response.headers.get("vary")).toBe("Accept");
-	expect(await response.text()).toBe(expected_markdown);
+	expect(Option.isSome(response)).toBe(true);
+	if (Option.isSome(response)) {
+		expect(response.value.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+		expect(response.value.headers.get("vary")).toBe("Accept");
+		expect(await response.value.text()).toBe(expected_markdown);
+	}
 });
 
-test("returns not found when a docs source is not configured", async () => {
-	const event = make_docs_event("ser", "missing");
+test("returns no response when a docs source is not configured", async () => {
+	const response = await Effect.runPromise(
+		LoadDocsMarkdownResponse({ category: "ser", slug: "missing" }),
+	);
 
-	await expect(GET(event)).rejects.toMatchObject({ status: 404 });
+	expect(Option.isNone(response)).toBe(true);
 });
 
 test("intercepts requests that prefer Markdown with HTML as a fallback", async () => {
 	const event = make_docs_event("ser", "introduction", "text/markdown, text/html;q=0.8");
 
-	const response = await handle_docs_markdown_request(event);
+	const response = await Effect.runPromise(HandleDocsMarkdownRequest(event));
 
-	expect(response?.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+	expect(Option.isSome(response)).toBe(true);
+	if (Option.isSome(response)) {
+		expect(response.value.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+	}
 });
 
-test("rejects endpoint requests that do not accept Markdown", async () => {
-	const event = make_docs_event("ser", "introduction", "application/json");
-
-	await expect(GET(event)).rejects.toMatchObject({ status: 406 });
+test("rejects endpoint requests that do not accept Markdown", () => {
+	expect(accepts_docs_markdown("application/json")).toBe(false);
 });
 
 test("serves raw docs source from a browser-addressable Markdown URL", async () => {
-	const event = make_docs_event(
-		"ser",
-		"introduction",
-		"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-	);
 	const expected_markdown = await readFile(
 		new URL("../../../src/content/ser/introduction.mdx", import.meta.url),
 		"utf8",
 	);
 
-	const response = await get_markdown(event);
+	const response = await Effect.runPromise(
+		LoadDocsMarkdownResponse({ category: "ser", slug: "introduction" }),
+	);
 
-	expect(response.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
-	expect(await response.text()).toBe(expected_markdown);
+	expect(Option.isSome(response)).toBe(true);
+	if (Option.isSome(response)) {
+		expect(response.value.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+		expect(await response.value.text()).toBe(expected_markdown);
+	}
 });

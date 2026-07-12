@@ -1,5 +1,6 @@
 import type { RequestEvent } from "@sveltejs/kit";
-import { type DocsRoute, load_docs_markdown_source } from "$lib/server/docs/markdown-source";
+import { Effect, Option } from "effect";
+import { type DocsRoute, LoadDocsMarkdownSource } from "$lib/server/docs/markdown-source";
 import { get_first_slug_for_category } from "./content";
 
 type AcceptRange = {
@@ -64,26 +65,25 @@ const get_quality = (ranges: AcceptRange[], target: string) =>
 export const accepts_docs_markdown = (accept: string | null) =>
 	get_quality(parse_accept(accept), "text/markdown") > 0;
 
-export const load_docs_markdown_response = async (
+export const LoadDocsMarkdownResponse = (
 	route: DocsRoute,
 	{ head = false, vary_accept = false }: DocsMarkdownResponseOptions = {},
-) => {
-	const markdown = await load_docs_markdown_source(route);
+) =>
+	LoadDocsMarkdownSource(route).pipe(
+		Effect.map(
+			Option.map((markdown) => {
+				const headers = new Headers({
+					"Content-Type": "text/markdown; charset=utf-8",
+				});
 
-	if (markdown === null) {
-		return null;
-	}
+				if (vary_accept) {
+					headers.set("Vary", "Accept");
+				}
 
-	const headers = new Headers({
-		"Content-Type": "text/markdown; charset=utf-8",
-	});
-
-	if (vary_accept) {
-		headers.set("Vary", "Accept");
-	}
-
-	return new Response(head ? null : markdown, { headers });
-};
+				return new Response(head ? null : markdown, { headers });
+			}),
+		),
+	);
 
 const prefers_docs_markdown = (accept: string | null) => {
 	const ranges = parse_accept(accept);
@@ -97,41 +97,43 @@ const prefers_docs_markdown = (accept: string | null) => {
 	);
 };
 
-export const handle_docs_markdown_request = async ({
-	params,
-	request,
-	route,
-}: DocsMarkdownRequestEvent) => {
-	const method = request.method.toUpperCase();
-	const routeId = route.id;
+export const HandleDocsMarkdownRequest = ({ params, request, route }: DocsMarkdownRequestEvent) =>
+	Effect.gen(function* () {
+		const method = request.method.toUpperCase();
+		const routeId = route.id;
 
-	if (
-		(routeId !== docs_route_id && routeId !== docs_category_route_id) ||
-		(method !== "GET" && method !== "HEAD") ||
-		!prefers_docs_markdown(request.headers.get("accept"))
-	) {
-		return null;
-	}
+		if (
+			(routeId !== docs_route_id && routeId !== docs_category_route_id) ||
+			(method !== "GET" && method !== "HEAD") ||
+			!prefers_docs_markdown(request.headers.get("accept"))
+		) {
+			return Option.none<Response>();
+		}
 
-	let slug: string | undefined = (params as any).slug;
-	if (routeId === docs_category_route_id && !slug) {
-		slug = get_first_slug_for_category((params as any).category) ?? undefined;
-	}
+		const category = Option.fromUndefinedOr(params.category);
 
-	if (!slug) {
-		return null;
-	}
+		if (Option.isNone(category)) {
+			return Option.none<Response>();
+		}
 
-	const finalSlug = slug as string;
+		const direct_slug = Option.fromUndefinedOr(params.slug);
+		const slug =
+			routeId === docs_category_route_id && Option.isNone(direct_slug)
+				? get_first_slug_for_category(category.value)
+				: direct_slug;
 
-	return load_docs_markdown_response(
-		{
-			category: (params as any).category,
-			slug: finalSlug,
-		},
-		{
-			head: method === "HEAD",
-			vary_accept: true,
-		},
-	);
-};
+		if (Option.isNone(slug)) {
+			return Option.none<Response>();
+		}
+
+		return yield* LoadDocsMarkdownResponse(
+			{
+				category: category.value,
+				slug: slug.value,
+			},
+			{
+				head: method === "HEAD",
+				vary_accept: true,
+			},
+		);
+	});
