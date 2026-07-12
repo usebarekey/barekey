@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { sveltekitOG } from "@ethercorps/sveltekit-og/plugin";
 import { mdsvex } from "mdsvex";
 import { href } from "svelte-auto-href";
-import { effect } from "svelte-effect-runtime";
+import { effect } from "svelte-effect-runtime/compiler";
 import { ts } from "svelte-global-typescript";
 import { sv } from "svelte-sv-extension";
 import { compose, kit } from "svelte-plugin-composer";
