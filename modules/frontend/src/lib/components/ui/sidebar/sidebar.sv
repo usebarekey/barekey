@@ -46,7 +46,7 @@
 			data-slot="sidebar"
 			data-mobile="true"
 			class={cn(
-				"docs-mobile-sidebar t-panel-slide-x bg-background text-foreground inset-y-2 left-2 h-auto w-(--sidebar-width) rounded-2xl border-0 p-0 card",
+				"docs-mobile-sidebar t-panel-slide-x bg-background text-foreground inset-y-0 left-0 h-full w-(--sidebar-width) rounded-l-none rounded-r-2xl border-0 p-0 card",
 				class_name
 			)}
 			closeButtonClass="top-2 right-2 size-10 rounded-full bg-foreground/5 text-muted-foreground card hover:text-foreground"
