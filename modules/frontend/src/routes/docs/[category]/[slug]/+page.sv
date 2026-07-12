@@ -61,7 +61,7 @@
 	{/if}
 </svelte:head>
 
-<DocsPageFrame>
+<DocsPageFrame page_key={`${route.category}/${route.slug}`}>
 	{#snippet sidebar()}
 		<DocsSidebar {content_meta} {route} />
 	{/snippet}

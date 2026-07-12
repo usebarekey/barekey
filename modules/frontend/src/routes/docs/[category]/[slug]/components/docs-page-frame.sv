@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from "svelte";
+	import { tick, type Snippet } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
 	import * as ScrollArea from "$lib/components/ui/scroll-area";
 	import * as Sidebar from "$lib/components/ui/sidebar";
@@ -7,10 +7,12 @@
 
 	let {
 		article,
+		page_key,
 		sidebar,
 		table_of_contents,
 	}: {
 		article: Snippet;
+		page_key: string;
 		sidebar: Snippet;
 		table_of_contents: Snippet<[HTMLElement | null]>;
 	} = $props();
@@ -21,6 +23,15 @@
 	const toc_scroll_root = $derived(
 		compact_layout.current ? compact_scroll_root : article_viewport,
 	);
+
+	$effect(() => {
+		void page_key;
+
+		void tick().then(() => {
+			compact_scroll_root?.scrollTo({ top: 0 });
+			article_viewport?.scrollTo({ top: 0 });
+		});
+	});
 </script>
 
 <Sidebar.Provider
@@ -40,7 +51,7 @@
 		</div>
 	</Sidebar.Root>
 
-	<div class="flex w-12 shrink-0 items-start justify-center py-2 xl:hidden">
+	<div class="fixed left-2 top-2 z-20 xl:hidden">
 		<Sidebar.Trigger
 			aria-label="Open documentation navigation"
 			class="group/sidebar-toggle flex size-10 items-center justify-center rounded-full bg-foreground/5 card"
@@ -52,7 +63,8 @@
 	</div>
 
 	<Sidebar.Inset
-		class="h-svh max-h-svh min-h-0 min-w-0 w-0 flex-1 py-2 pr-2 pl-0 xl:h-[calc(100svh-1rem)] xl:max-h-[calc(100svh-1rem)]"
+		class="h-dvh max-h-dvh min-h-0 min-w-0 w-0 flex-1 p-2 xl:h-[calc(100dvh-1rem)] xl:max-h-[calc(100dvh-1rem)]"
+		style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));"
 	>
 		<div
 			bind:this={compact_scroll_root}

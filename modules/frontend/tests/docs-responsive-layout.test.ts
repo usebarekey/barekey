@@ -24,6 +24,19 @@ test("compact docs surfaces share one vertical scroll root", () => {
 	expect(docs_frame).toContain("overflow: visible !important");
 });
 
+test("compact docs layout overlays its navigation trigger without taking horizontal space", () => {
+	expect(docs_frame).toContain("fixed left-2 top-2 z-20 xl:hidden");
+	expect(docs_frame).not.toContain('class="flex w-12 shrink-0');
+});
+
+test("docs viewport follows mobile browser chrome and resets after navigation", () => {
+	expect(docs_frame).toContain("h-dvh max-h-dvh");
+	expect(docs_frame).toContain("env(safe-area-inset-bottom)");
+	expect(docs_frame).toContain("page_key: string;");
+	expect(docs_frame).toContain("compact_scroll_root?.scrollTo({ top: 0 });");
+	expect(docs_frame).toContain("article_viewport?.scrollTo({ top: 0 });");
+});
+
 test("mobile documentation drawer is an inset card with a visible close button", () => {
 	const sidebar = readFileSync("src/lib/components/ui/sidebar/sidebar.sv", "utf8");
 
