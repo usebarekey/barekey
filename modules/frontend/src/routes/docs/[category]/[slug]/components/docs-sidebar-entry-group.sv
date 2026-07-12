@@ -52,13 +52,13 @@
 {#if can_collapse}
 	<li class="docs-sidebar-nav-entry-group">
 		<CollapsibleRoot
-			class="t-acc"
+			class="t-acc group/docs-accordion"
 			{open}
 			onOpenChange={handle_open_change}
 			onOpenChangeComplete={on_state_change_complete}
 		>
 			<CollapsibleTrigger
-				class="docs-sidebar-nav-disclosure docs-sidebar-nav-group-label t-sidebar-child t-acc-head relative z-10 flex h-7 w-full items-center rounded-full px-2.5 font-heading text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+				class="docs-sidebar-nav-disclosure docs-sidebar-nav-group-label t-sidebar-child t-acc-head relative z-10 flex h-7 w-full items-center rounded-full px-2.5 font-heading text-sm font-semibold text-muted-foreground outline-none transition-colors duration-(--duration-quick) ease-(--ease-smooth-out) hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 group-data-[state=open]/docs-accordion:text-foreground motion-reduce:transition-none data-[gap=group]:mt-3.5"
 				data-gap={gap}
 				onpointerenter={on_pointer_enter}
 				style={label_style}
@@ -85,7 +85,7 @@
 {:else}
 	{#if name}
 		<li
-			class="docs-sidebar-nav-group-label t-sidebar-child relative z-10 flex h-5 items-center px-2.5 font-heading text-xs font-semibold text-foreground"
+			class="docs-sidebar-nav-group-label t-sidebar-child relative z-10 flex h-5 items-center px-2.5 font-heading text-xs font-semibold text-foreground data-[gap=group]:mt-3.5"
 			data-gap={gap}
 			style={label_style}
 		>

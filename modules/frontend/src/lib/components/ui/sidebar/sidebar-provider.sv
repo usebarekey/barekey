@@ -159,7 +159,7 @@
 		data-slot="sidebar-wrapper"
 		style="--sidebar-width: {sidebar_width}; --sidebar-width-icon: {sidebar_width_icon}; {style}"
 		class={cn(
-			"group/sidebar-wrapper has-data-[variant=inset]:bg-background flex min-h-svh w-full",
+			"group/sidebar-wrapper has-data-[variant=inset]:bg-background flex min-h-svh w-full data-[sidebar-flip-active=true]:overflow-x-clip",
 			class_name
 		)}
 		bind:this={ref}

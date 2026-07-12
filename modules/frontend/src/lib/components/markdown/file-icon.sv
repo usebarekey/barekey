@@ -57,7 +57,10 @@
 {#if icon_identifier}
 	{#if Icon}
 		<span
-			class={cn("docs-file-icon docs-file-icon-brand", class_name)}
+			class={cn(
+				"docs-file-icon docs-file-icon-brand block size-4 shrink-0 dark:data-[file-icon=deno]:invert dark:data-[file-icon=vlt]:invert [&_svg]:block [&_svg]:size-full",
+				class_name,
+			)}
 			data-file-icon={icon_identifier}
 			aria-hidden="true"
 		>
@@ -67,7 +70,10 @@
 		</span>
 	{:else}
 		<span
-			class={cn("docs-file-icon docs-file-icon-label", class_name)}
+			class={cn(
+				"docs-file-icon docs-file-icon-label inline-flex size-4 min-w-4 shrink-0 items-center justify-center rounded-[0.25rem] bg-linear-to-t from-background/30 to-foreground/5 px-1 font-mono text-[0.55rem] leading-none font-semibold text-muted-foreground card",
+				class_name,
+			)}
 			data-file-icon={icon_identifier}
 			aria-hidden="true"
 		>

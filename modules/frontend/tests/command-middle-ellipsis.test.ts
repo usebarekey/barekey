@@ -12,11 +12,15 @@ test("renders compact commands from a clone of the highlighted source", () => {
 });
 
 test("uses the copy-button surface treatment for the package-manager trigger", () => {
-	const styles = readFileSync("src/lib/styles/markdown/components/command-snippet.css", "utf8");
+	const command_picker = readFileSync(
+		"src/lib/components/markdown/command-picker/command-picker.sv",
+		"utf8",
+	);
 
-	expect(styles).toContain("rounded-full bg-linear-to-b from-foreground/7.5");
-	expect(styles).toContain("to-foreground/2.5");
-	expect(styles).toContain("@apply h-auto min-w-0 p-2");
+	expect(command_picker).toContain("rounded-full bg-linear-to-b from-foreground/7.5");
+	expect(command_picker).toContain("to-foreground/2.5");
+	expect(command_picker).toContain("h-auto w-fit min-w-0");
+	expect(command_picker).toContain("sm:h-9 sm:min-w-30");
 });
 
 test("returns the full command when it fits", () => {

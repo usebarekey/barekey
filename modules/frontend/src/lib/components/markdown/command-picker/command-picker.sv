@@ -248,25 +248,25 @@
 
 <div
 	bind:this={root}
-	class="docs-command-snippet not-prose"
+	class="docs-command-snippet not-prose relative z-0 rounded-3xl bg-linear-to-t from-background/30 to-foreground/5 card-lg data-[open=true]:z-20"
 	data-command-snippet
 	data-open={open}
 	id={id}
 	data-command-value={selected_value}
 >
-	<div class="docs-command-snippet-body">
-		<div class="docs-command-snippet-code">
+	<div class="flex min-h-14 w-full max-w-full items-center gap-2 px-3 py-2 sm:gap-4 sm:px-4">
+		<div class="docs-command-snippet-code min-w-0 max-w-full flex-1 overflow-hidden">
 			{@render children?.()}
 		</div>
 		<CopyButton
-			class="docs-command-snippet-copy"
+			class="shrink-0 p-2"
 			copy_kind="command"
 			label="Copy command"
 		/>
-		<div class="docs-command-snippet-select" data-command-select>
+		<div class="relative shrink-0" data-command-select>
 			<button
 				bind:this={trigger}
-				class="docs-command-snippet-trigger"
+				class="inline-flex h-auto w-fit min-w-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-full bg-linear-to-b from-foreground/7.5 to-foreground/2.5 p-2 text-sm leading-none text-muted-foreground outline-none transition-colors card-lg hover:text-foreground focus-visible:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:h-9 sm:min-w-30 sm:px-3 sm:py-2"
 				type="button"
 				data-slot="select-trigger"
 				aria-haspopup="listbox"
@@ -278,7 +278,7 @@
 			>
 				{#each options as option (option.value)}
 					<span
-						class="docs-command-snippet-selected-option"
+						class="inline-flex min-w-0 items-center gap-2 [&>span:last-child]:hidden [&>span:last-child]:truncate sm:[&>span:last-child]:inline"
 						hidden={option.value !== selected_value}
 						data-command-selected-option={option.value}
 					>
@@ -286,12 +286,12 @@
 						<span>{option.label}</span>
 					</span>
 				{/each}
-				<Selector class="docs-command-snippet-selector-icon" />
+				<Selector class="pointer-events-none hidden size-4 shrink-0 text-muted-foreground sm:block" />
 			</button>
 			<div
 				use:portal_to_body
 				bind:this={content}
-				class="docs-command-snippet-content"
+				class="docs-command-snippet-content fixed z-50 min-w-36 overflow-hidden rounded-2xl bg-linear-to-t from-background/30 to-foreground/5 text-muted-foreground backdrop-blur-3xl card-lg"
 				id={content_id}
 				data-slot="select-content"
 				role="listbox"
@@ -305,11 +305,11 @@
 				onfocusout={handle_viewport_focusout}
 			>
 				<div
-					class="docs-command-snippet-viewport"
+					class="relative z-10 w-full min-w-full overflow-x-hidden overflow-y-auto p-1 isolate"
 					data-slot="select-viewport"
 				>
 					<span
-						class="docs-command-snippet-hover-highlight"
+						class="docs-command-snippet-hover-highlight pointer-events-none absolute top-0 right-1 left-1"
 						data-active={hover_highlight_visible}
 						data-animate={hover_highlight_animated}
 						aria-hidden="true"
@@ -317,7 +317,7 @@
 					></span>
 					{#each options as option (option.value)}
 						<button
-							class="docs-command-snippet-item"
+							class="docs-command-snippet-item relative z-1 flex w-full cursor-default items-center gap-2 rounded-xl py-1.5 pr-7 pl-2.5 text-left text-sm text-muted-foreground outline-hidden select-none transition-colors hover:text-foreground hover:[&_.docs-file-icon-label]:text-foreground focus-visible:text-foreground focus-visible:[&_.docs-file-icon-label]:text-foreground"
 							type="button"
 							role="option"
 							aria-selected={option.value === selected_value}
@@ -329,11 +329,11 @@
 							<FileIcon name={option.icon ?? option.value} />
 							<span>{option.label}</span>
 							<span
-								class="docs-command-snippet-select-check-wrap"
+								class="absolute end-2 flex size-4 items-center justify-center"
 								hidden={option.value !== selected_value}
 							>
 								<svg
-									class="docs-command-snippet-select-check"
+									class="size-4 shrink-0 text-blue-600 dark:text-blue-400"
 									viewBox="0 0 24 24"
 									aria-hidden="true"
 									focusable="false"

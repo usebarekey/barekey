@@ -392,7 +392,7 @@
 	<Sidebar.Header
 		class="pl-6 pr-14 xl:pl-2"
 	>
-		<div class="t-sidebar-flyout-inline">
+		<div class="t-sidebar-flyout-inline inline-block min-w-0 max-w-[var(--sidebar-flyout-inline-width,none)] overflow-visible whitespace-nowrap">
 			<a
 				href="/"
 				class="t-sidebar-child -ml-1 flex flex-row items-center gap-2 xl:ml-0"
@@ -410,7 +410,7 @@
 
 	<Sidebar.Content
 		bind:ref={nav_surface}
-		class="docs-sidebar-nav-surface overflow-x-hidden px-2 pb-3"
+		class="docs-sidebar-nav-surface relative overflow-x-hidden px-2 pb-3"
 		onpointerleave={clear_hover_highlight}
 	>
 		<div
@@ -444,7 +444,7 @@
 				<ul
 					data-slot="sidebar-menu-sub"
 					data-sidebar="menu-sub"
-					class="docs-sidebar-nav-list t-sidebar-menu-sub ml-3.5 mr-0 mt-1.5 flex min-w-0 translate-x-px flex-col border-l border-sidebar-border/70 pb-1 pl-2 pr-0 pt-0"
+			class="docs-sidebar-nav-list t-sidebar-menu-sub relative ml-3.5 mr-0 mt-1.5 flex min-w-0 translate-x-px flex-col border-l border-sidebar-border/70 pb-1 pl-2 pr-0 pt-0"
 				>
 					{#each render_group.sections as render_section (`${render_group.category}/${render_section.group_index}/${render_section.name ?? ""}`)}
 						{const active_href = get_active_section_href(
@@ -473,7 +473,7 @@
 				)}
 				{#if render_entry_group.category}
 					<li
-						class="docs-sidebar-nav-category t-sidebar-child relative z-10 flex h-5 items-center px-2.5 font-heading text-xs font-semibold text-foreground"
+						class="docs-sidebar-nav-category t-sidebar-child relative z-10 flex h-5 items-center px-2.5 font-heading text-xs font-semibold text-foreground data-[gap=after-group-label]:mt-1 data-[gap=group]:mt-3.5 [&+.docs-sidebar-nav-item]:mt-1.5"
 						data-gap={render_entry_group.name ? "after-group-label" : "group"}
 						style={render_entry_group.category_child_index === null
 							? ""
@@ -498,7 +498,7 @@
 									})}
 
 									<Sidebar.MenuSubItem
-										class="docs-sidebar-nav-item t-sidebar-child relative z-10"
+										class="docs-sidebar-nav-item t-sidebar-child relative z-10 data-[gap=after-group-label]:mt-0.5 data-[gap=group]:mt-3.5 data-[gap=item]:mt-1"
 										data-gap={get_nav_entry_gap(
 											render_entry_group.group_index,
 											entry_index,
@@ -515,7 +515,7 @@
 											aria-current={href === current_href ? "page" : undefined}
 											data-active={href === current_href}
 											data-sidebar="menu-sub-button"
-											class="docs-sidebar-nav-link group/docs-nav flex h-7 w-full min-w-0 items-center rounded-full px-2.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+											class="docs-sidebar-nav-link group/docs-nav relative z-1 flex h-7 w-full min-w-0 items-center rounded-full px-2.5 text-sm font-medium text-muted-foreground outline-none transition-[color,transform] duration-(--duration-fast) ease-(--ease-smooth-out) hover:text-foreground active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring/50 data-[active=true]:text-foreground motion-reduce:transition-none"
 											onclick={() =>
 												track_docs_nav_click({
 													category: render_group.category,
