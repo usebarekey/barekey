@@ -39,6 +39,17 @@ test("named code snippets keep the filename header", () => {
 	expect(body).not.toContain("docs-code-snippet-copy-overlay");
 });
 
+test("code snippets use a smaller copy glyph without shrinking its button", () => {
+	const { body } = render(CodeSnippet, {
+		props: {
+			code: "<pre><code>const answer = 42;</code></pre>",
+		},
+	});
+
+	expect(body).toContain("size-3.5");
+	expect(body).toContain("relative grid size-4");
+});
+
 test("source snippets render linked line and character metadata", () => {
 	const { body } = render(CodeSnippet, {
 		props: {

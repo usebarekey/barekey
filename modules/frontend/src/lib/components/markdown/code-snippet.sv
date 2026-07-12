@@ -23,6 +23,7 @@
 		<CopyButton
 			class="docs-code-snippet-copy docs-code-snippet-copy-overlay"
 			copy_kind="code"
+			icon_class="size-3.5"
 			label="Copy code"
 		/>
 	{/if}
@@ -37,7 +38,12 @@
 					{link}
 					{name}
 				/>
-				<CopyButton class="docs-code-snippet-copy" copy_kind="code" label="Copy code" />
+				<CopyButton
+					class="docs-code-snippet-copy"
+					copy_kind="code"
+					icon_class="size-3.5"
+					label="Copy code"
+				/>
 			</div>
 		{/if}
 		{@html code}
