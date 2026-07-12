@@ -40,8 +40,8 @@
 	data-copy-state="idle"
 	data-heading-id={heading_id}
 >
-	<span class="relative grid size-4" aria-hidden="true">
-		<span class="col-start-1 row-start-1">
+	<span class="relative grid size-4 place-items-center" aria-hidden="true">
+		<span class="col-start-1 row-start-1 flex size-4 items-center justify-center">
 			<Copy
 				class={cn(
 					"size-4 text-muted-foreground transition-all duration-(--duration-fast) ease-in-out group-hover/docs-copy:text-foreground group-data-[copy-state=success]/docs-copy:scale-75 group-data-[copy-state=success]/docs-copy:opacity-0 motion-reduce:transition-none",
@@ -49,7 +49,7 @@
 				)}
 			/>
 		</span>
-		<span class="col-start-1 row-start-1">
+		<span class="col-start-1 row-start-1 flex size-4 items-center justify-center">
 			<Check
 				class={cn(
 					"size-4 scale-75 text-muted-foreground opacity-0 transition-all duration-(--duration-fast) ease-in-out group-hover/docs-copy:text-foreground group-data-[copy-state=success]/docs-copy:scale-100 group-data-[copy-state=success]/docs-copy:opacity-100 motion-reduce:transition-none",

@@ -47,7 +47,8 @@ test("code snippets use a smaller copy glyph without shrinking its button", () =
 	});
 
 	expect(body).toContain("size-3.5");
-	expect(body).toContain("relative grid size-4");
+	expect(body).toContain("relative grid size-4 place-items-center");
+	expect(body).toContain("flex size-4 items-center justify-center");
 });
 
 test("source snippets render linked line and character metadata", () => {
