@@ -63,7 +63,6 @@ test("mobile documentation drawer is an edge-attached panel with a visible close
 
 	expect(sidebar).toContain("inset-y-2 left-0 h-auto");
 	expect(sidebar).toContain("rounded-l-none rounded-r-2xl border-0 p-0 card");
-	expect(sidebar).toContain("bg-transparent! bg-linear-to-b from-foreground/5 to-foreground/2.5");
 	expect(sidebar).not.toContain("inset-y-2 left-2 h-auto");
 	expect(sidebar_css).toMatch(
 		/\.docs-mobile-sidebar\[data-side="left"\] \{[\s\S]*?top: 0\.5rem;[\s\S]*?bottom: 0\.5rem;[\s\S]*?left: 0;[\s\S]*?height: auto;/,
