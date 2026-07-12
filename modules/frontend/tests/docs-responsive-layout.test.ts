@@ -43,7 +43,7 @@ test("compact docs layout uses a sticky branded glass header", () => {
 	expect(mobile_header).toContain('variant="default"');
 	expect(mobile_header).toContain('size="icon"');
 	expect(mobile_header).toContain(
-		"rounded-full bg-linear-to-b from-foreground-extra/5 to-foreground-extra/10",
+		"rounded-full bg-transparent! bg-linear-to-b from-foreground-extra/5 to-foreground-extra/10",
 	);
 	expect(mobile_header).toContain("text-foreground-extra card");
 	expect(mobile_header).not.toContain("LayoutSidebar");
