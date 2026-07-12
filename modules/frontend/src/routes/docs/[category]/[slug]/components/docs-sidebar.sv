@@ -58,7 +58,6 @@
 	};
 
 	const selected_caret_horizontal_offset_px = 9;
-	const sidebar_natural_width_variable = "--docs-sidebar-natural-width";
 	const sidebar_state = Sidebar.use_sidebar();
 
 	const fallback_name = (slug: string) =>
@@ -236,7 +235,6 @@
 	} = $props();
 
 	let nav_surface = $state<HTMLElement | null>(null);
-	let sidebar_panel = $state<HTMLElement | null>(null);
 	let hovered_element: HTMLElement | null = null;
 	let hover_highlight_animated = $state(false);
 	let hover_highlight_height = $state(0);
@@ -249,111 +247,8 @@
 	let selected_caret_line_height = $state(0);
 	let selected_caret_top = $state(0);
 	let selected_caret_visible = $state(false);
-	let sidebar_measurement_frame = 0;
-	let sidebar_natural_width = 0;
 	const current_href = $derived(get_docs_href(route));
 	const docs_nav_render_model = $derived(get_docs_nav_render_model(content_meta));
-
-	const get_required_inline_size = (
-		parent: HTMLElement,
-		child: HTMLElement,
-		end_padding = 0,
-	) => {
-		const parent_rect = parent.getBoundingClientRect();
-		const child_rect = child.getBoundingClientRect();
-
-		return child_rect.left - parent_rect.left + child.scrollWidth + end_padding;
-	};
-
-	const get_style_pixel_value = (element: HTMLElement, property: string) => {
-		const value = Number.parseFloat(getComputedStyle(element).getPropertyValue(property));
-
-		return Number.isFinite(value) ? value : 0;
-	};
-
-	const get_sidebar_natural_width = (sidebar_container: HTMLElement) => {
-		const container_end_padding = get_style_pixel_value(sidebar_container, "padding-right");
-		const nav_end_padding = nav_surface
-			? get_style_pixel_value(nav_surface, "padding-right")
-			: 0;
-		const nav_text_widths = Array.from(
-			nav_surface?.querySelectorAll<HTMLElement>(
-				".docs-sidebar-nav-link-text, .docs-sidebar-nav-group-label-text, .docs-sidebar-nav-category-label-text",
-			) ?? [],
-		)
-			.map((text_element) => {
-			const text_container = text_element.closest<HTMLElement>(
-				".docs-sidebar-nav-link, .docs-sidebar-nav-group-label, .docs-sidebar-nav-category",
-			);
-			const text_container_end_padding = text_container
-				? get_style_pixel_value(text_container, "padding-right")
-				: 0;
-
-				return get_required_inline_size(
-					sidebar_container,
-					text_element,
-					text_container_end_padding + nav_end_padding + container_end_padding,
-				);
-			});
-
-		return Math.ceil(
-			Math.max(
-				get_required_inline_size(
-					sidebar_container,
-					sidebar_panel!,
-					container_end_padding,
-				),
-				nav_surface
-					? get_required_inline_size(
-							sidebar_container,
-							nav_surface,
-							container_end_padding,
-						)
-					: 0,
-				...nav_text_widths,
-			),
-		);
-	};
-
-	const set_sidebar_natural_width = () => {
-		if (!sidebar_panel) {
-			return;
-		}
-
-		const wrapper = sidebar_panel.closest<HTMLElement>("[data-slot=\"sidebar-wrapper\"]");
-		const sidebar_container = sidebar_panel.closest<HTMLElement>(
-			"[data-slot=\"sidebar-container\"]",
-		);
-
-		if (!wrapper || !sidebar_container) {
-			return;
-		}
-
-		const natural_width = get_sidebar_natural_width(sidebar_container);
-
-		if (natural_width === sidebar_natural_width) {
-			return;
-		}
-
-		sidebar_natural_width = natural_width;
-		wrapper.style.setProperty(
-			sidebar_natural_width_variable,
-			`${natural_width}px`,
-		);
-	};
-
-	const schedule_sidebar_measurement = () => {
-		if (typeof requestAnimationFrame === "undefined") {
-			set_sidebar_natural_width();
-			return;
-		}
-
-		cancelAnimationFrame(sidebar_measurement_frame);
-		sidebar_measurement_frame = requestAnimationFrame(() => {
-			set_sidebar_natural_width();
-			update_nav_chrome();
-		});
-	};
 
 	const get_nav_surface_measurement = (
 		element: HTMLElement,
@@ -477,54 +372,23 @@
 
 	const handle_entry_group_state_change = () => {
 		clear_hover_highlight();
-		schedule_sidebar_measurement();
 		update_nav_chrome();
 	};
 
 	const handle_nav_resize = () => {
-		schedule_sidebar_measurement();
 		update_nav_chrome();
 	};
 
 	$effect(() => {
-		if (!sidebar_panel) {
-			return;
-		}
-
-		if (typeof ResizeObserver === "undefined") {
-			schedule_sidebar_measurement();
-			return;
-		}
-
-		const resize_observer = new ResizeObserver(schedule_sidebar_measurement);
-		resize_observer.observe(sidebar_panel);
-
-		if (nav_surface) {
-			resize_observer.observe(nav_surface);
-		}
-
-		schedule_sidebar_measurement();
-
-		return () => {
-			if (typeof cancelAnimationFrame !== "undefined") {
-				cancelAnimationFrame(sidebar_measurement_frame);
-			}
-
-			resize_observer.disconnect();
-		};
-	});
-
-	$effect(() => {
 		void current_href;
 		void docs_nav_render_model;
-		schedule_sidebar_measurement();
 		schedule_selected_caret_update();
 	});
 </script>
 
 <svelte:window onresize={handle_nav_resize} />
 
-<div bind:this={sidebar_panel} class="t-sidebar-flyout flex flex-1 flex-col">
+<div class="t-sidebar-flyout flex flex-1 flex-col">
 	<Sidebar.Header
 		class="pl-6 pr-14 xl:pl-2"
 	>

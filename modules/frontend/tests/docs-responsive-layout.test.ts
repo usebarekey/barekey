@@ -11,6 +11,17 @@ test("compact docs layout uses a drawer breakpoint that includes tablets", () =>
 	expect(docs_frame).toContain('new MediaQuery("(max-width: 1279px)")');
 });
 
+test("desktop docs sidebar has a stable server-rendered width", () => {
+	const docs_sidebar = readFileSync(
+		"src/routes/docs/[category]/[slug]/components/docs-sidebar.sv",
+		"utf8",
+	);
+
+	expect(docs_frame).toContain("--sidebar-width: 16rem;");
+	expect(docs_frame).not.toContain("--docs-sidebar-natural-width");
+	expect(docs_sidebar).not.toContain("set_sidebar_natural_width");
+});
+
 test("compact docs layout stacks the table of contents before the article", () => {
 	expect(docs_frame).toMatch(/docs-article-surface[^\n]+order-last/);
 	expect(docs_frame).toMatch(/docs-toc-surface[^\n]+order-first/);

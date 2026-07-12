@@ -36,7 +36,7 @@
 
 <Sidebar.Provider
 	mobile_breakpoint={1280}
-	style="--sidebar-min-width: 14rem; --sidebar-max-width: 16rem; --sidebar-width: min(var(--sidebar-max-width), max(var(--sidebar-min-width), var(--docs-sidebar-natural-width, var(--sidebar-min-width)))); --sidebar-width-icon: 2.5rem;"
+	style="--sidebar-width: 16rem; --sidebar-width-icon: 2.5rem;"
 >
 	<Sidebar.Root variant="inset" collapsible="icon">
 		<div class="relative flex min-h-0 flex-1 flex-row">
