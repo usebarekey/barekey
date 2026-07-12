@@ -84,3 +84,10 @@ test("serves generated contributor data through a dedicated ISR route", () => {
 		"FetchGraphqlContributors",
 	);
 });
+
+test("spaces the Barekey member mark by one text character", () => {
+	const component = readFileSync("src/lib/components/custom/contributor-card.sv", "utf8");
+
+	expect(component).toContain("inline-flex items-baseline gap-[1ch]");
+	expect(component).not.toContain("ml-1 inline size-3");
+});

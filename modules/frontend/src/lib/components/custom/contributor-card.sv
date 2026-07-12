@@ -33,28 +33,29 @@
 		<AvatarFallback>{contributor.name.slice(0, 1).toUpperCase()}</AvatarFallback>
 	</Avatar>
 	<p class="text-sm text-muted-foreground">
-		{#if contributor.profile_url}
-			<a
-				href={contributor.profile_url}
-				target="_blank"
-				rel="noreferrer"
-				class="font-heading font-semibold text-foreground underline-offset-4 hover:underline"
-				onclick={() =>
-					capture_event("contributor_clicked", { contributor: contributor.name })}
-				>{contributor.name}</a
-			>
-		{:else}
-			<span class="font-heading font-semibold text-foreground">{contributor.name}</span>
-		{/if}
-		{#if contributor.is_barekey_member}
-			<img
-				src={barekey_logo}
-				alt="Barekey organization member"
-				title="Barekey organization member"
-				class="ml-1 inline size-3 align-[-0.1em]"
-			/>
-		{/if}
-		with
+		<span class="inline-flex items-baseline gap-[1ch]">
+			{#if contributor.profile_url}
+				<a
+					href={contributor.profile_url}
+					target="_blank"
+					rel="noreferrer"
+					class="font-heading font-semibold text-foreground underline-offset-4 hover:underline"
+					onclick={() =>
+						capture_event("contributor_clicked", { contributor: contributor.name })}
+					>{contributor.name}</a
+				>
+			{:else}
+				<span class="font-heading font-semibold text-foreground">{contributor.name}</span>
+			{/if}
+			{#if contributor.is_barekey_member}
+				<img
+					src={barekey_logo}
+					alt="Barekey organization member"
+					title="Barekey organization member"
+					class="inline size-3 self-center"
+				/>
+			{/if}
+		</span>{" "}with
 		{#if contributor.commits}
 			<span class="text-foreground">{contributor.commits.toLocaleString("en-US")}</span>
 			{contributor.commits === 1 ? "commit" : "commits"}
