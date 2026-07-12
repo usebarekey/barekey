@@ -1,15 +1,11 @@
 import { capture_event, get_page_path } from "$lib/client/analytics";
-import { Data, Effect, Fiber } from "effect";
+import { Data, Effect, Fiber, Layer } from "effect";
 import { play } from "cuelume";
 
 export class ClipboardWriteError extends Data.TaggedError("ClipboardWriteError")<{
 	cause?: unknown;
 	message: string;
 }> {}
-
-declare global {
-	var __barekey_copy_button: boolean | undefined;
-}
 
 type CopyButtonState = {
 	copy_promise?: Promise<void>;
@@ -27,6 +23,7 @@ const copy_button_selector =
 const command_snippet_selector = "[data-command-snippet]";
 
 const states = new WeakMap<HTMLButtonElement, CopyButtonState>();
+const known_buttons = new Set<HTMLButtonElement>();
 
 const get_copy_state = (button: HTMLButtonElement) => {
 	const state = states.get(button) ?? {
@@ -39,6 +36,7 @@ const get_copy_state = (button: HTMLButtonElement) => {
 	};
 
 	states.set(button, state);
+	known_buttons.add(button);
 
 	return state;
 };
@@ -350,7 +348,29 @@ const handle_click = (event: MouseEvent) => {
 	dequeue_copy(button, state);
 };
 
-if (typeof document !== "undefined" && !globalThis.__barekey_copy_button) {
-	globalThis.__barekey_copy_button = true;
+const setup_copy_buttons = () => {
 	document.addEventListener("click", handle_click);
-}
+
+	return () => {
+		document.removeEventListener("click", handle_click);
+
+		for (const button of known_buttons) {
+			const state = states.get(button);
+
+			if (!state) {
+				continue;
+			}
+
+			state.reset_fiber?.interruptUnsafe();
+			stop_reposition_feedback(state);
+			state.feedback?.remove();
+		}
+
+		known_buttons.clear();
+	};
+};
+
+/** Handles documentation copy buttons for the lifetime of the client runtime. */
+export const CopyButtonLive = Layer.effectDiscard(
+	Effect.acquireRelease(Effect.sync(setup_copy_buttons), (cleanup) => Effect.sync(cleanup)),
+);

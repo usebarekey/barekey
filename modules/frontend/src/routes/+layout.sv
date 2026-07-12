@@ -1,9 +1,5 @@
 <script lang="ts">
 	import { ModeWatcher } from "mode-watcher";
-	import "$lib/client/copy-button";
-	import "$lib/client/diff-code-card";
-	import "$lib/client/heading-links";
-	import "$lib/client/prose-media-width";
 	import "$lib/styles/fonts.css";
 	import "$lib/styles/global.css";
 	import body_font from "$lib/assets/fonts/neue-montreal/pp-neue-montreal-regular.otf";

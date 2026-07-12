@@ -1,19 +1,10 @@
-import { Effect } from "effect";
-
-declare global {
-	var __barekey_prose_media_width: boolean | undefined;
-}
+import { Effect, Layer } from "effect";
 
 const prose_selector = ".prose";
 const media_scope_selector = "[data-prose-media-scope]";
 const width_source_selector = ".docs-code-snippet";
 const code_snippet_body_selector = ".docs-code-snippet-body";
 const media_width_property = "--docs-prose-media-width";
-
-const observed_media_scopes = new WeakSet<HTMLElement>();
-const observed_prose = new WeakSet<HTMLElement>();
-let sync_frame: number | undefined;
-let resize_observer: ResizeObserver | undefined;
 
 const get_code_snippet_width = (code_snippet: HTMLElement) => {
 	const code_snippet_width = code_snippet.getBoundingClientRect().width;
@@ -38,77 +29,114 @@ const get_largest_code_snippet_width = (prose: HTMLElement) => {
 	return Math.max(0, ...widths);
 };
 
-const observe_prose_containers = () => {
+const observe_prose_containers = (
+	resize_observer: ResizeObserver,
+	observed_media_scopes: WeakSet<HTMLElement>,
+	observed_prose: WeakSet<HTMLElement>,
+) => {
 	for (const prose of document.querySelectorAll<HTMLElement>(prose_selector)) {
 		const media_scope = prose.closest<HTMLElement>(media_scope_selector);
 
 		if (media_scope && !observed_media_scopes.has(media_scope)) {
 			observed_media_scopes.add(media_scope);
-			resize_observer?.observe(media_scope);
+			resize_observer.observe(media_scope);
 		}
 
 		if (!observed_prose.has(prose)) {
 			observed_prose.add(prose);
-			resize_observer?.observe(prose);
+			resize_observer.observe(prose);
 		}
 	}
 };
 
-const sync_prose_media_widths = Effect.sync(() => {
-	observe_prose_containers();
+const sync_prose_media_widths = (
+	resize_observer: ResizeObserver,
+	observed_media_scopes: WeakSet<HTMLElement>,
+	observed_prose: WeakSet<HTMLElement>,
+) =>
+	Effect.sync(() => {
+		observe_prose_containers(resize_observer, observed_media_scopes, observed_prose);
 
-	const measurements = Array.from(
-		document.querySelectorAll<HTMLElement>(prose_selector),
-		(prose) => ({
-			media_scope: prose.closest<HTMLElement>(media_scope_selector) ?? prose,
-			width: get_largest_code_snippet_width(prose),
+		const measurements = Array.from(
+			document.querySelectorAll<HTMLElement>(prose_selector),
+			(prose) => ({
+				media_scope: prose.closest<HTMLElement>(media_scope_selector) ?? prose,
+				width: get_largest_code_snippet_width(prose),
+			}),
+		);
+
+		for (const { media_scope, width } of measurements) {
+			if (width <= 0) {
+				media_scope.style.removeProperty(media_width_property);
+				continue;
+			}
+
+			media_scope.style.setProperty(media_width_property, `${width}px`);
+		}
+	});
+
+/** Synchronizes prose media widths for the lifetime of the client runtime. */
+export const ProseMediaWidthLive = Layer.effectDiscard(
+	Effect.acquireRelease(
+		Effect.sync(() => {
+			const observed_media_scopes = new WeakSet<HTMLElement>();
+			const observed_prose = new WeakSet<HTMLElement>();
+			let sync_frame: number | undefined;
+
+			const run_sync = () => {
+				Effect.runSync(
+					sync_prose_media_widths(resize_observer, observed_media_scopes, observed_prose),
+				);
+			};
+
+			const schedule_sync = () => {
+				if (sync_frame !== undefined) {
+					return;
+				}
+
+				sync_frame = requestAnimationFrame(() => {
+					sync_frame = undefined;
+					run_sync();
+				});
+			};
+
+			const resize_observer = new ResizeObserver(schedule_sync);
+			const mutation_observer = new MutationObserver(() => {
+				observe_prose_containers(resize_observer, observed_media_scopes, observed_prose);
+				schedule_sync();
+			});
+			const visual_viewport = document.defaultView?.visualViewport;
+
+			observe_prose_containers(resize_observer, observed_media_scopes, observed_prose);
+			schedule_sync();
+			mutation_observer.observe(document.documentElement, {
+				childList: true,
+				subtree: true,
+			});
+			globalThis.addEventListener("resize", schedule_sync);
+			visual_viewport?.addEventListener("resize", schedule_sync);
+			void document.fonts?.ready.then(schedule_sync);
+
+			return {
+				mutation_observer,
+				resize_observer,
+				schedule_sync,
+				visual_viewport,
+				get_sync_frame: () => sync_frame,
+			};
 		}),
-	);
+		({ mutation_observer, resize_observer, schedule_sync, visual_viewport, get_sync_frame }) =>
+			Effect.sync(() => {
+				const sync_frame = get_sync_frame();
 
-	for (const { media_scope, width } of measurements) {
-		if (width <= 0) {
-			media_scope.style.removeProperty(media_width_property);
-			continue;
-		}
+				mutation_observer.disconnect();
+				resize_observer.disconnect();
+				globalThis.removeEventListener("resize", schedule_sync);
+				visual_viewport?.removeEventListener("resize", schedule_sync);
 
-		media_scope.style.setProperty(media_width_property, `${width}px`);
-	}
-});
-
-const schedule_prose_media_width_sync = () => {
-	if (sync_frame !== undefined) {
-		return;
-	}
-
-	sync_frame = requestAnimationFrame(() => {
-		sync_frame = undefined;
-		Effect.runSync(sync_prose_media_widths);
-	});
-};
-
-const setup_prose_media_width_sync = Effect.sync(() => {
-	resize_observer = new ResizeObserver(schedule_prose_media_width_sync);
-	observe_prose_containers();
-	schedule_prose_media_width_sync();
-
-	const mutation_observer = new MutationObserver(() => {
-		observe_prose_containers();
-		schedule_prose_media_width_sync();
-	});
-	mutation_observer.observe(document.documentElement, {
-		childList: true,
-		subtree: true,
-	});
-
-	const visual_viewport = document.defaultView?.visualViewport;
-
-	globalThis.addEventListener("resize", schedule_prose_media_width_sync);
-	visual_viewport?.addEventListener("resize", schedule_prose_media_width_sync);
-
-	document.fonts?.ready.then(schedule_prose_media_width_sync);
-});
-
-if (typeof document !== "undefined" && !globalThis.__barekey_prose_media_width) {
-	globalThis.__barekey_prose_media_width = true;
-	Effect.runSync(setup_prose_media_width_sync);
-}
+				if (sync_frame !== undefined) {
+					cancelAnimationFrame(sync_frame);
+				}
+			}),
+	),
+);

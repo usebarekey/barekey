@@ -1,6 +1,4 @@
-declare global {
-	var __barekey_diff_code_cards: boolean | undefined;
-}
+import { Effect, Layer } from "effect";
 
 type DiffRect = {
 	height: number;
@@ -446,14 +444,27 @@ const setup_diff_code_cards = () => {
 
 	globalThis.addEventListener("resize", schedule_diff_card_render);
 	visual_viewport?.addEventListener("resize", schedule_diff_card_render);
-	document.fonts?.ready.then(schedule_diff_card_render);
+	void document.fonts?.ready.then(schedule_diff_card_render);
+
+	return () => {
+		mutation_observer.disconnect();
+		resize_observer?.disconnect();
+		resize_observer = undefined;
+		globalThis.removeEventListener("resize", schedule_diff_card_render);
+		visual_viewport?.removeEventListener("resize", schedule_diff_card_render);
+
+		if (render_frame !== undefined) {
+			cancelAnimationFrame(render_frame);
+			render_frame = undefined;
+		}
+
+		for (const code of document.querySelectorAll<HTMLElement>(code_selector)) {
+			remove_diff_cards(code);
+		}
+	};
 };
 
-if (typeof document !== "undefined") {
-	if (!globalThis.__barekey_diff_code_cards) {
-		globalThis.__barekey_diff_code_cards = true;
-		setup_diff_code_cards();
-	} else {
-		schedule_diff_card_render();
-	}
-}
+/** Renders code diff cards for the lifetime of the client runtime. */
+export const DiffCodeCardLive = Layer.effectDiscard(
+	Effect.acquireRelease(Effect.sync(setup_diff_code_cards), (cleanup) => Effect.sync(cleanup)),
+);

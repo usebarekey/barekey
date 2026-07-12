@@ -1,6 +1,4 @@
-declare global {
-	var __barekey_heading_links: boolean | undefined;
-}
+import { Effect, Layer } from "effect";
 
 const heading_link_selector = ".docs-heading-self-link";
 
@@ -52,7 +50,15 @@ const handle_heading_link_click = (event: MouseEvent) => {
 	});
 };
 
-if (typeof document !== "undefined" && !globalThis.__barekey_heading_links) {
-	globalThis.__barekey_heading_links = true;
-	document.addEventListener("click", handle_heading_link_click);
-}
+/** Handles same-page heading links for the lifetime of the client runtime. */
+export const HeadingLinksLive = Layer.effectDiscard(
+	Effect.acquireRelease(
+		Effect.sync(() => {
+			document.addEventListener("click", handle_heading_link_click);
+		}),
+		() =>
+			Effect.sync(() => {
+				document.removeEventListener("click", handle_heading_link_click);
+			}),
+	),
+);

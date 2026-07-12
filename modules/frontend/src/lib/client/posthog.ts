@@ -1,23 +1,31 @@
 import posthog from "posthog-js";
 import { env as public_env } from "$env/dynamic/public";
-
-declare global {
-	var __barekey_posthog: boolean | undefined;
-}
+import { Effect, Layer } from "effect";
 
 const posthog_key = public_env.PUBLIC_POSTHOG_KEY;
 
-export function init_posthog() {
-	if (typeof document === "undefined" || globalThis.__barekey_posthog || !posthog_key) {
-		return;
-	}
+/** Initializes PostHog for the lifetime of the client runtime. */
+export const PostHogLive = Layer.effectDiscard(
+	Effect.acquireRelease(
+		Effect.sync(() => {
+			if (!posthog_key) {
+				return false;
+			}
 
-	globalThis.__barekey_posthog = true;
+			posthog.init(posthog_key, {
+				api_host: "https://us.i.posthog.com",
+				defaults: "2026-05-30",
+			});
 
-	posthog.init(posthog_key, {
-		api_host: "https://us.i.posthog.com",
-		defaults: "2026-05-30",
-	});
-}
+			return true;
+		}),
+		(initialized) =>
+			Effect.sync(() => {
+				if (initialized) {
+					posthog.reset();
+				}
+			}),
+	),
+);
 
 export { posthog };

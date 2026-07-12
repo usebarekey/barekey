@@ -1,4 +1,5 @@
 import { posthog } from "$lib/client/posthog";
+import { Effect } from "effect";
 
 type EventProperties = Record<string, string | number | boolean | undefined>;
 
@@ -34,3 +35,15 @@ export function capture_event(event: string, properties?: EventProperties) {
 
 	posthog.capture(event, payload);
 }
+
+/** Reads the current referrer path through an Effect boundary. */
+export const GetReferrerPath = Effect.sync(get_referrer_path);
+
+/** Reads the current page path through an Effect boundary. */
+export const GetPagePath = Effect.sync(get_page_path);
+
+/** Captures an analytics event through an Effect boundary. */
+export const CaptureEvent = (event: string, properties?: EventProperties) =>
+	Effect.sync(() => {
+		capture_event(event, properties);
+	});
