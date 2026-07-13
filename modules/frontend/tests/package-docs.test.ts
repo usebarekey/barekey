@@ -38,15 +38,18 @@ describe("package documentation", () => {
 	});
 
 	it("renders the docs OG card with Tailwind and a preloaded font asset", async () => {
-		const [card, route] = await Promise.all([
+		const [card, route, server_route] = await Promise.all([
 			read_source("src/lib/components/og/og-card.sv"),
 			read_source("src/routes/og/docs/[category]/[slug]/+page.sv"),
+			read_source("src/routes/og/docs/[category]/[slug]/+page.server.ts"),
 		]);
 
 		expect(card).toContain("bg-linear-to-b");
 		expect(card).not.toContain("<style>");
 		expect(route).toContain("artisan-neo-variable.woff2");
 		expect(route).toContain('rel="preload"');
+		expect(server_route).toContain('query: "?raw"');
+		expect(server_route).not.toContain("LoadDocsContent");
 	});
 
 	it("uses a serverless Chromium binary for Vercel builds", async () => {
