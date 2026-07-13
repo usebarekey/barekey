@@ -19,3 +19,5 @@ minimumReleaseAgeExclude:
     - svelte-effect-runtime-grammars@4.0.0
     - svelte-effect-runtime@4.0.0
     - svelte-build-og@0.1.0
+patchedDependencies:
+    svelte-build-og@0.1.0: patches/svelte-build-og@0.1.0.patch

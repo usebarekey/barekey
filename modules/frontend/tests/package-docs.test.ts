@@ -48,4 +48,19 @@ describe("package documentation", () => {
 		expect(route).toContain("artisan-neo-variable.woff2");
 		expect(route).toContain('rel="preload"');
 	});
+
+	it("uses a serverless Chromium binary for Vercel builds", async () => {
+		const [package_source, build_og_patch] = await Promise.all([
+			read_source("package.json"),
+			read_source("patches/svelte-build-og@0.1.0.patch"),
+		]);
+		const package_json = JSON.parse(package_source) as {
+			devDependencies: Record<string, string>;
+		};
+
+		expect(package_json.devDependencies["@sparticuz/chromium"]).toBe("149.0.0");
+		expect(build_og_patch).toContain("process.env.VERCEL");
+		expect(build_og_patch).toContain("serverless_chromium.args");
+		expect(build_og_patch).toContain("serverless_chromium.executablePath()");
+	});
 });
