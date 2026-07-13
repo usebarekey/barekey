@@ -23,8 +23,7 @@
 		"posthog-js": "^1.399.1",
 		"shiki": "^4.3.0",
 		"svelte-effect-runtime": "4.0.0",
-		"svelte-effect-runtime-grammars": "4.0.0",
-		"yaml": "2.9.0"
+		"svelte-effect-runtime-grammars": "4.0.0"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.12.2",
@@ -50,7 +49,7 @@
 		"sv": "^0.16.2",
 		"svelte": "^5.56.1",
 		"svelte-auto-href": "^1.0.1",
-		"svelte-build-og": "0.1.0",
+		"svelte-build-og": "0.2.0",
 		"svelte-global-typescript": "^1.0.1",
 		"svelte-plugin-composer": "^1.0.1",
 		"svelte-sonner": "^1.1.1",

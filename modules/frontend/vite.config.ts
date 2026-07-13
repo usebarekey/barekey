@@ -1,11 +1,12 @@
 import adapter from "@sveltejs/adapter-vercel";
+import chromium from "@sparticuz/chromium";
 import tailwindcss from "@tailwindcss/vite";
 import { mdsvex } from "mdsvex";
 import { href } from "svelte-auto-href";
 import { effect } from "svelte-effect-runtime/compiler";
 import { ts } from "svelte-global-typescript";
 import { sv } from "svelte-sv-extension";
-import { og } from "svelte-build-og/vite";
+import { og, serverless_chromium } from "svelte-build-og/vite";
 import { compose, kit } from "svelte-plugin-composer";
 import { defineConfig } from "vite";
 import content_meta from "./src/content/meta.json";
@@ -17,6 +18,7 @@ import {
 } from "./src/lib/server/markdown/mdsvex";
 
 const docs_content_meta = content_meta as DocsContentMeta;
+const og_browser = process.env.VERCEL ? serverless_chromium(chromium) : undefined;
 
 const get_docs_og_entries = () =>
 	Object.entries(docs_content_meta).flatMap(([category, group]) =>
@@ -71,6 +73,7 @@ export default defineConfig({
 		),
 		tailwindcss(),
 		og({
+			browser: og_browser,
 			format: { file: "png", opts: { compressionLevel: 9 } },
 			input: {
 				docs: {

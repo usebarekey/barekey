@@ -36,7 +36,32 @@ export default defineConfig({
 | `input`      | Required                              | Named static routes or dynamic route-and-entry definitions.    |
 | `size`       | `{ x: 1200, y: 630 }`                 | Chromium viewport and captured image dimensions in CSS pixels. |
 | `format`     | `{ file: "png" }`                     | PNG, WebP, or AVIF output with format-specific Sharp options.  |
+| `browser`    | Playwright Chromium                   | Browser provider used to launch Chromium.                      |
+| `capture`    | `{ concurrency: 1 }`                  | Number of reusable pages allowed to capture concurrently.      |
 | `types_file` | `src/.svelte-build-og/generated.d.ts` | Generated declaration that types input names and parameters.   |
+
+## Serverless Chromium
+
+Read-only and serverless environments need an explicit browser provider. Install `@sparticuz/chromium`, then pass it through the official adapter:
+
+```ts name="vite.config.ts" icon="vite"
+import chromium from "@sparticuz/chromium";
+import { og, serverless_chromium } from "svelte-build-og/vite";
+
+og({
+	browser: serverless_chromium(chromium),
+	input: { home: "/og/home" },
+});
+```
+
+The default concurrency is one because Chromium memory is usually the limiting resource in CI and serverless builds. Raise it only when the build environment has enough memory for multiple pages in the shared browser context:
+
+```ts
+og({
+	capture: { concurrency: 2 },
+	input: { home: "/og/home" },
+});
+```
 
 ## Image formats
 

@@ -82,7 +82,7 @@ export default defineConfig({
 });
 ```
 
-The default capture is `1200 × 630` and the default output is PNG. Chromium is installed automatically on the first capture when Playwright cannot find an executable, so CI does not need a separate browser installation step.
+The default capture is `1200 × 630` and the default output is PNG. On machines with a writable browser cache, Playwright installs Chromium automatically when the executable is missing. Read-only and serverless builds need an explicit browser provider, described in [Configuration](/docs/build-og/configuration#serverless-chromium).
 
 The plugin generates `src/.svelte-build-og/generated.d.ts`. Add the directory to `.gitignore`:
 

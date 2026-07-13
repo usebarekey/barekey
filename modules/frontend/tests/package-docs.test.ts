@@ -48,24 +48,26 @@ describe("package documentation", () => {
 		expect(card).not.toContain("<style>");
 		expect(route).toContain("artisan-neo-variable.woff2");
 		expect(route).toContain('rel="preload"');
-		expect(server_route).toContain('query: "?raw"');
-		expect(server_route).not.toContain("LoadDocsContent");
+		expect(server_route).toContain("LoadDocsContent");
+		expect(server_route).not.toContain('query: "?raw"');
 	});
 
-	it("uses a serverless Chromium binary for Vercel builds", async () => {
-		const [package_source, build_og_patch] = await Promise.all([
+	it("uses the published serverless browser provider for Vercel builds", async () => {
+		const [package_source, vite_config, workspace] = await Promise.all([
 			read_source("package.json"),
-			read_source("patches/svelte-build-og@0.1.0.patch"),
+			read_source("vite.config.ts"),
+			read_source("pnpm-workspace.yaml"),
 		]);
 		const package_json = JSON.parse(package_source) as {
+			dependencies: Record<string, string>;
 			devDependencies: Record<string, string>;
 		};
 
 		expect(package_json.devDependencies["@sparticuz/chromium"]).toBe("149.0.0");
-		expect(build_og_patch).toContain("process.env.VERCEL");
-		expect(build_og_patch).toContain("serverless_chromium.args");
-		expect(build_og_patch).toContain("serverless_chromium.executablePath()");
-		expect(build_og_patch).toContain("noDiscovery: true");
-		expect(build_og_patch).toContain("concurrency: process.env.VERCEL ? 1 : 4");
+		expect(package_json.devDependencies["svelte-build-og"]).toBe("0.2.0");
+		expect(package_json.dependencies).not.toHaveProperty("yaml");
+		expect(vite_config).toContain("process.env.VERCEL");
+		expect(vite_config).toContain("serverless_chromium(chromium)");
+		expect(workspace).not.toContain("patchedDependencies");
 	});
 });
