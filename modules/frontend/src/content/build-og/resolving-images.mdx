@@ -1,0 +1,45 @@
+---
+title: "Resolving images"
+description: "Resolve generated image paths in components and Open Graph metadata."
+---
+
+Import `resolved` from the package root. Generated declarations tie each input name to its route parameters.
+
+```svelte
+<script lang="ts">
+	import { resolved } from "svelte-build-og";
+
+	const image = resolved("docs", {
+		category: "ser",
+		slug: "introduction",
+	});
+</script>
+
+<img src={image} alt="SER introduction card" />
+```
+
+Static inputs take only their name:
+
+```ts
+const image = resolved("home");
+```
+
+Optional route parameters make the second argument optional when every parameter may be omitted. Required parameter names and misspelled input names fail type checking.
+
+`resolved()` applies SvelteKit's configured asset path and returns a pathname, which is the right shape for `<img src>`. Open Graph metadata should normally be an absolute URL, so resolve the path against the current page URL:
+
+```svelte
+<script lang="ts">
+	import { page } from "$app/state";
+	import { resolved } from "svelte-build-og";
+
+	const image = new URL(resolved("home"), page.url).href;
+</script>
+
+<svelte:head>
+	<meta property="og:image" content={image} />
+	<meta name="twitter:image" content={image} />
+</svelte:head>
+```
+
+For prerendered applications, configure SvelteKit's `kit.prerender.origin` with the production origin so static metadata receives an absolute production URL.

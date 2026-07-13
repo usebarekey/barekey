@@ -1,0 +1,28 @@
+---
+title: "Node engines"
+description: "Compare detected Node.js requirements with package.json and update stale ranges."
+---
+
+When Node.js is one of the selected targets and the scan root contains `package.json`, Runtime Checker compares the detected minimum with `engines.node`.
+
+```json name="package.json" icon="npm"
+{
+	"engines": {
+		"node": ">=22"
+	}
+}
+```
+
+A warning appears when the field is missing, invalid, or does not allow the detected minimum. A declared lower bound that is stricter than the scan result is informational because the package may require that newer version for reasons the static scanner cannot see.
+
+## Apply the detected minimum
+
+```sh
+runtime-checker .dist --runtime node --fix
+```
+
+`--fix` creates or replaces `engines.node` with a lower-bound range such as `>=24.0.0` when the current declaration does not satisfy the scan. The command rewrites `package.json` as formatted JSON, so review the diff before committing it.
+
+The fix is available only with `--runtime node` or the default `--runtime all`. It does nothing when no Node requirement was detected or the existing range already accepts the required version.
+
+Static analysis cannot see native addons, operational policy, transitive runtime constraints, or tests that intentionally require a newer Node release. Keep a stricter declaration when one of those constraints is real.

@@ -1,0 +1,24 @@
+---
+title: "An introduction to svelte-plugin-composer"
+description: "Flatten SvelteKit plugin stacks while keeping their written order meaningful."
+---
+
+Vite plugins can claim `enforce: "pre"` or `order: "pre"`, which lets them jump ahead of the position where an application placed them. That becomes awkward in SvelteKit stacks where several source transforms must see a component in a deliberate order.
+
+`svelte-plugin-composer` flattens the stack and applies one explicit policy to those pre-priority claims.
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { href } from "svelte-auto-href";
+import { ts } from "svelte-global-typescript";
+import { compose } from "svelte-plugin-composer";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+	plugins: compose([ts(), href(), sveltekit()]),
+});
+```
+
+The default `"strip"` policy removes user-supplied pre priority, so the array order becomes the execution order. Composer accepts ordinary Vite plugins, nested presets, promises, and falsy conditional entries, then appends a small diagnostics plugin that reports priority decisions.
+
+Composer only manages Vite plugin shape and priority. It does not create SvelteKit, merge unrelated Svelte config objects, or infer where a plugin belongs; the application still owns those choices.

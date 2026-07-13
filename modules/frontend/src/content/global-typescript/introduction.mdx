@@ -1,0 +1,26 @@
+---
+title: "An introduction to svelte-global-typescript"
+description: "Enable TypeScript mode by default in Svelte component scripts and markup expressions."
+---
+
+`svelte-global-typescript` removes the need to repeat `lang="ts"` in every Svelte component. It is both a Vite plugin and a Svelte markup preprocessor, so one helper can cover builds and editor diagnostics.
+
+```svelte name="src/lib/greeting.svelte" icon="svelte"
+<script>
+	let { name }: { name: string } = $props();
+</script>
+
+<h1>Hello, {name satisfies string}</h1>
+```
+
+The source stays compact, while Svelte receives the equivalent of a TypeScript script during preprocessing.
+
+The transform applies to `.svelte` and `.sv` files. It adds `lang="ts"` to script tags without a language, adds an empty TypeScript script when a component only uses TypeScript in markup, and preserves every explicit language attribute.
+
+```svelte
+<script lang="js">
+	let name = "JavaScript on purpose";
+</script>
+```
+
+That explicit `lang="js"` remains an escape hatch for individual scripts or components.

@@ -104,6 +104,7 @@
 </Sidebar.Provider>
 
 <style>
+	:global(.docs-scroll-fade[data-slot="sidebar-content"]),
 	:global(.docs-scroll-fade [data-slot="scroll-area-viewport"]) {
 		mask-image: linear-gradient(
 			to bottom,

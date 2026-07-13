@@ -1,0 +1,32 @@
+---
+title: "Detections"
+description: "See which files, language features, module formats, and runtime APIs affect the minimum."
+---
+
+Runtime Checker discovers `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts` files below the selected directory. It ignores `.git`, `node_modules`, `dist`, `build`, `coverage`, and `target` directories encountered inside that root.
+
+## Runtime APIs
+
+The runtime databases map global APIs, namespaced methods, and selected owner-bound members to their first supported versions. Examples include:
+
+- Web APIs such as `fetch`, `structuredClone`, and `Temporal`.
+- Node APIs such as `fs.cp`, `sqlite.DatabaseSync`, and `Symbol.asyncDispose`.
+- Members whose compatibility depends on the owning object rather than only the property name.
+
+The Oxc analyzer uses syntax and semantic context to avoid treating an unrelated local method named `run`, `map`, or `columns` as a runtime API.
+
+## JavaScript syntax
+
+Syntax detections cover constructs whose parser support sets a minimum version, including optional chaining, nullish coalescing, logical assignment, `await using`, classes, modules, and many ordinary expressions and statements.
+
+```ts
+const name = account?.profile?.name ?? "Anonymous";
+```
+
+Each runtime receives the version associated with that syntax feature. The report's final minimum is the highest required version among all detections for that runtime.
+
+## Module format and native TypeScript
+
+Runtime Checker identifies ESM, CommonJS, IIFE, and UMD patterns, plus native TypeScript type stripping when TypeScript source is passed directly to a runtime. This matters when scanning published source or scripts that are not transpiled before execution.
+
+Grouped output separates APIs, syntax, module format, and native TypeScript entries. It collapses a shorter feature prefix when the same source location has a more specific detection, keeping the report focused on the strongest evidence.

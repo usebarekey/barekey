@@ -1,0 +1,82 @@
+---
+title: "MCP tools"
+description: "Initialize, create, search, read, update, and delete durable project memories."
+---
+
+Memory Store exposes six MCP tools. All operations except `init` require an initialized `.memory-store/metadata.toml` in the active project.
+
+## Initialize
+
+```json
+{}
+```
+
+Call `init` once to create the store metadata, version file, memories directory, and cache ignore rule. It is safe to call again; existing metadata is preserved.
+
+## Create
+
+Call `new` with one focused note and optional tags:
+
+```json
+{
+	"content": "The API client retries only idempotent requests because POST handlers may have side effects.",
+	"tags": ["api", "retries"]
+}
+```
+
+The result includes a generated Cuid2 key, revision, metadata, and relative path. Treat the key as opaque.
+
+## Search and read
+
+Search by terms a future reader is likely to know:
+
+```json
+{
+	"query": "API retry idempotent",
+	"limit": 10,
+	"offset": 0
+}
+```
+
+Search combines FFF-backed content matching with fuzzy discovery and returns snippets, scores, metadata, revisions, and keys. Use `get` when the complete body or latest revision is needed:
+
+```json
+{
+	"key": "generated-cuid2-key"
+}
+```
+
+## Update
+
+Updates apply ordered, exact operations to the note body:
+
+```json
+{
+	"key": "generated-cuid2-key",
+	"expected_revision": "revision-from-get",
+	"operations": [
+		{
+			"op": "replace",
+			"old": "retries only idempotent requests",
+			"new": "retries GET and explicitly idempotent requests"
+		},
+		{
+			"op": "append",
+			"text": " The retry budget is three attempts."
+		}
+	]
+}
+```
+
+Supported operations are `replace`, `append`, and `prepend`. A replacement must match exactly once; missing and ambiguous targets fail instead of guessing.
+
+## Delete
+
+```json
+{
+	"key": "generated-cuid2-key",
+	"expected_revision": "revision-from-get"
+}
+```
+
+Delete obsolete, duplicate, or misleading notes rather than leaving stale information discoverable.

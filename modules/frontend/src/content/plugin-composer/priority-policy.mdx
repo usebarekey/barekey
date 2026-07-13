@@ -1,0 +1,55 @@
+---
+title: "Priority policy"
+description: "Choose whether Vite pre priority is stripped, reported, or preserved."
+---
+
+`compose()` accepts a `pre_order` policy and a diagnostics switch.
+
+```ts
+compose(plugins, {
+	pre_order: "strip",
+	diagnostics: true,
+});
+```
+
+## `strip`
+
+The default removes plugin-level `enforce: "pre"` and hook-level `order: "pre"` from `load`, `resolveId`, `transform`, and `transformIndexHtml`. Other plugin fields and hook properties are copied unchanged.
+
+Use this when the array order is the source of truth:
+
+```ts
+compose([syntax_transform(), sveltekit()]);
+```
+
+## `warn`
+
+The `"warn"` policy preserves pre priority but records every place that requested it. The diagnostics plugin logs those decisions after Vite resolves configuration.
+
+```ts
+compose([legacy_plugin(), sveltekit()], {
+	pre_order: "warn",
+});
+```
+
+This is useful while adopting composer because it reveals which plugins still reorder themselves without changing their behavior.
+
+## `preserve`
+
+The `"preserve"` policy leaves pre priority untouched and records no change. Use it when a plugin's documented contract genuinely requires Vite's pre phase.
+
+```ts
+compose([required_pre_plugin(), sveltekit()], {
+	pre_order: "preserve",
+});
+```
+
+You can also keep a priority-sensitive plugin outside the composed list:
+
+```ts
+export default defineConfig({
+	plugins: [required_pre_plugin(), ...compose([plugin_a(), sveltekit()])],
+});
+```
+
+Set `diagnostics: false` to omit the appended diagnostics plugin. That changes logging only; normalization still follows `pre_order`.

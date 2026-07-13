@@ -1,0 +1,32 @@
+---
+title: "Editor setup"
+description: "Enable route completions in native href and form attributes."
+---
+
+The Vite plugin generates `.svelte-kit/svelte-auto-href/html-data.json`. VS Code-family editors need that path in `html.customData` before they can offer routes inside native attributes.
+
+Run the init command for the current workspace:
+
+```sh
+pnpm exec svelte-auto-href init
+```
+
+It creates or updates `.vscode/settings.json` without removing existing JSONC comments or settings:
+
+```json
+{
+	"html.customData": [".svelte-kit/svelte-auto-href/html-data.json"]
+}
+```
+
+Completions are generated for `a[href]`, `area[href]`, `form[action]`, `button[formaction]`, and `input[formaction]`. Dynamic route patterns are omitted from native HTML data because editor custom data cannot express a typed placeholder safely; concrete routes and statically extracted entries are included.
+
+## Global editor settings
+
+Pass `--global` to update user settings instead of the repository. The command knows the settings locations for VS Code, VS Code Insiders, Cursor, VSCodium, and Windsurf on macOS, Windows, and Linux.
+
+```sh
+pnpm exec svelte-auto-href init --global --editor cursor
+```
+
+Use `--cwd <path>` to target another project or `--settings <path>` for a custom editor build. Re-running the command is safe; it reports `Already configured` when the generated data path is already present.

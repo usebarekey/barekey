@@ -367,5 +367,244 @@
 				]
 			}
 		]
+	},
+	"auto-href": {
+		"title": "svelte-auto-href",
+		"entries": [
+			{
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "auto-href/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "auto-href/installation.mdx"
+						}
+					},
+					{
+						"route-types": {
+							"name": "Route types",
+							"path": "auto-href/route-types.mdx"
+						}
+					},
+					{
+						"editor-setup": {
+							"name": "Editor setup",
+							"path": "auto-href/editor-setup.mdx"
+						}
+					},
+					{
+						"configuration": {
+							"name": "Configuration",
+							"path": "auto-href/configuration.mdx"
+						}
+					},
+					{
+						"programmatic-api": {
+							"name": "Programmatic API",
+							"path": "auto-href/programmatic-api.mdx"
+						}
+					}
+				]
+			}
+		]
+	},
+	"build-og": {
+		"title": "svelte-build-og",
+		"entries": [
+			{
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "build-og/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "build-og/installation.mdx"
+						}
+					},
+					{
+						"configuration": {
+							"name": "Configuration",
+							"path": "build-og/configuration.mdx"
+						}
+					}
+				]
+			},
+			{
+				"name": "Using images",
+				"entries": [
+					{
+						"dynamic-routes": {
+							"name": "Dynamic routes",
+							"path": "build-og/dynamic-routes.mdx"
+						}
+					},
+					{
+						"resolving-images": {
+							"name": "Resolving images",
+							"path": "build-og/resolving-images.mdx"
+						}
+					},
+					{
+						"capture-lifecycle": {
+							"name": "Capture lifecycle",
+							"path": "build-og/capture-lifecycle.mdx"
+						}
+					}
+				]
+			}
+		]
+	},
+	"global-typescript": {
+		"title": "svelte-global-typescript",
+		"entries": [
+			{
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "global-typescript/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "global-typescript/installation.mdx"
+						}
+					},
+					{
+						"behavior-and-limits": {
+							"name": "Behavior and limits",
+							"path": "global-typescript/behavior-and-limits.mdx"
+						}
+					}
+				]
+			}
+		]
+	},
+	"plugin-composer": {
+		"title": "svelte-plugin-composer",
+		"entries": [
+			{
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "plugin-composer/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "plugin-composer/installation.mdx"
+						}
+					},
+					{
+						"priority-policy": {
+							"name": "Priority policy",
+							"path": "plugin-composer/priority-policy.mdx"
+						}
+					}
+				]
+			}
+		]
+	},
+	"sv-extension": {
+		"title": "svelte-sv-extension",
+		"entries": [
+			{
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "sv-extension/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "sv-extension/installation.mdx"
+						}
+					},
+					{
+						"editor-setup": {
+							"name": "Editor setup",
+							"path": "sv-extension/editor-setup.mdx"
+						}
+					}
+				]
+			}
+		]
+	},
+	"memorystore": {
+		"title": "memorystore",
+		"entries": [
+			{
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "memorystore/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "memorystore/installation.mdx"
+						}
+					},
+					{ "tools": { "name": "MCP tools", "path": "memorystore/tools.mdx" } },
+					{
+						"writing-memories": {
+							"name": "Writing memories",
+							"path": "memorystore/writing-memories.mdx"
+						}
+					},
+					{ "storage": { "name": "Storage", "path": "memorystore/storage.mdx" } }
+				]
+			}
+		]
+	},
+	"runtime-checker": {
+		"title": "runtime-checker",
+		"entries": [
+			{
+				"entries": [
+					{
+						"introduction": {
+							"name": "Introduction",
+							"path": "runtime-checker/introduction.mdx"
+						}
+					},
+					{
+						"installation": {
+							"name": "Installation",
+							"path": "runtime-checker/installation.mdx"
+						}
+					},
+					{ "cli": { "name": "CLI", "path": "runtime-checker/cli.mdx" } },
+					{
+						"detections": {
+							"name": "Detections",
+							"path": "runtime-checker/detections.mdx"
+						}
+					},
+					{
+						"node-engines": {
+							"name": "Node engines",
+							"path": "runtime-checker/node-engines.mdx"
+						}
+					}
+				]
+			}
+		]
 	}
 }

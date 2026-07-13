@@ -1,0 +1,87 @@
+---
+title: "Installation"
+description: "Install svelte-global-typescript for Vite builds and Svelte editor tooling."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+Install `svelte-global-typescript` as a development dependency.
+
+<CommandPicker.Root
+	id="install-global-typescript"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add --dev npm:svelte-global-typescript"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add --dev svelte-global-typescript"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add -D svelte-global-typescript"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install --save-dev svelte-global-typescript"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add --dev svelte-global-typescript"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --dev svelte-global-typescript"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --dev svelte-global-typescript"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install --save-dev svelte-global-typescript"
+	/>
+</CommandPicker.Root>
+
+Create one plugin instance, put it before SvelteKit in the Vite plugin list, and give the same instance to Svelte's preprocessors.
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import { ts } from "svelte-global-typescript";
+
+const global_typescript = ts();
+
+export default defineConfig({
+	plugins: [
+		global_typescript,
+		sveltekit({
+			preprocess: [global_typescript],
+		}),
+	],
+});
+```
+
+Vite uses the plugin transform during builds. SvelteKit and editor tooling use the preprocessor, so passing the same value through `preprocess` keeps both paths consistent without a separate Svelte config file.
+
+`ts()` and `ts(true)` are equivalent. Use `ts(false)` to leave the Vite plugin installed while disabling component transforms.

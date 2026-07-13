@@ -1,0 +1,37 @@
+---
+title: "Dynamic routes"
+description: "Capture required, optional, rest, and matched SvelteKit route parameters."
+---
+
+A dynamic input uses SvelteKit's full-segment parameter syntax and supplies every image that should exist after a build through `entries`.
+
+```ts
+og({
+	input: {
+		article: {
+			link: "/og/articles/[year=integer]/[...slug]",
+			entries: async () => [
+				{ year: "2026", slug: "releases/svelte-build-og" },
+				{ year: "2026", slug: "guides/social-cards" },
+			],
+		},
+	},
+});
+```
+
+Each entry resolves to both a capture route and an output path:
+
+```text
+/og/articles/2026/releases/svelte-build-og
+/og/articles/2026/releases/svelte-build-og.png
+```
+
+Required `[param]` values must be present. Standalone `[[param]]` values may be omitted, and `[...param]` values may contain slash-separated path segments. Matchers such as `[year=integer]` keep the same `year` property in the entry object.
+
+Embedded parameters such as `post-[slug]` are not supported. Parameter segments must occupy the whole route segment, and the route cannot contain query strings, hashes, backslashes, `.` segments, or `..` segments.
+
+The plugin rejects missing values, unexpected properties, unsafe segments, duplicate parameter names, and entries that resolve to the same output path. Those checks happen while Vite resolves configuration, before a browser starts.
+
+## Build selection
+
+Only values returned by `entries` are emitted during production builds. The function can return any iterable or a promise of an iterable, so it may load slugs from a content index or database as long as the selected build mode can access that data.

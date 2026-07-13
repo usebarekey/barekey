@@ -1,0 +1,28 @@
+---
+title: "Capture lifecycle"
+description: "Understand development caching, build capture, browser readiness, and deterministic routes."
+---
+
+## Development
+
+The Vite plugin serves every generated image path through development middleware. The first request starts Chromium, borrows a page from the shared browser context, waits for the route, and caches the encoded bytes. Any watched file addition, change, or removal clears the cache so the next image request reflects the current application.
+
+This lazy path keeps ordinary development startup quick: a configured image is not captured until something requests it.
+
+## Production builds
+
+During a client build, the plugin starts an internal Vite development server using the same root, config file, and mode as the build. It warms each configured route serially and waits for Vite's client and SSR dependency requests to settle before capture. A route that fails during cold preparation is retried once after Vite becomes idle.
+
+One browser and one browser context are shared across the build. Pages return to a bounded pool after successful captures and are replaced after failures. Capture concurrency defaults to one and can be raised through `capture.concurrency` when the build environment has enough memory.
+
+The internal renderer uses Vite's serve command. Capture routes should not depend on behavior that only exists while `$app/environment.building` is true or in build-only Vite hooks, because the browser loads them from that internal server.
+
+## When a page is ready
+
+For each route, Chromium waits for the initial page load, then waits for `document.fonts.ready` and two animation frames. The screenshot uses a device scale factor of one and disables animations.
+
+The capture fails when the route returns a non-success response, the browser cannot launch, fonts do not settle, or encoding fails. Errors retain the underlying browser cause, response status and body excerpt, page errors, failed requests, console errors, and browser disconnect state when available.
+
+If local Chromium is missing, the default provider runs Playwright's installer once and retries the launch. Read-only and serverless environments should provide their own executable through `serverless_chromium` or a custom browser provider.
+
+Keep capture routes deterministic. If a card needs remote data, make that data available in the selected Vite mode and avoid time-dependent animation or client state that changes after the readiness boundary.

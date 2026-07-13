@@ -1,0 +1,82 @@
+---
+title: "Installation"
+description: "Install svelte-plugin-composer and wrap a Vite plugin stack."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+Install composer as a development dependency.
+
+<CommandPicker.Root
+	id="install-plugin-composer"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add --dev npm:svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add --dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add -D svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install --save-dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add --dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --dev svelte-plugin-composer"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install --save-dev svelte-plugin-composer"
+	/>
+</CommandPicker.Root>
+
+Pass the Vite plugin list to `compose()` and keep SvelteKit in the position where it should run.
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { compose } from "svelte-plugin-composer";
+import { defineConfig } from "vite";
+
+import inspect from "vite-plugin-inspect";
+
+export default defineConfig({
+	plugins: compose([process.env.INSPECT ? inspect() : false, sveltekit()]),
+});
+```
+
+Nested arrays and promised plugin presets are flattened recursively. `false`, `null`, and `undefined` entries are ignored, so conditional plugins do not need a separate filtering pass.
+
+The root export and `svelte-plugin-composer/vite` expose the same `compose` function and types.

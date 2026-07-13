@@ -1,0 +1,50 @@
+---
+title: "Behavior and limits"
+description: "See exactly what the transform changes and where Svelte's TypeScript rules still apply."
+---
+
+For each `.svelte` or `.sv` source file, the plugin inspects real opening `<script>` tags while skipping HTML comments. Every script without a `lang` attribute receives `lang="ts"`.
+
+```svelte
+<script module>
+	export const answer: number = 42;
+</script>
+
+<script>
+	let count: number = 0;
+</script>
+```
+
+If a component has no script, the transform prepends an empty TypeScript script. That lets TS-only markup expressions compile:
+
+```svelte
+<p>{value as string}</p>
+```
+
+Any explicit `lang` value is preserved, including `lang="js"` and languages handled by another preprocessor. Vite subrequests containing a query string are also left alone because Svelte has already split those requests into internal compilation stages.
+
+## Svelte's TypeScript boundary
+
+The package enables Svelte's built-in TypeScript mode; it does not transpile every TypeScript feature itself. Type-only syntax such as annotations, interfaces, `as`, and `satisfies` works through the normal Svelte compiler path.
+
+TypeScript features that emit runtime JavaScript, such as enums, still require a script preprocessor that performs that lowering. Add the official Vite preprocessor alongside the global TypeScript helper when the application uses those features:
+
+```ts
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import { ts } from "svelte-global-typescript";
+
+const global_typescript = ts();
+
+export default defineConfig({
+	plugins: [
+		global_typescript,
+		sveltekit({
+			preprocess: [global_typescript, vitePreprocess({ script: true })],
+		}),
+	],
+});
+```
+
+The package supports `.sv` transforms, but route discovery and editor file associations remain separate concerns. Use [`svelte-sv-extension`](/docs/sv-extension) when the project also wants `.sv` component files.

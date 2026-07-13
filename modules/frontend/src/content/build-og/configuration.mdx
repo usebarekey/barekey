@@ -1,0 +1,86 @@
+---
+title: "Configuration"
+description: "Configure named inputs, image dimensions, formats, and generated types."
+---
+
+`og()` requires at least one named input. A static input is a route string; a dynamic input pairs a route pattern with an `entries` function.
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import { og } from "svelte-build-og/vite";
+
+export default defineConfig({
+	plugins: [
+		sveltekit(),
+		og({
+			input: {
+				home: "/og/home",
+				docs: {
+					link: "/og/docs/[category]/[slug]",
+					entries: () => [
+						{ category: "ser", slug: "introduction" },
+						{ category: "ser", slug: "installation" },
+					],
+				},
+			},
+			format: { file: "png", opts: { compressionLevel: 9 } },
+			size: { x: 1200, y: 630 },
+		}),
+	],
+});
+```
+
+| Option       | Default                               | Purpose                                                        |
+| ------------ | ------------------------------------- | -------------------------------------------------------------- |
+| `input`      | Required                              | Named static routes or dynamic route-and-entry definitions.    |
+| `size`       | `{ x: 1200, y: 630 }`                 | Chromium viewport and captured image dimensions in CSS pixels. |
+| `format`     | `{ file: "png" }`                     | PNG, WebP, or AVIF output with format-specific Sharp options.  |
+| `browser`    | Playwright Chromium                   | Browser provider used to launch Chromium.                      |
+| `capture`    | `{ concurrency: 1 }`                  | Number of reusable pages allowed to capture concurrently.      |
+| `types_file` | `src/.svelte-build-og/generated.d.ts` | Generated declaration that types input names and parameters.   |
+
+## Serverless Chromium
+
+Read-only and serverless environments need an explicit browser provider. Install `@sparticuz/chromium`, then pass it through the official adapter:
+
+```ts name="vite.config.ts" icon="vite"
+import chromium from "@sparticuz/chromium";
+import { og, serverless_chromium } from "svelte-build-og/vite";
+
+og({
+	browser: serverless_chromium(chromium),
+	input: { home: "/og/home" },
+});
+```
+
+The default concurrency is one because Chromium memory is usually the limiting resource in CI and serverless builds. Raise it only when the build environment has enough memory for multiple pages in the shared browser context:
+
+```ts
+og({
+	capture: { concurrency: 2 },
+	input: { home: "/og/home" },
+});
+```
+
+## Image formats
+
+PNG captures can be returned directly or passed through Sharp with PNG options. WebP and AVIF always use Sharp after Chromium captures the page as PNG.
+
+```ts
+og({
+	input: { home: "/og/home" },
+	format: { file: "webp", opts: { quality: 84, effort: 5 } },
+});
+```
+
+The `opts` object is discriminated by `file`, so TypeScript exposes the matching Sharp `PngOptions`, `WebpOptions`, or `AvifOptions` fields.
+
+Use `types_file` only when the project needs generated declarations outside the default directory:
+
+```ts
+og({
+	input: { home: "/og/home" },
+	types_file: "src/generated/svelte-build-og.d.ts",
+});
+```

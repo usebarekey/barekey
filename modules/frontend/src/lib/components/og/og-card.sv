@@ -8,28 +8,32 @@
 	};
 
 	let { brand = "Barekey", description, kind = "docs", logo_src, title }: Props = $props();
-
-	const root_style =
-		"width: 100%; height: 100%; padding: 56px 60px; background: linear-gradient(180deg, #18191d 0%, #101114 100%); color: #ffffff; box-sizing: border-box; display: flex; flex-direction: column; font-family: PP Neue Montreal, Arial, sans-serif; letter-spacing: 0;";
-	const brand_style = "display: flex; align-items: center;";
-	const logo_style = "width: 42px; height: 42px; object-fit: contain;";
-	const brand_name_style =
-		"margin-left: 16px; font-family: Cal Sans, sans-serif; font-size: 42px; font-weight: 700; line-height: 42px; letter-spacing: -0.05em; color: #ffffff;";
-	const copy_style = "margin-top: 92px; display: flex; flex-direction: column;";
-	const title_style =
-		"max-width: 900px; font-family: Geist, sans-serif; font-size: 58px; font-weight: 600; line-height: 1.08; letter-spacing: -0.05em; color: #ffffff;";
-	const description_style =
-		"max-width: 900px; margin-top: 26px; font-size: 30px; font-weight: 400; line-height: 1.25; color: #a7adba;";
 </script>
 
-<div data-kind={kind} style={root_style}>
-	<div style={brand_style}>
-		<img src={logo_src} alt="" style={logo_style} />
-		<div style={brand_name_style}>{brand}</div>
+<div
+	class="docs-responsive-surfaces flex h-[630px] w-[1200px] flex-col bg-linear-to-b from-[#18191d] to-[#101114] px-[60px] py-14 text-white"
+	data-kind={kind}
+	data-og-card
+>
+	<div class="flex items-center">
+		<img class="size-[42px] object-contain" src={logo_src} alt="" />
+		<div
+			class="ml-4 font-[var(--font-logo)] text-[calc(42px*var(--docs-dev-logo-size,24)/24)] leading-[42px] font-[var(--docs-dev-logo-weight,700)] tracking-[var(--docs-dev-logo-tracking,-0.05em)]"
+		>
+			{brand}
+		</div>
 	</div>
 
-	<div style={copy_style}>
-		<div style={title_style}>{title}</div>
-		<div style={description_style}>{description}</div>
+	<div class="mt-[92px] flex flex-col">
+		<div
+			class="font-heading max-w-[900px] text-[calc(58px*var(--docs-dev-heading-scale,1))] leading-[1.08] font-[var(--docs-dev-heading-weight,630)] tracking-[var(--docs-dev-heading-tracking,-0.045em)]"
+		>
+			{title}
+		</div>
+		<div
+			class="mt-[26px] max-w-[900px] text-[calc(30px*var(--docs-dev-prose-scale,1))] leading-[1.25] font-[var(--docs-dev-prose-weight,410)] tracking-[var(--docs-dev-prose-tracking,-0.04em)] text-[#a7adba]"
+		>
+			{description}
+		</div>
 	</div>
 </div>

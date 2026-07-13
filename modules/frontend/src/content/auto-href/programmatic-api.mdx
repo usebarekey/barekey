@@ -1,0 +1,44 @@
+---
+title: "Programmatic API"
+description: "Use the scanner, generator, renderers, and editor helpers outside the Vite plugin."
+---
+
+The package root exports the same pieces used by the Vite integration, so editor extensions and build tools can consume route data directly.
+
+## Generate every artifact
+
+```ts
+import { generate_auto_href } from "svelte-auto-href";
+
+const result = await generate_auto_href({
+	root: process.cwd(),
+});
+
+console.log(result.manifest_path, result.types_path, result.html_data_path);
+```
+
+`generate_auto_href()` scans routes and writes the manifest, TypeScript declaration, and HTML custom-data files. It returns the in-memory manifest with the resolved output paths.
+
+## Scan and render separately
+
+```ts
+import { render_html_data, render_types, scan_routes } from "svelte-auto-href";
+
+const manifest = await scan_routes({ routes_dir: "src/routes" });
+const declarations = render_types(manifest);
+const html_data = render_html_data(manifest);
+```
+
+Use these lower-level functions when another tool owns persistence or wants to transform the manifest first.
+
+## Editor helpers
+
+```ts
+import { diagnose_href, get_href_completions, is_known_app_href } from "svelte-auto-href";
+
+const completions = get_href_completions(manifest, { include_endpoints: false });
+const known = is_known_app_href(manifest, "/account/settings?tab=profile");
+const diagnostic = diagnose_href(manifest, "/account/setings");
+```
+
+External URLs, protocol-relative URLs, and custom schemes are ignored by diagnostics. Internal paths may include a query or hash; matching uses the pathname.

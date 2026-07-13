@@ -1,0 +1,80 @@
+---
+title: "Installation"
+description: "Install svelte-auto-href and add its route generator to Vite."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+Install `svelte-auto-href` as a development dependency.
+
+<CommandPicker.Root
+	id="install-auto-href"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add --dev npm:svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add --dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add -D svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install --save-dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add --dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --dev svelte-auto-href"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install --save-dev svelte-auto-href"
+	/>
+</CommandPicker.Root>
+
+Add `href()` before SvelteKit so generated declarations and editor data are ready when the application is built.
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { href } from "svelte-auto-href";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+	plugins: [href(), sveltekit()],
+});
+```
+
+Run the app or a build once. The plugin scans `src/routes` when Vite starts, then watches the route tree and refreshes its output when route files or folders change.
+
+For native attribute completions, continue with [Editor setup](/docs/auto-href/editor-setup).

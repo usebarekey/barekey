@@ -1,0 +1,37 @@
+---
+title: "Writing memories"
+description: "Keep project memories focused, factual, discoverable, and safe to reuse."
+---
+
+A useful memory usually captures one durable fact, decision, convention, or debugging result in one paragraph. Include enough mechanism and consequence that a later agent can act on it without reconstructing the original conversation.
+
+```text
+The checkout webhook verifies the provider signature against the raw request body before JSON parsing. Parsing first changes whitespace and makes valid signatures fail, so handlers must retain the original bytes until verification finishes.
+```
+
+That note names the component, the rule, why the rule exists, and the failure caused by violating it. Those same terms make it easy to find with a search such as `checkout webhook raw body signature`.
+
+## Store
+
+- Verified setup commands and local environment facts.
+- Architectural or product decisions with a short rationale.
+- Confirmed debugging symptoms, causes, and fixes.
+- Repository conventions that are not obvious from source.
+- Operator context and non-obvious release constraints.
+- Completed feature notes that preserve the request and reason.
+
+## Do not store
+
+- Secrets, credentials, private keys, personal data, or tokens.
+- Unverified guesses presented as facts.
+- Temporary checklists or task progress.
+- Full documents, copied source files, large logs, or long transcripts.
+- Material that belongs in committed user or developer documentation.
+
+Split a broad note into independently searchable facts. Tags can help retrieval, but the body should still contain the names and terms a future reader would search for.
+
+## Revisions prevent lost updates
+
+Every read and search hit includes a revision derived from the complete stored file. Pass that revision to `update` or `delete`. If another client changed the note first, the operation fails with a revision mismatch; read the current note again and produce a new exact edit.
+
+Repurpose a note when the same durable fact changed. Delete it when the fact is obsolete, duplicated, misleading, or better represented by committed docs.

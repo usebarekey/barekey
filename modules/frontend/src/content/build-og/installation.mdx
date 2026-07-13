@@ -1,0 +1,91 @@
+---
+title: "Installation"
+description: "Install svelte-build-og and register its Vite plugin."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+Install `svelte-build-og` as a development dependency.
+
+<CommandPicker.Root
+	id="install-build-og"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add --dev npm:svelte-build-og"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add --dev svelte-build-og"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add -D svelte-build-og"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install --save-dev svelte-build-og"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add --dev svelte-build-og"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --dev svelte-build-og"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --dev svelte-build-og"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install --save-dev svelte-build-og"
+	/>
+</CommandPicker.Root>
+
+Add one named input to `vite.config.ts` and point it at a SvelteKit route.
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import { og } from "svelte-build-og/vite";
+
+export default defineConfig({
+	plugins: [
+		sveltekit(),
+		og({
+			input: {
+				home: "/og/home",
+			},
+		}),
+	],
+});
+```
+
+The default capture is `1200 × 630` and the default output is PNG. On machines with a writable browser cache, Playwright installs Chromium automatically when the executable is missing. Read-only and serverless builds need an explicit browser provider, described in [Configuration](/docs/build-og/configuration#serverless-chromium).
+
+The plugin generates `src/.svelte-build-og/generated.d.ts`. Add the directory to `.gitignore`:
+
+```text
+src/.svelte-build-og
+```

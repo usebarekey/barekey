@@ -26,6 +26,16 @@ test("desktop docs sidebar has a stable server-rendered width", () => {
 	expect(docs_sidebar).not.toContain("set_sidebar_natural_width");
 });
 
+test("desktop sidebar reuses the article scroll-edge fade", () => {
+	const docs_sidebar = readFileSync(
+		"src/routes/docs/[category]/[slug]/components/docs-sidebar.sv",
+		"utf8",
+	);
+
+	expect(docs_sidebar).toContain("docs-sidebar-nav-surface docs-scroll-fade");
+	expect(docs_frame).toContain('.docs-scroll-fade[data-slot="sidebar-content"]');
+});
+
 test("collapsed desktop sidebar keeps one spacing unit between its toggle and prose", () => {
 	expect(docs_frame).toContain("xl:peer-data-[collapsible=icon]:pl-0");
 });
