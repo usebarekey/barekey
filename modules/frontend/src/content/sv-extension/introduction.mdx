@@ -1,0 +1,30 @@
+---
+title: "An introduction to svelte-sv-extension"
+description: "Use .sv files as Svelte components and SvelteKit route files."
+---
+
+`svelte-sv-extension` adds `.sv` to Svelte's component extensions while preserving `.svelte` and the rest of the application's configuration.
+
+```text
+src/routes/+page.sv
+src/routes/settings/+layout.sv
+src/routes/+error.sv
+src/lib/card.svelte
+```
+
+Both extensions travel through the official Svelte compiler pipeline. A component can import either form explicitly:
+
+```svelte
+<script lang="ts">
+	import Button from "$lib/button.sv";
+	import Card from "$lib/card.svelte";
+</script>
+
+<Card>
+	<Button>Save</Button>
+</Card>
+```
+
+The helper also extends SvelteKit's generated TypeScript include patterns. For every `.svelte` include produced by SvelteKit, the returned config adds the equivalent `.sv` pattern without removing a user-supplied TypeScript config hook.
+
+The package does not add `.sv` to Vite's extensionless resolver. Prefer explicit imports such as `./button.sv`, which make the component type visible at the call site and avoid ambiguous resolution.

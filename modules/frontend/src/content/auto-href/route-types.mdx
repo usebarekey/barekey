@@ -1,0 +1,50 @@
+---
+title: "Route types"
+description: "Use generated href types with markup, SvelteKit navigation, and strict helpers."
+---
+
+The generated declaration augments `$app/navigation` and `@sveltejs/kit`, so `goto`, `invalidate`, `preloadData`, `preloadCode`, `pushState`, `replaceState`, and `redirect` all suggest routes from the current app.
+
+```ts
+import { goto, invalidate } from "$app/navigation";
+import { redirect } from "@sveltejs/kit";
+
+await goto("/account/settings");
+await invalidate("/api/account");
+redirect(303, "/sign-in");
+```
+
+These helpers deliberately keep a loose string branch. That preserves values such as external URLs, runtime paths, and custom schemes while putting known routes at the top of autocomplete.
+
+## Strict values
+
+Use `strict_href()` when an internal path should fail type checking if the route does not exist.
+
+```ts
+import { strict_href, type StrictAppHref } from "svelte-auto-href";
+
+const dashboard: StrictAppHref = strict_href("/dashboard");
+```
+
+`literal_href()` preserves the exact string literal while using the autocomplete-friendly `AutoHref` constraint.
+
+```ts
+import { literal_href, type AutoHref } from "svelte-auto-href";
+
+const docs = literal_href("/docs/getting-started");
+const external: AutoHref = "https://example.com";
+```
+
+Both functions are identity helpers and add no runtime routing behavior.
+
+## Dynamic routes and entries
+
+A route such as `src/routes/blog/[slug]/+page.svelte` produces a template-literal path shaped like `` `/blog/${string}` ``. If the route exports literal entries, those concrete paths become completions too:
+
+```ts name="src/routes/blog/[slug]/+page.ts"
+export const entries = () => [{ slug: "hello" }, { slug: "release-notes" }];
+```
+
+The scanner statically reads literal arrays returned from exported `entries` functions or variables. Values computed from network calls or arbitrary runtime code cannot become generated completions, but the dynamic template still remains valid.
+
+Route groups are removed from public paths, matchers preserve their parameter name, standalone optional parameters produce both path variants, and `trailingSlash` set to `"always"` or `"ignore"` changes the generated alternatives.

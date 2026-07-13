@@ -1,0 +1,46 @@
+---
+title: "CLI"
+description: "Select runtime targets, inspect detections, choose scan modes, and control output."
+---
+
+The command takes one directory followed by options:
+
+```sh
+runtime-checker <dir> [options]
+```
+
+| Option                | Purpose                                                                         |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `--runtime <runtime>` | Limit output to `all`, `node`, `deno`, `bun`, `safari`, `chrome`, or `firefox`. |
+| `--summary`           | Print only the result panel and omit grouped feature detections.                |
+| `--inspect <feature>` | Print every file and location detected for one exact feature name.              |
+| `--fast`              | Use FFF text scanning instead of Oxc AST analysis.                              |
+| `--fix`               | Update `package.json` `engines.node` when the detected minimum is not allowed.  |
+| `-h`, `--help`        | Display command help.                                                           |
+
+## Target one runtime
+
+```sh
+runtime-checker .dist/server --runtime node
+runtime-checker .dist/client --runtime safari
+```
+
+The default `all` target scans each supported runtime. Browser-only scans still detect Node-specific API usage so the report can distinguish server code that slipped into a browser bundle.
+
+## Inspect one feature
+
+Grouped output keeps the first location and a count for repeated detections. Use `--inspect` when every call site matters:
+
+```sh
+runtime-checker src --runtime node --inspect Symbol.asyncDispose
+```
+
+Inspection disables aggregation for that feature and prints its file, line, and column.
+
+## Fast mode
+
+```sh
+runtime-checker .dist --fast --summary
+```
+
+Fast mode uses FFF-backed text matching with identifier-boundary checks. It is useful for a quick first pass over very large output, but it cannot resolve syntax and member ownership as precisely as the default Oxc parser.

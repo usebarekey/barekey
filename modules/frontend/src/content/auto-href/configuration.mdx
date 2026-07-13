@@ -1,0 +1,33 @@
+---
+title: "Configuration"
+description: "Change route scanning and generated output locations."
+---
+
+Most projects can use `href()` without options. Pass an object when the route tree or generated files live somewhere else.
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { href } from "svelte-auto-href";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+	plugins: [
+		href({
+			routes_dir: "src/routes",
+			output_dir: ".svelte-kit/svelte-auto-href",
+			types_path: ".svelte-kit/types/svelte-auto-href/$types.d.ts",
+		}),
+		sveltekit(),
+	],
+});
+```
+
+| Option       | Default                                          | Purpose                                                           |
+| ------------ | ------------------------------------------------ | ----------------------------------------------------------------- |
+| `routes_dir` | `src/routes`                                     | SvelteKit route directory, relative to the Vite root or absolute. |
+| `output_dir` | `.svelte-kit/svelte-auto-href`                   | Directory for `manifest.json` and `html-data.json`.               |
+| `types_path` | `.svelte-kit/types/svelte-auto-href/$types.d.ts` | Generated declaration file that augments href APIs.               |
+
+Generated files are rewritten only when their content changes. Keeping the defaults places all output under `.svelte-kit`, where it follows SvelteKit's existing generated-file lifecycle.
+
+If `routes_dir` does not exist yet, generation still succeeds with an empty manifest. This lets a new project start Vite before its first route is created.

@@ -1,0 +1,33 @@
+---
+title: "An introduction to memorystore"
+description: "Keep durable AI project knowledge in a local, searchable, git-friendly store."
+---
+
+`memorystore` is a small MCP server for project-local AI memory. It gives agents a durable place for verified setup facts, architecture decisions, debugging outcomes, and repository conventions without putting that knowledge in a global account or scattering scratch files through the project.
+
+```text
+.memory-store/
+	metadata.toml
+	VERSION
+	.gitignore
+	memories/
+		<cuid2>.md
+	.cache/
+		fff/
+```
+
+Markdown files are the canonical store. TOML frontmatter carries the generated key, tags, timestamps, and schema version, while an FFF-backed cache makes the note bodies searchable. The cache is disposable and ignored by Git.
+
+The MCP interface exposes six operations: initialize the store, create a note, search, read by key, update with exact edits, and delete with revision checking. Agents never need direct filesystem access to `.memory-store`.
+
+## What belongs here
+
+Memory Store works best for knowledge that should survive across AI sessions and remains specific to one project:
+
+- A setup command that was verified on the repository.
+- A design decision with a short reason.
+- A bug symptom and its confirmed root cause.
+- A convention future agents should follow.
+- A completed feature note explaining what changed and why.
+
+Committed documentation is still the right place for user-facing guides and broad architecture. Memory Store fills the smaller operational gap between source code and transient chat context.

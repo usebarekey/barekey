@@ -1,0 +1,98 @@
+---
+title: "Installation"
+description: "Run the memorystore MCP server from npm, a global install, or source."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+The npm package currently builds its Rust binary from source during installation, so install a Rust toolchain and make sure `cargo` is on `PATH` first.
+
+## Run from an MCP client
+
+An MCP client can launch the package through `npx` without a separate global install:
+
+```toml
+[mcp_servers.memorystore]
+command = "npx"
+args = ["-y", "@barekey/memorystore"]
+startup_timeout_sec = 30
+```
+
+The server resolves the active project root from the MCP client. After it starts, call the `init` tool once in each repository that should have a store.
+
+## Install the package
+
+<CommandPicker.Root
+	id="install-memorystore"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add npm:@barekey/memorystore"
+	/>
+	<CommandPicker.Item value="bun" label="Bun" icon="bun" command="bun add @barekey/memorystore" />
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add @barekey/memorystore"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install @barekey/memorystore"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add @barekey/memorystore"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --allow-build=@barekey/memorystore @barekey/memorystore"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --allow-build=@barekey/memorystore @barekey/memorystore"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install @barekey/memorystore"
+	/>
+</CommandPicker.Root>
+
+Package managers that block dependency lifecycle scripts by default must allow `@barekey/memorystore` to run its build step. The Nub and Aube commands above grant that permission while installing.
+
+The package exposes both `memorystore-mcp` and `memorystore` binaries. To initialize a project outside an MCP client, pass its root explicitly:
+
+```sh
+memorystore-mcp --root /path/to/project init
+```
+
+## Build from source
+
+```sh
+cargo build --release --bin memorystore-mcp
+```
+
+Point the MCP client at `target/release/memorystore-mcp`, or `memorystore-mcp.exe` on Windows.
+
+## Install the agent skill
+
+The repository includes a Codex skill that teaches agents to use the MCP operations safely and never edit `.memory-store` directly.
+
+```sh
+npx -y skills add usebarekey/memorystore --skill memorystore --full-depth
+```

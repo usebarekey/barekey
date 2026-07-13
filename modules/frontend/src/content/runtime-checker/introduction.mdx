@@ -1,0 +1,30 @@
+---
+title: "An introduction to runtime-checker"
+description: "Detect the minimum runtimes required by JavaScript and TypeScript code."
+---
+
+`runtime-checker` scans JavaScript and TypeScript and reports the oldest runtime versions that support what the code actually uses.
+
+```sh
+runtime-checker . --summary
+```
+
+```text
+Finished in 665ms using oxc (ast parsing) after scanning 307k lines of code.
+
+Runtimes
+- Node.js 24.0.0
+- Deno 2.8.0
+- Bun 1.3.0
+
+Browsers
+- Safari 26.0.0
+- Chromium 149.0.0
+- Firefox 141.0.0
+```
+
+The default scanner parses source with Oxc and checks runtime APIs, JavaScript syntax, module format, and native TypeScript usage. Compatibility data covers Node.js, Deno, Bun, Safari, Chromium, and Firefox.
+
+Scan the code users will execute. For an unbundled library that may be `src`; for a bundled application it is usually the emitted client or server directory, because transforms and polyfills can change the actual runtime requirement.
+
+The result is evidence for `engines.node`, deployment targets, browser support, and release notes. It is not a promise that every behavioral difference between runtimes has been modeled, so use the reported minimum alongside the package's real test matrix.

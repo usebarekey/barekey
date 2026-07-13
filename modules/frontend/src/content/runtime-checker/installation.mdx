@@ -1,0 +1,82 @@
+---
+title: "Installation"
+description: "Install runtime-checker and run it against a source or build directory."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+Install `runtime-checker` as a development dependency.
+
+<CommandPicker.Root
+	id="install-runtime-checker"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add --dev npm:runtime-checker"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add --dev runtime-checker"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add -D runtime-checker"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install --save-dev runtime-checker"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add --dev runtime-checker"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --dev runtime-checker"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --dev runtime-checker"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install --save-dev runtime-checker"
+	/>
+</CommandPicker.Root>
+
+Run the package binary with the project package manager:
+
+```sh
+pnpm exec runtime-checker src
+```
+
+Or add a repeatable script:
+
+```json name="package.json" icon="npm"
+{
+	"scripts": {
+		"runtime:check": "runtime-checker .dist --summary"
+	}
+}
+```
+
+The npm launcher executes the native binary bundled for the current operating system and architecture. It exits with a clear unsupported-platform error if that binary is not present in the package.

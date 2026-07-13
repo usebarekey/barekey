@@ -1,0 +1,48 @@
+---
+title: "Editor setup"
+description: "Associate .sv files with the Svelte language mode in VS Code-family editors."
+---
+
+Build configuration and editor language modes are separate. After SvelteKit knows about `.sv`, configure VS Code or its forks to open those files with the Svelte language mode.
+
+Run the init command in the project:
+
+```sh
+pnpm exec svelte-sv-extension init
+```
+
+It creates or patches `.vscode/settings.json`:
+
+```json
+{
+	"files.associations": {
+		"*.sv": "svelte"
+	}
+}
+```
+
+Existing JSONC comments, settings, and file associations are preserved. Re-running the command is safe and reports when the editor is already configured.
+
+## Global settings
+
+Use `--global` to update editor user settings on macOS, Windows, or Linux:
+
+```sh
+pnpm exec svelte-sv-extension init --global --editor cursor
+```
+
+Supported editor names are `vscode`, `vscode-insiders`, `cursor`, `vscodium`, and `windsurf`. Use `--cwd <path>` for another workspace or `--settings <path>` for a custom settings location.
+
+## Emmet
+
+Emmet uses its own language mapping. If abbreviations do not expand in `.sv` files, add:
+
+```json
+{
+	"emmet.includeLanguages": {
+		"svelte": "html"
+	}
+}
+```
+
+Reopen the file or restart the Svelte language server after changing language associations.

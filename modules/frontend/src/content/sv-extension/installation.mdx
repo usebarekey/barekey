@@ -1,0 +1,90 @@
+---
+title: "Installation"
+description: "Install svelte-sv-extension and pass its config to SvelteKit."
+---
+
+<script lang="ts">import * as CommandPicker from "$lib/components/markdown/command-picker";</script>
+
+Install `svelte-sv-extension` as a development dependency.
+
+<CommandPicker.Root
+	id="install-sv-extension"
+	default_value="deno"
+	select_label="Package manager"
+	storage_key="package-manager"
+>
+	<CommandPicker.Item
+		value="deno"
+		label="Deno"
+		icon="deno"
+		command="deno add --dev npm:svelte-sv-extension"
+	/>
+	<CommandPicker.Item
+		value="bun"
+		label="Bun"
+		icon="bun"
+		command="bun add --dev svelte-sv-extension"
+	/>
+	<CommandPicker.Item
+		value="pnpm"
+		label="pnpm"
+		icon="pnpm"
+		command="pnpm add -D svelte-sv-extension"
+	/>
+	<CommandPicker.Item
+		value="npm"
+		label="npm"
+		icon="npm"
+		command="npm install --save-dev svelte-sv-extension"
+	/>
+	<CommandPicker.Item
+		value="yarn"
+		label="Yarn"
+		icon="yarn"
+		command="yarn add --dev svelte-sv-extension"
+	/>
+	<CommandPicker.Item
+		value="nub"
+		label="Nub"
+		icon="nub"
+		command="nub add --dev svelte-sv-extension"
+	/>
+	<CommandPicker.Item
+		value="aube"
+		label="Aube"
+		icon="aube"
+		command="aube add --dev svelte-sv-extension"
+	/>
+	<CommandPicker.Item
+		value="vlt"
+		label="vlt"
+		icon="vlt"
+		command="vlt install --save-dev svelte-sv-extension"
+	/>
+</CommandPicker.Root>
+
+Wrap the SvelteKit config passed through Vite:
+
+```ts name="vite.config.ts" icon="vite"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { sv } from "svelte-sv-extension";
+import { defineConfig } from "vite";
+
+import adapter from "@sveltejs/adapter-auto";
+
+const { kit, ...svelte_config } = sv({
+	kit: {
+		adapter: adapter(),
+	},
+});
+
+export default defineConfig({
+	plugins: [sveltekit({ ...svelte_config, ...kit })],
+});
+```
+
+`sv()` can wrap an empty config or an existing SvelteKit config. It deduplicates the extension list and preserves fields such as adapters, aliases, preprocessors, compiler options, and an existing `kit.typescript.config` callback.
+
+SvelteKit's direct Vite API flattens the traditional `kit` block, so the example separates that block from the surrounding Svelte config and spreads both into `sveltekit()`.
+
+If both `+page.svelte` and `+page.sv` exist in one route directory, SvelteKit reports a duplicate route component in the same way it does for any two files that claim the same route role.

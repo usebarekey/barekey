@@ -1,0 +1,65 @@
+---
+title: "An introduction to svelte-build-og"
+description: "Generate Open Graph images from ordinary SvelteKit routes during development and build."
+---
+
+`svelte-build-og` turns an ordinary SvelteKit route into an image source. Build the card with the components, assets, CSS, fonts, and design tokens already used by the application, then let Chromium capture it.
+
+## The problem
+
+Traditional OG tools often translate an HTML-like tree into SVG before rasterizing it. That keeps a browser out of the pipeline, but it replaces browser layout with a smaller rendering engine and a limited subset of CSS.
+
+Tailwind's generated styles, modern layout, pseudo-elements, filters, and variable-font axes may need special adapters or fail entirely. Teams end up maintaining card-only markup, CSS, and font-loading code beside the real application.
+
+`svelte-build-og` opens a real route in Chromium. If Vite and the browser can render a component, imported asset, Tailwind utility, or variable font in the app, the same thing can appear in the captured card.
+
+## Use the whole application stack
+
+This route imports the application's Tailwind and font styles, preloads the exact variable-font asset, imports an image through Vite, and lays out the card entirely with Tailwind utilities.
+
+```svelte name="src/routes/og/home/+page.svelte" icon="svelte"
+<script lang="ts">
+	import "$lib/styles/fonts.css";
+	import "$lib/styles/global.css";
+	import logo from "$lib/assets/barekey/logo.png";
+	import heading_font from "$lib/assets/fonts/artisan-neo/artisan-neo-variable.woff2";
+
+	const title = "A social card made by Svelte";
+</script>
+
+<svelte:head>
+	<link rel="preload" href={heading_font} as="font" type="font/woff2" crossorigin="anonymous" />
+</svelte:head>
+
+<main class="flex h-screen w-screen flex-col bg-zinc-950 p-16 text-white">
+	<header class="flex items-center gap-4">
+		<img class="size-12" src={logo} alt="" />
+		<p class="font-[var(--font-logo)] text-4xl">Barekey</p>
+	</header>
+
+	<section class="mt-auto max-w-4xl">
+		<p class="mb-4 text-indigo-300">Captured by Chromium</p>
+		<h1 class="font-heading text-7xl font-semibold">
+			{title}
+		</h1>
+	</section>
+</main>
+```
+
+The plugin waits for `document.fonts.ready` before taking the screenshot, so the captured pixels use the loaded font instead of a fallback. Vite resolves the imported font and image assets exactly as it does for the rest of the app.
+
+## Resolve generated images
+
+Named inputs connect capture routes to application code. The generated `resolved()` helper knows each input's route parameters and returns the public image path with SvelteKit's configured asset prefix applied.
+
+```svelte
+<script lang="ts">
+	import { resolved } from "svelte-build-og";
+
+	const image = resolved("home");
+</script>
+
+<img src={image} alt="Barekey home card" />
+```
+
+During development, image paths are served lazily and recaptured after watched files change. During a production build, every configured entry is captured and emitted into the client output.

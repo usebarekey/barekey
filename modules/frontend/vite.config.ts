@@ -1,18 +1,29 @@
 import adapter from "@sveltejs/adapter-vercel";
 import tailwindcss from "@tailwindcss/vite";
-import { sveltekitOG } from "@ethercorps/sveltekit-og/plugin";
 import { mdsvex } from "mdsvex";
 import { href } from "svelte-auto-href";
 import { effect } from "svelte-effect-runtime/compiler";
 import { ts } from "svelte-global-typescript";
 import { sv } from "svelte-sv-extension";
+import { og } from "svelte-build-og/vite";
 import { compose, kit } from "svelte-plugin-composer";
 import { defineConfig } from "vite";
+import content_meta from "./src/content/meta.json";
+import { get_docs_nav_entry_pairs, type DocsContentMeta } from "./src/lib/data/docs-content-meta";
 import {
 	command_picker_preprocessor,
 	markdown_mdsvex_options,
 	mdsvex_extensions,
 } from "./src/lib/server/markdown/mdsvex";
+
+const docs_content_meta = content_meta as DocsContentMeta;
+
+const get_docs_og_entries = () =>
+	Object.entries(docs_content_meta).flatMap(([category, group]) =>
+		get_docs_nav_entry_pairs(group.entries)
+			.filter(([, entry]) => Boolean(entry.path))
+			.map(([slug]) => ({ category, slug })),
+	);
 
 export default defineConfig({
 	server: {
@@ -59,6 +70,15 @@ export default defineConfig({
 			},
 		),
 		tailwindcss(),
-		sveltekitOG(),
+		og({
+			format: { file: "png", opts: { compressionLevel: 9 } },
+			input: {
+				docs: {
+					link: "/og/docs/[category]/[slug]",
+					entries: get_docs_og_entries,
+				},
+			},
+			size: { x: 1200, y: 630 },
+		}),
 	],
 });

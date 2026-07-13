@@ -1,0 +1,45 @@
+---
+title: "Storage"
+description: "Understand Memory Store's plaintext files, metadata, revisions, and disposable search cache."
+---
+
+Initialization creates a versioned store inside the project root:
+
+```text
+.memory-store/
+	.gitignore
+	metadata.toml
+	VERSION
+	memories/
+		v1x2...cuid2.md
+	.cache/
+		fff/
+```
+
+`metadata.toml`, `VERSION`, and `memories/` are durable project data. `.cache/fff` is an implementation detail that can be removed and rebuilt; `.memory-store/.gitignore` excludes the cache by default.
+
+## Note format
+
+Each memory is Markdown with TOML frontmatter:
+
+```markdown
++++
+schema = "memorystore.note/v1"
+key = "v1x2...cuid2"
+tags = ["architecture"]
+created_at = "2026-07-13T10:00:00Z"
+updated_at = "2026-07-13T10:00:00Z"
++++
+
+The application keeps database migrations forward-only.
+```
+
+The filename uses the generated Cuid2 key. Keys identify exact notes but do not encode folders or taxonomy, so discovery should use search terms and tags.
+
+## Atomic writes and revisions
+
+Create and update operations write a temporary file and rename it into place, then refresh the search index. A BLAKE3 hash of the complete stored file becomes its revision, which lets clients detect concurrent changes before an update or delete.
+
+Content is limited to 1 MiB, a note may have up to 32 tags, and each tag is limited to 80 characters. Search returns ten hits by default and accepts a maximum limit of fifty.
+
+Although the canonical files are human-readable and Git-friendly, clients and agents should use MCP tools for every read and write. That keeps validation, revisions, atomic updates, and search refreshes intact.

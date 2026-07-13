@@ -1,0 +1,34 @@
+---
+title: "An introduction to svelte-auto-href"
+description: "Generate route-aware href types and editor completions from a SvelteKit route tree."
+---
+
+`svelte-auto-href` turns the routes already present in `src/routes` into autocomplete data and TypeScript declarations. It keeps ordinary strings available for external and computed URLs, while known app routes appear first in editors.
+
+```svelte name="src/routes/account/+page.svelte" icon="svelte"
+<script lang="ts">
+	import { goto } from "$app/navigation";
+	import { strict_href } from "svelte-auto-href";
+
+	const settings_href = strict_href("/account/settings");
+</script>
+
+<nav>
+	<a href="/account/profile">Profile</a>
+	<button onclick={() => goto(settings_href)}>Settings</button>
+</nav>
+```
+
+The Vite plugin writes three generated artifacts:
+
+- TypeScript declarations augment navigation helpers and expose route-aware href types.
+- An HTML custom-data file supplies native attribute completions in VS Code-family editors.
+- A JSON manifest records routes, parameters, concrete entries, and completion patterns for other tools.
+
+The route scanner understands pages, endpoints, route groups, matchers, optional parameters, rest parameters, literal `entries()` exports, and route-level `trailingSlash` declarations.
+
+## Loose and strict hrefs
+
+Normal `href` values and SvelteKit navigation helpers use autocomplete-friendly types: known routes are suggested, but an arbitrary string is still accepted for external URLs and values assembled at runtime.
+
+Use `strict_href()` when a value must be one of the generated internal app routes. It returns the string unchanged at runtime; its only job is to give TypeScript a strict call site.
