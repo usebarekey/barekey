@@ -1,5 +1,5 @@
 diff --git a/.dist/vite.js b/.dist/vite.js
-index cce88a0246b3f7a61af8d8405c0f67ea413b6529..e70c5f672f29bc05309935c35adbc19e11275991 100644
+index cce88a0246b3f7a61af8d8405c0f67ea413b6529..f3ab1f81c3423516c035b85bf6094c5094899439 100644
 --- a/.dist/vite.js
 +++ b/.dist/vite.js
 @@ -1,4 +1,5 @@
@@ -20,3 +20,14 @@ index cce88a0246b3f7a61af8d8405c0f67ea413b6529..e70c5f672f29bc05309935c35adbc19e
  	catch: (cause) => new CaptureError({
  		cause,
  		message: "Could not launch Chromium."
+@@ -123,6 +127,10 @@ const AcquireCaptureServer = (config) => Effect.acquireRelease(Effect.tryPromise
+ 			clearScreen: false,
+ 			configFile: config.configFile ?? void 0,
+ 			mode: config.mode,
++			optimizeDeps: {
++				include: [],
++				noDiscovery: true
++			},
+ 			root: config.root,
+ 			server: {
+ 				host: "127.0.0.1",
