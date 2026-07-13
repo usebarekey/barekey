@@ -66,5 +66,6 @@ describe("package documentation", () => {
 		expect(build_og_patch).toContain("serverless_chromium.args");
 		expect(build_og_patch).toContain("serverless_chromium.executablePath()");
 		expect(build_og_patch).toContain("noDiscovery: true");
+		expect(build_og_patch).toContain("concurrency: process.env.VERCEL ? 1 : 4");
 	});
 });

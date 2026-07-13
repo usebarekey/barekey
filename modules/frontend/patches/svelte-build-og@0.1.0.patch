@@ -1,5 +1,5 @@
 diff --git a/.dist/vite.js b/.dist/vite.js
-index cce88a0246b3f7a61af8d8405c0f67ea413b6529..f3ab1f81c3423516c035b85bf6094c5094899439 100644
+index cce88a0246b3f7a61af8d8405c0f67ea413b6529..87dcfb3d09b8021d94df98c578ea8fbf64b3a197 100644
 --- a/.dist/vite.js
 +++ b/.dist/vite.js
 @@ -1,4 +1,5 @@
@@ -31,3 +31,12 @@ index cce88a0246b3f7a61af8d8405c0f67ea413b6529..f3ab1f81c3423516c035b85bf6094c50
  			root: config.root,
  			server: {
  				host: "127.0.0.1",
+@@ -157,7 +165,7 @@ const GenerateFromOrigin = (origin, inputs, options) => Effect.gen(function* ()
+ 			...input,
+ 			source
+ 		};
+-	}), { concurrency: 4 });
++	}), { concurrency: process.env.VERCEL ? 1 : 4 });
+ });
+ const GenerationLayers = BrowserCaptureLive.pipe(Layer.merge(ImageEncoderLive));
+ const GenerateBuildAssets = (config, inputs, options) => Effect.scoped(Effect.gen(function* () {
