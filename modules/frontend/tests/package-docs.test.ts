@@ -37,6 +37,16 @@ describe("package documentation", () => {
 		expect(introduction).toContain("document.fonts.ready");
 	});
 
+	it("allows Memory Store build scripts and runs its local binary", async () => {
+		const installation = await read_source("src/content/memorystore/installation.mdx");
+
+		expect(installation).toContain(
+			"deno add --node-modules-dir=auto --allow-scripts=npm:@barekey/memorystore",
+		);
+		expect(installation).toContain("pnpm add --allow-build=@barekey/memorystore");
+		expect(installation).toContain("npx memorystore-mcp --root /path/to/project init");
+	});
+
 	it("renders the docs OG card with Tailwind and a preloaded font asset", async () => {
 		const [card, route, server_route] = await Promise.all([
 			read_source("src/lib/components/og/og-card.sv"),

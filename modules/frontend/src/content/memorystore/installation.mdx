@@ -32,14 +32,14 @@ The server resolves the active project root from the MCP client. After it starts
 		value="deno"
 		label="Deno"
 		icon="deno"
-		command="deno add npm:@barekey/memorystore"
+		command="deno add --node-modules-dir=auto --allow-scripts=npm:@barekey/memorystore npm:@barekey/memorystore"
 	/>
 	<CommandPicker.Item value="bun" label="Bun" icon="bun" command="bun add @barekey/memorystore" />
 	<CommandPicker.Item
 		value="pnpm"
 		label="pnpm"
 		icon="pnpm"
-		command="pnpm add @barekey/memorystore"
+		command="pnpm add --allow-build=@barekey/memorystore @barekey/memorystore"
 	/>
 	<CommandPicker.Item
 		value="npm"
@@ -73,12 +73,12 @@ The server resolves the active project root from the MCP client. After it starts
 	/>
 </CommandPicker.Root>
 
-Package managers that block dependency lifecycle scripts by default must allow `@barekey/memorystore` to run its build step. The Nub and Aube commands above grant that permission while installing.
+Package managers that block dependency lifecycle scripts by default must allow `@barekey/memorystore` to run its build step. The Deno, pnpm, Nub, and Aube commands above grant that permission while installing.
 
 The package exposes both `memorystore-mcp` and `memorystore` binaries. To initialize a project outside an MCP client, pass its root explicitly:
 
 ```sh
-memorystore-mcp --root /path/to/project init
+npx memorystore-mcp --root /path/to/project init
 ```
 
 ## Build from source
