@@ -2,7 +2,6 @@
 	import { Effect } from "effect";
 	import artisan_font_url from "$lib/assets/fonts/artisan-neo/artisan-neo-variable.woff2";
 	import artisan_ttf_url from "$lib/assets/fonts/artisan-neo/artisan-neo-variable.ttf";
-	import license_url from "$lib/assets/fonts/artisan-neo/OFL.txt?url";
 	import ArtisanNeoVariantLab from "./artisan-neo-variant-lab.sv";
 
 	const weight_steps = [
@@ -284,13 +283,12 @@
 		</div>
 		<div class="footer-meta">
 			<p>
-				Artisan Neo is an early, OFL-licensed derivative of Inter 4.1. It is ready for product
-				prototyping while its most distinctive letterforms continue to evolve.
+				Artisan Neo is an early variable typeface prototype. It is ready for product prototyping
+				while its most distinctive letterforms continue to evolve.
 			</p>
 			<div>
 				<a href={artisan_font_url} download="ArtisanNeo-Variable.woff2">Download WOFF2</a>
 				<a href={artisan_ttf_url} download="ArtisanNeo-Variable.ttf">Download TTF</a>
-				<a href={license_url}>Read OFL 1.1</a>
 			</div>
 		</div>
 	</footer>
