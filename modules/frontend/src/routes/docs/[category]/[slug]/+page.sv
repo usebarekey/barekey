@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { CaptureEvent } from "$lib/client/analytics";
 	import { Effect } from "effect";
+	import { resolved } from "svelte-build-og";
 	import type { PageProps } from "./$types";
+	import { CaptureEvent } from "$lib/client/analytics";
 	import content_meta from "$content/meta.json";
 	import DocsContent from "$/docs/[category]/[slug]/components/docs-content.sv";
 	import DocsSidebar from "$/docs/[category]/[slug]/components/docs-sidebar.sv";
@@ -13,7 +14,12 @@
 	const route = $derived(data.route);
 	const metadata = $derived(data.metadata);
 	const canonical_url = $derived(`${data.origin}/docs/${route.category}/${route.slug}`);
-	const og_image_url = $derived(`${data.origin}/og/docs/${route.category}/${route.slug}.png`);
+	const og_image_url = $derived(
+		new URL(
+			resolved("docs", { category: route.category, slug: route.slug }),
+			data.origin,
+		).href,
+	);
 	const image_alt = $derived(`${metadata.title} | Barekey`);
 	const has_og_image = $derived(data.has_frontmatter);
 	const article_heading = $derived({
