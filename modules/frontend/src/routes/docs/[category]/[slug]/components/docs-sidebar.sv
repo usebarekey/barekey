@@ -416,7 +416,7 @@
 
 	<Sidebar.Content
 		bind:ref={nav_surface}
-		class="docs-sidebar-nav-surface relative overflow-x-hidden px-2 pb-3"
+		class="docs-sidebar-nav-surface docs-scroll-fade relative overflow-x-hidden px-2 pb-3"
 		onpointerleave={clear_hover_highlight}
 	>
 		<div
