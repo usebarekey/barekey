@@ -8,11 +8,13 @@ description: "Configure named inputs, image dimensions, formats, and generated t
 ```ts name="vite.config.ts" icon="vite"
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
-import { og } from "svelte-build-og/vite";
+import { include_og_types, og } from "svelte-build-og/vite";
 
 export default defineConfig({
 	plugins: [
-		sveltekit(),
+		sveltekit({
+			typescript: { config: include_og_types },
+		}),
 		og({
 			input: {
 				home: "/og/home",
@@ -31,14 +33,14 @@ export default defineConfig({
 });
 ```
 
-| Option       | Default                               | Purpose                                                        |
-| ------------ | ------------------------------------- | -------------------------------------------------------------- |
-| `input`      | Required                              | Named static routes or dynamic route-and-entry definitions.    |
-| `size`       | `{ x: 1200, y: 630 }`                 | Chromium viewport and captured image dimensions in CSS pixels. |
-| `format`     | `{ file: "png" }`                     | PNG, WebP, or AVIF output with format-specific Sharp options.  |
-| `browser`    | Playwright Chromium                   | Browser provider used to launch Chromium.                      |
-| `capture`    | `{ concurrency: 1 }`                  | Number of reusable pages allowed to capture concurrently.      |
-| `types_file` | `src/.svelte-build-og/generated.d.ts` | Generated declaration that types input names and parameters.   |
+| Option              | Default               | Purpose                                                        |
+| ------------------- | --------------------- | -------------------------------------------------------------- |
+| `input`             | Required              | Named static routes or dynamic route-and-entry definitions.    |
+| `size`              | `{ x: 1200, y: 630 }` | Chromium viewport and captured image dimensions in CSS pixels. |
+| `format`            | `{ file: "png" }`     | PNG, WebP, or AVIF output with format-specific Sharp options.  |
+| `browser`           | Playwright Chromium   | Browser provider used to launch Chromium.                      |
+| `capture`           | `{ concurrency: 1 }`  | Number of reusable pages allowed to capture concurrently.      |
+| `sveltekit_out_dir` | `.svelte-kit`         | SvelteKit output directory where generated types are stored.   |
 
 ## Serverless Chromium
 
@@ -76,11 +78,27 @@ og({
 
 The `opts` object is discriminated by `file`, so TypeScript exposes the matching Sharp `PngOptions`, `WebpOptions`, or `AvifOptions` fields.
 
-Use `types_file` only when the project needs generated declarations outside the default directory:
+## Generated types
+
+The generated declaration lives at `.svelte-kit/svelte-build-og/generated.d.ts`. The `include_og_types` hook in the Vite config above registers it through SvelteKit's generated TypeScript configuration, so input names and route parameters remain typed without putting generated files in application source.
+
+If the application changes SvelteKit's `kit.outDir`, pass the same directory to `sveltekit_out_dir`:
 
 ```ts
-og({
-	input: { home: "/og/home" },
-	types_file: "src/generated/svelte-build-og.d.ts",
+export default defineConfig({
+	plugins: [
+		sveltekit({
+			outDir: ".generated/svelte-kit",
+			typescript: { config: include_og_types },
+		}),
+		og({
+			input: { home: "/og/home" },
+			sveltekit_out_dir: ".generated/svelte-kit",
+		}),
+	],
 });
 ```
+
+The directory is resolved from the Vite root and should remain excluded from version control with the rest of SvelteKit's generated output.
+
+When upgrading from 0.2, build-og removes the former default `src/.svelte-build-og/generated.d.ts` after writing its replacement. If 0.2 used a custom `types_file`, keep that option for the first successful 0.3 start so build-og can remove the old declaration, then remove the option and its obsolete ignore rule.

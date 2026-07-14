@@ -6,7 +6,7 @@ import { href } from "svelte-auto-href";
 import { effect } from "svelte-effect-runtime/compiler";
 import { ts } from "svelte-global-typescript";
 import { sv } from "svelte-sv-extension";
-import { og, serverless_chromium } from "svelte-build-og/vite";
+import { include_og_types, og, serverless_chromium } from "svelte-build-og/vite";
 import { compose, kit } from "svelte-plugin-composer";
 import { defineConfig } from "vite";
 import content_meta from "./src/content/meta.json";
@@ -53,6 +53,7 @@ export default defineConfig({
 							process.env.PUBLIC_ORIGIN ??
 							"https://barekey.dev",
 					},
+					typescript: { config: include_og_types },
 					extensions: [".sv", ".svelte", ...mdsvex_extensions],
 					preprocess: [command_picker_preprocessor(), mdsvex(markdown_mdsvex_options)],
 					compilerOptions: {
@@ -82,6 +83,7 @@ export default defineConfig({
 				},
 			},
 			size: { x: 1200, y: 630 },
+			sveltekit_out_dir: ".svelte-kit",
 		}),
 	],
 });

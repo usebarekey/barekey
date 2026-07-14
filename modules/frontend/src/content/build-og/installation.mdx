@@ -68,11 +68,13 @@ Add one named input to `vite.config.ts` and point it at a SvelteKit route.
 ```ts name="vite.config.ts" icon="vite"
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
-import { og } from "svelte-build-og/vite";
+import { include_og_types, og } from "svelte-build-og/vite";
 
 export default defineConfig({
 	plugins: [
-		sveltekit(),
+		sveltekit({
+			typescript: { config: include_og_types },
+		}),
 		og({
 			input: {
 				home: "/og/home",
@@ -84,8 +86,6 @@ export default defineConfig({
 
 The default capture is `1200 × 630` and the default output is PNG. On machines with a writable browser cache, Playwright installs Chromium automatically when the executable is missing. Read-only and serverless builds need an explicit browser provider, described in [Configuration](/docs/build-og/configuration#serverless-chromium).
 
-The plugin generates `src/.svelte-build-og/generated.d.ts`. Add the directory to `.gitignore`:
+The `include_og_types` hook above registers `.svelte-kit/svelte-build-og/generated.d.ts` through SvelteKit's generated TypeScript configuration, keeping generated declarations beside SvelteKit's other output instead of in application source.
 
-```text
-src/.svelte-build-og
-```
+If the application changes SvelteKit's output directory, pass the same path to [`sveltekit_out_dir`](/docs/build-og/configuration#generated-types).

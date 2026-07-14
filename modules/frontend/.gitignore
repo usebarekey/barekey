@@ -7,7 +7,6 @@ node_modules
 .wrangler
 /.svelte-kit
 /build
-/src/.svelte-build-og
 
 # OS
 .DS_Store
