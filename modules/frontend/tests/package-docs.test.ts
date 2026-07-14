@@ -74,10 +74,12 @@ describe("package documentation", () => {
 		};
 
 		expect(package_json.devDependencies["@sparticuz/chromium"]).toBe("149.0.0");
-		expect(package_json.devDependencies["svelte-build-og"]).toBe("0.2.0");
+		expect(package_json.devDependencies["svelte-build-og"]).toBe("0.3.0");
 		expect(package_json.dependencies).not.toHaveProperty("yaml");
+		expect(vite_config).toContain("include_og_types");
 		expect(vite_config).toContain("process.env.VERCEL");
 		expect(vite_config).toContain("serverless_chromium(chromium)");
+		expect(vite_config).toContain('sveltekit_out_dir: ".svelte-kit"');
 		expect(workspace).not.toContain("patchedDependencies");
 	});
 });

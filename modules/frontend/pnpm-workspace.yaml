@@ -18,4 +18,4 @@ minimumReleaseAgeExclude:
     - cuelume@0.1.0
     - svelte-effect-runtime-grammars@4.0.0
     - svelte-effect-runtime@4.0.0
-    - svelte-build-og@0.2.0
+    - svelte-build-og@0.3.0
