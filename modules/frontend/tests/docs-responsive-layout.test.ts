@@ -10,9 +10,9 @@ const docs_scroll_reset = readFileSync(
 	"utf8",
 );
 
-test("compact docs layout uses a drawer breakpoint that includes tablets", () => {
-	expect(docs_frame).toContain("mobile_breakpoint={1280}");
-	expect(docs_frame).toContain('new MediaQuery("(max-width: 1279px)")');
+test("laptop-width docs use the desktop layout", () => {
+	expect(docs_frame).toContain("mobile_breakpoint={1024}");
+	expect(docs_frame).toContain('new MediaQuery("(max-width: 1023px)")');
 });
 
 test("desktop docs sidebar has a stable server-rendered width", () => {
@@ -37,7 +37,7 @@ test("desktop sidebar reuses the article scroll-edge fade", () => {
 });
 
 test("collapsed desktop sidebar keeps one spacing unit between its toggle and prose", () => {
-	expect(docs_frame).toContain("xl:peer-data-[collapsible=icon]:pl-0");
+	expect(docs_frame).toContain("lg:peer-data-[collapsible=icon]:pl-0");
 });
 
 test("compact docs layout stacks the table of contents before the article", () => {
@@ -153,9 +153,9 @@ test("mobile documentation drawer aligns its brand with the navigation heading",
 		"utf8",
 	);
 
-	expect(docs_sidebar).toContain('class="pl-6 pr-14 xl:pl-2"');
+	expect(docs_sidebar).toContain('class="pl-6 pr-14 lg:pl-2"');
 	expect(docs_sidebar).toContain("t-sidebar-child -ml-1 flex");
-	expect(docs_sidebar).toContain("xl:ml-0");
+	expect(docs_sidebar).toContain("lg:ml-0");
 });
 
 test("long page titles wrap at semantic boundaries without overflowing", () => {
