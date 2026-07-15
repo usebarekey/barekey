@@ -14,8 +14,10 @@ Because of the nature of what SER does, we've had to create a few tools to help 
 `better-svelte-check` loads your Vite config before it runs [svelte-check](https://svelte.dev/docs/cli/sv-check).
 That gives SER a chance to lower its extended syntax, so the checker sees ordinary Svelte and TypeScript.
 
-It is available for download via the npm registry.
+> [!WARNING] Not released yet
+> `better-svelte-check` has not been released yet, so it is not currently available from the npm registry.
 
+<!-- Keep the install commands ready for the package release.
 <CommandPicker.Root
 	id="install-better-svelte-check"
 	default_value="deno"
@@ -61,6 +63,7 @@ It is available for download via the npm registry.
 		command="vlt install better-svelte-check"
 	/>
 </CommandPicker.Root>
+-->
 
 ### svelte-plugin-composer
 
@@ -140,64 +143,4 @@ Both are available from the extensions tab in your code editor.
 ## Skills
 
 If you use AI, we provide a skill file that teaches your agent how to use SER and how to understand its syntax.
-
-Install it with the [Skills CLI](https://www.skills.sh/).
-
-> [!WARNING] Not published yet
-> This skill has not been published yet, so the command below does not work. If you are impatient, you can already try it today by [adding it manually to your client from the SER `skills` branch](https://github.com/usebarekey/svelte-effect-runtime/tree/skills/skills/svelte-effect-runtime).
-
-<CommandPicker.Root
-	id="install-ser-skill"
-	default_value="deno"
-	select_label="Package manager"
-	storage_key="package-manager"
->
-	<CommandPicker.Item
-		value="deno"
-		label="Deno"
-		icon="deno"
-		command="deno run -A npm:skills add barekey/svelte-effect-runtime"
-	/>
-	<CommandPicker.Item
-		value="bun"
-		label="Bun"
-		icon="bun"
-		command="bunx skills add barekey/svelte-effect-runtime"
-	/>
-	<CommandPicker.Item
-		value="pnpm"
-		label="pnpm"
-		icon="pnpm"
-		command="pnpm dlx skills add barekey/svelte-effect-runtime"
-	/>
-	<CommandPicker.Item
-		value="npm"
-		label="npm"
-		icon="npm"
-		command="npx skills add barekey/svelte-effect-runtime"
-	/>
-	<CommandPicker.Item
-		value="yarn"
-		label="Yarn"
-		icon="yarn"
-		command="yarn dlx skills add barekey/svelte-effect-runtime"
-	/>
-	<CommandPicker.Item
-		value="nub"
-		label="Nub"
-		icon="nub"
-		command="nub dlx skills add barekey/svelte-effect-runtime"
-	/>
-	<CommandPicker.Item
-		value="aube"
-		label="Aube"
-		icon="aube"
-		command="aube dlx skills add barekey/svelte-effect-runtime"
-	/>
-	<CommandPicker.Item
-		value="vlt"
-		label="vlt"
-		icon="vlt"
-		command="vlt exec skills add barekey/svelte-effect-runtime"
-	/>
-</CommandPicker.Root>
+It is [available to download from the SER repository](https://github.com/usebarekey/svelte-effect-runtime/tree/master/skills/svelte-effect-runtime).
