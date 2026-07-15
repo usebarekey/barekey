@@ -396,12 +396,12 @@
 
 <div class="t-sidebar-flyout flex flex-1 flex-col">
 	<Sidebar.Header
-		class="pl-6 pr-14 xl:pl-2"
+		class="pl-6 pr-14 lg:pl-2"
 	>
 		<div class="t-sidebar-flyout-inline inline-block min-w-0 max-w-[var(--sidebar-flyout-inline-width,none)] overflow-visible whitespace-nowrap">
 			<a
 				href="/"
-				class="t-sidebar-child -ml-1 flex flex-row items-center gap-2 xl:ml-0"
+				class="t-sidebar-child -ml-1 flex flex-row items-center gap-2 lg:ml-0"
 				style={get_sidebar_child_style(0, docs_nav_render_model.child_count)}
 			>
 				<img
