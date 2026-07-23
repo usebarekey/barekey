@@ -3,6 +3,42 @@ title: "Changelog"
 description: "Follow the changes included in each SER release."
 ---
 
+## 4.1.0
+
+### Effects now follow component lifetime
+
+Effects started by SER syntax now run inside an Effect scope owned by their Svelte component. Destroying the component interrupts its in-flight work, runs registered finalizers, and clears component-local cached values instead of leaving that work attached to the application runtime.
+
+This applies across script and markup effects, including event handlers and reactive reruns. Work owned by another live component remains isolated and continues normally.
+
+### Updated SvelteKit compatibility
+
+The minimum supported SvelteKit 2 release is now `ts 2.69.0`. SvelteKit 3 prereleases remain supported.
+
+## 4.0.1
+
+### Live queries preserve their first value
+
+Live queries now retain an initial value supplied by SvelteKit while the remote Stream connects. Stream operators also preserve SER's transport controls, so `ts Live.status(...)` and `ts Live.reconnect(...)` continue to work after composing a live query.
+
+### Request cancellation reaches handlers
+
+Effects run through `ts Handler(...)` are now interrupted when the request's abort signal fires. This lets scoped resources release promptly when a client disconnects or cancels a request.
+
+### Remote commands keep native updates
+
+Command results now preserve SvelteKit's native update behavior instead of replacing it while SER decodes the Effect result.
+
+### Compiler and prerender fixes
+
+- Compiler diagnostics are loaded only for source that may need them, keeping TypeScript and diagnostic machinery out of ordinary runtime chunks.
+- Prerender bindings are retained and bridged correctly in generated remote modules.
+- Diagnostics for tokenless `yield` expressions now point at the correct source position.
+
+### Supported SvelteKit versions
+
+The SvelteKit 2 peer dependency now starts at `ts 2.61.0`, the first compatible release for the remote-function integration used by SER. SvelteKit 3 prereleases remain supported.
+
 ## 4.0.0
 
 ### Query.live is stream-native
