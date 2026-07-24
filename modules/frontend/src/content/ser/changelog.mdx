@@ -3,6 +3,16 @@ title: "Changelog"
 description: "Follow the changes included in each SER release."
 ---
 
+## 4.1.1
+
+### Editor scope diagnostics are fixed
+
+Effect scripts that combine top-level work with effectful markup no longer report that SER's generated component scope is used before its declaration. Scope wiring is now inserted before the first transformed Effect statement, including when the language server has already added markup helpers.
+
+### Stale language-server installs are cleaned up
+
+The VS Code extension now recognizes version-prefixed staging directories created by older SER releases. Abandoned language-server installs are removed instead of being retained with an invalid owner-metadata warning.
+
 ## 4.1.0
 
 ### Effects now follow component lifetime
